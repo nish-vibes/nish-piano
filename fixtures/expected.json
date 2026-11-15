@@ -1,0 +1,1619 @@
+{
+ "tolerance": {
+  "q": 0.004,
+  "bpm": 0.5
+ },
+ "fixtures": [
+  {
+   "file": "x1_c_major_basics.musicxml",
+   "kind": "musicxml",
+   "title": "Fixture 1 - C major basics",
+   "composer": "Wapiro tests",
+   "exactNotation": true,
+   "handsGuessed": false,
+   "keySigs": [
+    {
+     "q": 0.0,
+     "fifths": 0
+    }
+   ],
+   "timeSigs": [
+    {
+     "q": 0.0,
+     "num": 4,
+     "den": 4
+    }
+   ],
+   "tempos": [
+    {
+     "q": 0.0,
+     "bpm": 100
+    }
+   ],
+   "measures": [
+    {
+     "q": 0.0,
+     "lenQ": 4.0
+    },
+    {
+     "q": 4.0,
+     "lenQ": 4.0
+    },
+    {
+     "q": 8.0,
+     "lenQ": 4.0
+    },
+    {
+     "q": 12.0,
+     "lenQ": 4.0
+    }
+   ],
+   "notes": [
+    {
+     "q": 0.0,
+     "durQ": 2.0,
+     "midi": 48,
+     "hand": "L",
+     "spelled": "C3"
+    },
+    {
+     "q": 0.0,
+     "durQ": 1.0,
+     "midi": 72,
+     "hand": "R",
+     "spelled": "C5"
+    },
+    {
+     "q": 1.0,
+     "durQ": 0.5,
+     "midi": 74,
+     "hand": "R",
+     "spelled": "D5"
+    },
+    {
+     "q": 1.5,
+     "durQ": 0.5,
+     "midi": 76,
+     "hand": "R",
+     "spelled": "E5"
+    },
+    {
+     "q": 2.0,
+     "durQ": 2.0,
+     "midi": 52,
+     "hand": "L",
+     "spelled": "E3"
+    },
+    {
+     "q": 2.0,
+     "durQ": 2.0,
+     "midi": 55,
+     "hand": "L",
+     "spelled": "G3"
+    },
+    {
+     "q": 2.0,
+     "durQ": 1.5,
+     "midi": 77,
+     "hand": "R",
+     "spelled": "F5"
+    },
+    {
+     "q": 3.5,
+     "durQ": 0.5,
+     "midi": 79,
+     "hand": "R",
+     "spelled": "G5"
+    },
+    {
+     "q": 4.0,
+     "durQ": 4.0,
+     "midi": 48,
+     "hand": "L",
+     "spelled": "C3"
+    },
+    {
+     "q": 5.0,
+     "durQ": 1.0,
+     "midi": 81,
+     "hand": "R",
+     "spelled": "A5"
+    },
+    {
+     "q": 6.0,
+     "durQ": 2.0,
+     "midi": 79,
+     "hand": "R",
+     "spelled": "G5"
+    },
+    {
+     "q": 8.0,
+     "durQ": 1.0,
+     "midi": 43,
+     "hand": "L",
+     "spelled": "G2"
+    },
+    {
+     "q": 8.0,
+     "durQ": 0.25,
+     "midi": 76,
+     "hand": "R",
+     "spelled": "E5"
+    },
+    {
+     "q": 8.25,
+     "durQ": 0.25,
+     "midi": 77,
+     "hand": "R",
+     "spelled": "F5"
+    },
+    {
+     "q": 8.5,
+     "durQ": 0.25,
+     "midi": 79,
+     "hand": "R",
+     "spelled": "G5"
+    },
+    {
+     "q": 8.75,
+     "durQ": 0.25,
+     "midi": 81,
+     "hand": "R",
+     "spelled": "A5"
+    },
+    {
+     "q": 9.0,
+     "durQ": 1.0,
+     "midi": 79,
+     "hand": "R",
+     "spelled": "G5"
+    },
+    {
+     "q": 10.0,
+     "durQ": 2.0,
+     "midi": 48,
+     "hand": "L",
+     "spelled": "C3"
+    },
+    {
+     "q": 10.0,
+     "durQ": 2.0,
+     "midi": 55,
+     "hand": "L",
+     "spelled": "G3"
+    },
+    {
+     "q": 10.0,
+     "durQ": 2.0,
+     "midi": 76,
+     "hand": "R",
+     "spelled": "E5"
+    },
+    {
+     "q": 12.0,
+     "durQ": 4.0,
+     "midi": 48,
+     "hand": "L",
+     "spelled": "C3"
+    },
+    {
+     "q": 12.0,
+     "durQ": 4.0,
+     "midi": 52,
+     "hand": "L",
+     "spelled": "E3"
+    },
+    {
+     "q": 12.0,
+     "durQ": 4.0,
+     "midi": 55,
+     "hand": "L",
+     "spelled": "G3"
+    },
+    {
+     "q": 12.0,
+     "durQ": 4.0,
+     "midi": 72,
+     "hand": "R",
+     "spelled": "C5"
+    }
+   ]
+  },
+  {
+   "file": "x2_bflat_spelling.musicxml",
+   "kind": "musicxml",
+   "title": "Fixture 2 - B flat spelling",
+   "composer": "Wapiro tests",
+   "exactNotation": true,
+   "handsGuessed": false,
+   "keySigs": [
+    {
+     "q": 0.0,
+     "fifths": -2
+    }
+   ],
+   "timeSigs": [
+    {
+     "q": 0.0,
+     "num": 3,
+     "den": 4
+    }
+   ],
+   "tempos": [
+    {
+     "q": 0.0,
+     "bpm": 96
+    }
+   ],
+   "measures": [
+    {
+     "q": 0.0,
+     "lenQ": 3.0
+    },
+    {
+     "q": 3.0,
+     "lenQ": 3.0
+    },
+    {
+     "q": 6.0,
+     "lenQ": 3.0
+    }
+   ],
+   "notes": [
+    {
+     "q": 0.0,
+     "durQ": 3.0,
+     "midi": 46,
+     "hand": "L",
+     "spelled": "Bb2"
+    },
+    {
+     "q": 0.0,
+     "durQ": 1.0,
+     "midi": 70,
+     "hand": "R",
+     "spelled": "Bb4"
+    },
+    {
+     "q": 1.0,
+     "durQ": 1.0,
+     "midi": 74,
+     "hand": "R",
+     "spelled": "D5"
+    },
+    {
+     "q": 2.0,
+     "durQ": 1.0,
+     "midi": 75,
+     "hand": "R",
+     "spelled": "Eb5"
+    },
+    {
+     "q": 3.0,
+     "durQ": 2.0,
+     "midi": 51,
+     "hand": "L",
+     "spelled": "Eb3"
+    },
+    {
+     "q": 3.0,
+     "durQ": 2.0,
+     "midi": 55,
+     "hand": "L",
+     "spelled": "G3"
+    },
+    {
+     "q": 3.0,
+     "durQ": 1.0,
+     "midi": 76,
+     "hand": "R",
+     "spelled": "E5"
+    },
+    {
+     "q": 4.0,
+     "durQ": 1.0,
+     "midi": 78,
+     "hand": "R",
+     "spelled": "F#5"
+    },
+    {
+     "q": 5.0,
+     "durQ": 1.0,
+     "midi": 50,
+     "hand": "L",
+     "spelled": "D3"
+    },
+    {
+     "q": 5.0,
+     "durQ": 1.0,
+     "midi": 79,
+     "hand": "R",
+     "spelled": "G5"
+    },
+    {
+     "q": 6.0,
+     "durQ": 1.0,
+     "midi": 62,
+     "hand": "L",
+     "spelled": "D4"
+    },
+    {
+     "q": 6.0,
+     "durQ": 1.0,
+     "midi": 68,
+     "hand": "R",
+     "spelled": "Ab4"
+    },
+    {
+     "q": 7.0,
+     "durQ": 1.0,
+     "midi": 63,
+     "hand": "L",
+     "spelled": "Eb4"
+    },
+    {
+     "q": 7.0,
+     "durQ": 2.0,
+     "midi": 70,
+     "hand": "R",
+     "spelled": "Bb4"
+    },
+    {
+     "q": 8.0,
+     "durQ": 1.0,
+     "midi": 65,
+     "hand": "L",
+     "spelled": "F4"
+    }
+   ]
+  },
+  {
+   "file": "x3_meter_change_ties_triplets.musicxml",
+   "kind": "musicxml",
+   "title": "Fixture 3 - Meter change, ties, triplets",
+   "composer": "Wapiro tests",
+   "exactNotation": true,
+   "handsGuessed": false,
+   "keySigs": [
+    {
+     "q": 0.0,
+     "fifths": 1
+    }
+   ],
+   "timeSigs": [
+    {
+     "q": 0.0,
+     "num": 6,
+     "den": 8
+    },
+    {
+     "q": 6.0,
+     "num": 3,
+     "den": 4
+    }
+   ],
+   "tempos": [
+    {
+     "q": 0.0,
+     "bpm": 108
+    }
+   ],
+   "measures": [
+    {
+     "q": 0.0,
+     "lenQ": 3.0
+    },
+    {
+     "q": 3.0,
+     "lenQ": 3.0
+    },
+    {
+     "q": 6.0,
+     "lenQ": 3.0
+    },
+    {
+     "q": 9.0,
+     "lenQ": 3.0
+    }
+   ],
+   "notes": [
+    {
+     "q": 0.0,
+     "durQ": 1.5,
+     "midi": 43,
+     "hand": "L",
+     "spelled": "G2"
+    },
+    {
+     "q": 0.0,
+     "durQ": 0.5,
+     "midi": 74,
+     "hand": "R",
+     "spelled": "D5"
+    },
+    {
+     "q": 0.5,
+     "durQ": 0.5,
+     "midi": 76,
+     "hand": "R",
+     "spelled": "E5"
+    },
+    {
+     "q": 1.0,
+     "durQ": 0.5,
+     "midi": 79,
+     "hand": "R",
+     "spelled": "G5"
+    },
+    {
+     "q": 1.5,
+     "durQ": 1.5,
+     "midi": 50,
+     "hand": "L",
+     "spelled": "D3"
+    },
+    {
+     "q": 1.5,
+     "durQ": 3.0,
+     "midi": 83,
+     "hand": "R",
+     "spelled": "B5"
+    },
+    {
+     "q": 3.0,
+     "durQ": 3.0,
+     "midi": 43,
+     "hand": "L",
+     "spelled": "G2"
+    },
+    {
+     "q": 3.0,
+     "durQ": 3.0,
+     "midi": 50,
+     "hand": "L",
+     "spelled": "D3"
+    },
+    {
+     "q": 4.5,
+     "durQ": 0.5,
+     "midi": 81,
+     "hand": "R",
+     "spelled": "A5"
+    },
+    {
+     "q": 5.0,
+     "durQ": 0.5,
+     "midi": 79,
+     "hand": "R",
+     "spelled": "G5"
+    },
+    {
+     "q": 5.5,
+     "durQ": 0.5,
+     "midi": 78,
+     "hand": "R",
+     "spelled": "F#5"
+    },
+    {
+     "q": 6.0,
+     "durQ": 2.0,
+     "midi": 55,
+     "hand": "L",
+     "spelled": "G3"
+    },
+    {
+     "q": 6.0,
+     "durQ": 0.333333,
+     "midi": 79,
+     "hand": "R",
+     "spelled": "G5"
+    },
+    {
+     "q": 6.333333,
+     "durQ": 0.333333,
+     "midi": 81,
+     "hand": "R",
+     "spelled": "A5"
+    },
+    {
+     "q": 6.666667,
+     "durQ": 0.333333,
+     "midi": 83,
+     "hand": "R",
+     "spelled": "B5"
+    },
+    {
+     "q": 7.0,
+     "durQ": 1.0,
+     "midi": 86,
+     "hand": "R",
+     "spelled": "D6"
+    },
+    {
+     "q": 8.0,
+     "durQ": 1.0,
+     "midi": 50,
+     "hand": "L",
+     "spelled": "D3"
+    },
+    {
+     "q": 8.0,
+     "durQ": 0.25,
+     "midi": 84,
+     "hand": "R",
+     "spelled": "C6"
+    },
+    {
+     "q": 8.25,
+     "durQ": 0.25,
+     "midi": 83,
+     "hand": "R",
+     "spelled": "B5"
+    },
+    {
+     "q": 8.5,
+     "durQ": 0.25,
+     "midi": 81,
+     "hand": "R",
+     "spelled": "A5"
+    },
+    {
+     "q": 8.75,
+     "durQ": 0.25,
+     "midi": 79,
+     "hand": "R",
+     "spelled": "G5"
+    },
+    {
+     "q": 9.0,
+     "durQ": 3.0,
+     "midi": 43,
+     "hand": "L",
+     "spelled": "G2"
+    },
+    {
+     "q": 9.0,
+     "durQ": 3.0,
+     "midi": 79,
+     "hand": "R",
+     "spelled": "G5"
+    }
+   ]
+  },
+  {
+   "file": "x4_voices_pickup_repeat.musicxml",
+   "kind": "musicxml",
+   "title": "Fixture 4 - Voices, pickup, repeat",
+   "composer": "Wapiro tests",
+   "exactNotation": true,
+   "handsGuessed": false,
+   "keySigs": [
+    {
+     "q": 0.0,
+     "fifths": -1
+    }
+   ],
+   "timeSigs": [
+    {
+     "q": 0.0,
+     "num": 4,
+     "den": 4
+    }
+   ],
+   "tempos": [
+    {
+     "q": 0.0,
+     "bpm": 88
+    },
+    {
+     "q": 13.0,
+     "bpm": 120
+    }
+   ],
+   "measures": [
+    {
+     "q": 0.0,
+     "lenQ": 1.0
+    },
+    {
+     "q": 1.0,
+     "lenQ": 4.0
+    },
+    {
+     "q": 5.0,
+     "lenQ": 4.0
+    },
+    {
+     "q": 9.0,
+     "lenQ": 4.0
+    },
+    {
+     "q": 13.0,
+     "lenQ": 4.0
+    },
+    {
+     "q": 17.0,
+     "lenQ": 4.0
+    }
+   ],
+   "notes": [
+    {
+     "q": 0.0,
+     "durQ": 1.0,
+     "midi": 72,
+     "hand": "R",
+     "spelled": "C5"
+    },
+    {
+     "q": 1.0,
+     "durQ": 4.0,
+     "midi": 53,
+     "hand": "L",
+     "spelled": "F3"
+    },
+    {
+     "q": 1.0,
+     "durQ": 1.0,
+     "midi": 57,
+     "hand": "R",
+     "spelled": "A3"
+    },
+    {
+     "q": 1.0,
+     "durQ": 2.0,
+     "midi": 77,
+     "hand": "R",
+     "spelled": "F5"
+    },
+    {
+     "q": 2.0,
+     "durQ": 1.0,
+     "midi": 58,
+     "hand": "R",
+     "spelled": "Bb3"
+    },
+    {
+     "q": 3.0,
+     "durQ": 1.0,
+     "midi": 60,
+     "hand": "R",
+     "spelled": "C4"
+    },
+    {
+     "q": 3.0,
+     "durQ": 2.0,
+     "midi": 81,
+     "hand": "R",
+     "spelled": "A5"
+    },
+    {
+     "q": 4.0,
+     "durQ": 1.0,
+     "midi": 62,
+     "hand": "R",
+     "spelled": "D4"
+    },
+    {
+     "q": 5.0,
+     "durQ": 4.0,
+     "midi": 48,
+     "hand": "L",
+     "spelled": "C3"
+    },
+    {
+     "q": 5.0,
+     "durQ": 4.0,
+     "midi": 52,
+     "hand": "L",
+     "spelled": "E3"
+    },
+    {
+     "q": 5.0,
+     "durQ": 4.0,
+     "midi": 79,
+     "hand": "R",
+     "spelled": "G5"
+    },
+    {
+     "q": 9.0,
+     "durQ": 4.0,
+     "midi": 53,
+     "hand": "L",
+     "spelled": "F3"
+    },
+    {
+     "q": 9.0,
+     "durQ": 1.0,
+     "midi": 57,
+     "hand": "R",
+     "spelled": "A3"
+    },
+    {
+     "q": 9.0,
+     "durQ": 2.0,
+     "midi": 77,
+     "hand": "R",
+     "spelled": "F5"
+    },
+    {
+     "q": 10.0,
+     "durQ": 1.0,
+     "midi": 58,
+     "hand": "R",
+     "spelled": "Bb3"
+    },
+    {
+     "q": 11.0,
+     "durQ": 1.0,
+     "midi": 60,
+     "hand": "R",
+     "spelled": "C4"
+    },
+    {
+     "q": 11.0,
+     "durQ": 2.0,
+     "midi": 81,
+     "hand": "R",
+     "spelled": "A5"
+    },
+    {
+     "q": 12.0,
+     "durQ": 1.0,
+     "midi": 62,
+     "hand": "R",
+     "spelled": "D4"
+    },
+    {
+     "q": 13.0,
+     "durQ": 4.0,
+     "midi": 53,
+     "hand": "L",
+     "spelled": "F3"
+    },
+    {
+     "q": 13.0,
+     "durQ": 4.0,
+     "midi": 81,
+     "hand": "R",
+     "spelled": "A5"
+    },
+    {
+     "q": 17.0,
+     "durQ": 4.0,
+     "midi": 41,
+     "hand": "L",
+     "spelled": "F2"
+    },
+    {
+     "q": 17.0,
+     "durQ": 4.0,
+     "midi": 48,
+     "hand": "L",
+     "spelled": "C3"
+    },
+    {
+     "q": 17.0,
+     "durQ": 4.0,
+     "midi": 77,
+     "hand": "R",
+     "spelled": "F5"
+    }
+   ]
+  },
+  {
+   "file": "x5_range_and_chords.musicxml",
+   "kind": "musicxml",
+   "title": "Fixture 5 - Range and chords",
+   "composer": "Wapiro tests",
+   "exactNotation": true,
+   "handsGuessed": false,
+   "keySigs": [
+    {
+     "q": 0.0,
+     "fifths": 0
+    }
+   ],
+   "timeSigs": [
+    {
+     "q": 0.0,
+     "num": 4,
+     "den": 4
+    }
+   ],
+   "tempos": [
+    {
+     "q": 0.0,
+     "bpm": 60
+    }
+   ],
+   "measures": [
+    {
+     "q": 0.0,
+     "lenQ": 4.0
+    },
+    {
+     "q": 4.0,
+     "lenQ": 4.0
+    }
+   ],
+   "notes": [
+    {
+     "q": 0.0,
+     "durQ": 4.0,
+     "midi": 21,
+     "hand": "L",
+     "spelled": "A0"
+    },
+    {
+     "q": 0.0,
+     "durQ": 4.0,
+     "midi": 108,
+     "hand": "R",
+     "spelled": "C8"
+    },
+    {
+     "q": 4.0,
+     "durQ": 4.0,
+     "midi": 36,
+     "hand": "L",
+     "spelled": "C2"
+    },
+    {
+     "q": 4.0,
+     "durQ": 4.0,
+     "midi": 48,
+     "hand": "L",
+     "spelled": "C3"
+    },
+    {
+     "q": 4.0,
+     "durQ": 2.0,
+     "midi": 76,
+     "hand": "R",
+     "spelled": "E5"
+    },
+    {
+     "q": 4.0,
+     "durQ": 2.0,
+     "midi": 77,
+     "hand": "R",
+     "spelled": "F5"
+    },
+    {
+     "q": 6.0,
+     "durQ": 2.0,
+     "midi": 72,
+     "hand": "R",
+     "spelled": "C5"
+    },
+    {
+     "q": 6.0,
+     "durQ": 2.0,
+     "midi": 76,
+     "hand": "R",
+     "spelled": "E5"
+    },
+    {
+     "q": 6.0,
+     "durQ": 2.0,
+     "midi": 79,
+     "hand": "R",
+     "spelled": "G5"
+    },
+    {
+     "q": 6.0,
+     "durQ": 2.0,
+     "midi": 84,
+     "hand": "R",
+     "spelled": "C6"
+    }
+   ]
+  },
+  {
+   "file": "x6_two_parts.musicxml",
+   "kind": "musicxml",
+   "title": "Fixture 6 - Two parts",
+   "composer": "Wapiro tests",
+   "exactNotation": true,
+   "handsGuessed": false,
+   "keySigs": [
+    {
+     "q": 0.0,
+     "fifths": 2
+    }
+   ],
+   "timeSigs": [
+    {
+     "q": 0.0,
+     "num": 3,
+     "den": 4
+    }
+   ],
+   "tempos": [
+    {
+     "q": 0.0,
+     "bpm": 120
+    }
+   ],
+   "measures": [
+    {
+     "q": 0.0,
+     "lenQ": 3.0
+    },
+    {
+     "q": 3.0,
+     "lenQ": 3.0
+    }
+   ],
+   "notes": [
+    {
+     "q": 0.0,
+     "durQ": 3.0,
+     "midi": 50,
+     "hand": "L",
+     "spelled": "D3"
+    },
+    {
+     "q": 0.0,
+     "durQ": 1.0,
+     "midi": 74,
+     "hand": "R",
+     "spelled": "D5"
+    },
+    {
+     "q": 1.0,
+     "durQ": 1.0,
+     "midi": 78,
+     "hand": "R",
+     "spelled": "F#5"
+    },
+    {
+     "q": 2.0,
+     "durQ": 1.0,
+     "midi": 81,
+     "hand": "R",
+     "spelled": "A5"
+    },
+    {
+     "q": 3.0,
+     "durQ": 3.0,
+     "midi": 50,
+     "hand": "L",
+     "spelled": "D3"
+    },
+    {
+     "q": 3.0,
+     "durQ": 3.0,
+     "midi": 57,
+     "hand": "L",
+     "spelled": "A3"
+    },
+    {
+     "q": 3.0,
+     "durQ": 3.0,
+     "midi": 74,
+     "hand": "R",
+     "spelled": "D5"
+    }
+   ]
+  },
+  {
+   "file": "x1_c_major_basics.mxl",
+   "kind": "mxl",
+   "title": "Fixture 1 - C major basics",
+   "composer": "Wapiro tests",
+   "exactNotation": true,
+   "handsGuessed": false,
+   "keySigs": [
+    {
+     "q": 0.0,
+     "fifths": 0
+    }
+   ],
+   "timeSigs": [
+    {
+     "q": 0.0,
+     "num": 4,
+     "den": 4
+    }
+   ],
+   "tempos": [
+    {
+     "q": 0.0,
+     "bpm": 100
+    }
+   ],
+   "measures": [
+    {
+     "q": 0.0,
+     "lenQ": 4.0
+    },
+    {
+     "q": 4.0,
+     "lenQ": 4.0
+    },
+    {
+     "q": 8.0,
+     "lenQ": 4.0
+    },
+    {
+     "q": 12.0,
+     "lenQ": 4.0
+    }
+   ],
+   "notes": [
+    {
+     "q": 0.0,
+     "durQ": 2.0,
+     "midi": 48,
+     "hand": "L",
+     "spelled": "C3"
+    },
+    {
+     "q": 0.0,
+     "durQ": 1.0,
+     "midi": 72,
+     "hand": "R",
+     "spelled": "C5"
+    },
+    {
+     "q": 1.0,
+     "durQ": 0.5,
+     "midi": 74,
+     "hand": "R",
+     "spelled": "D5"
+    },
+    {
+     "q": 1.5,
+     "durQ": 0.5,
+     "midi": 76,
+     "hand": "R",
+     "spelled": "E5"
+    },
+    {
+     "q": 2.0,
+     "durQ": 2.0,
+     "midi": 52,
+     "hand": "L",
+     "spelled": "E3"
+    },
+    {
+     "q": 2.0,
+     "durQ": 2.0,
+     "midi": 55,
+     "hand": "L",
+     "spelled": "G3"
+    },
+    {
+     "q": 2.0,
+     "durQ": 1.5,
+     "midi": 77,
+     "hand": "R",
+     "spelled": "F5"
+    },
+    {
+     "q": 3.5,
+     "durQ": 0.5,
+     "midi": 79,
+     "hand": "R",
+     "spelled": "G5"
+    },
+    {
+     "q": 4.0,
+     "durQ": 4.0,
+     "midi": 48,
+     "hand": "L",
+     "spelled": "C3"
+    },
+    {
+     "q": 5.0,
+     "durQ": 1.0,
+     "midi": 81,
+     "hand": "R",
+     "spelled": "A5"
+    },
+    {
+     "q": 6.0,
+     "durQ": 2.0,
+     "midi": 79,
+     "hand": "R",
+     "spelled": "G5"
+    },
+    {
+     "q": 8.0,
+     "durQ": 1.0,
+     "midi": 43,
+     "hand": "L",
+     "spelled": "G2"
+    },
+    {
+     "q": 8.0,
+     "durQ": 0.25,
+     "midi": 76,
+     "hand": "R",
+     "spelled": "E5"
+    },
+    {
+     "q": 8.25,
+     "durQ": 0.25,
+     "midi": 77,
+     "hand": "R",
+     "spelled": "F5"
+    },
+    {
+     "q": 8.5,
+     "durQ": 0.25,
+     "midi": 79,
+     "hand": "R",
+     "spelled": "G5"
+    },
+    {
+     "q": 8.75,
+     "durQ": 0.25,
+     "midi": 81,
+     "hand": "R",
+     "spelled": "A5"
+    },
+    {
+     "q": 9.0,
+     "durQ": 1.0,
+     "midi": 79,
+     "hand": "R",
+     "spelled": "G5"
+    },
+    {
+     "q": 10.0,
+     "durQ": 2.0,
+     "midi": 48,
+     "hand": "L",
+     "spelled": "C3"
+    },
+    {
+     "q": 10.0,
+     "durQ": 2.0,
+     "midi": 55,
+     "hand": "L",
+     "spelled": "G3"
+    },
+    {
+     "q": 10.0,
+     "durQ": 2.0,
+     "midi": 76,
+     "hand": "R",
+     "spelled": "E5"
+    },
+    {
+     "q": 12.0,
+     "durQ": 4.0,
+     "midi": 48,
+     "hand": "L",
+     "spelled": "C3"
+    },
+    {
+     "q": 12.0,
+     "durQ": 4.0,
+     "midi": 52,
+     "hand": "L",
+     "spelled": "E3"
+    },
+    {
+     "q": 12.0,
+     "durQ": 4.0,
+     "midi": 55,
+     "hand": "L",
+     "spelled": "G3"
+    },
+    {
+     "q": 12.0,
+     "durQ": 4.0,
+     "midi": 72,
+     "hand": "R",
+     "spelled": "C5"
+    }
+   ]
+  },
+  {
+   "file": "m1_two_hands_bflat_3-4.mid",
+   "kind": "midi",
+   "exactNotation": false,
+   "handsGuessed": false,
+   "keySigs": [
+    {
+     "q": 0,
+     "fifths": -2
+    }
+   ],
+   "timeSigs": [
+    {
+     "q": 0,
+     "num": 3,
+     "den": 4
+    }
+   ],
+   "tempos": [
+    {
+     "q": 0,
+     "bpm": 96
+    }
+   ],
+   "measures": [
+    {
+     "q": 0,
+     "lenQ": 3
+    },
+    {
+     "q": 3,
+     "lenQ": 3
+    },
+    {
+     "q": 6,
+     "lenQ": 3
+    },
+    {
+     "q": 9,
+     "lenQ": 3
+    }
+   ],
+   "notes": [
+    {
+     "q": 0.0,
+     "durQ": 3.0,
+     "midi": 46,
+     "hand": "L",
+     "spelled": "Bb2"
+    },
+    {
+     "q": 0.0,
+     "durQ": 1.0,
+     "midi": 70,
+     "hand": "R",
+     "spelled": "Bb4"
+    },
+    {
+     "q": 1.0,
+     "durQ": 1.0,
+     "midi": 74,
+     "hand": "R",
+     "spelled": "D5"
+    },
+    {
+     "q": 2.0,
+     "durQ": 1.0,
+     "midi": 75,
+     "hand": "R",
+     "spelled": "Eb5"
+    },
+    {
+     "q": 3.0,
+     "durQ": 1.0,
+     "midi": 58,
+     "hand": "R",
+     "spelled": "Bb3"
+    },
+    {
+     "q": 3.0,
+     "durQ": 1.0,
+     "midi": 62,
+     "hand": "L",
+     "spelled": "D4"
+    },
+    {
+     "q": 4.0,
+     "durQ": 1.0,
+     "midi": 57,
+     "hand": "R",
+     "spelled": "A3"
+    },
+    {
+     "q": 4.0,
+     "durQ": 1.0,
+     "midi": 63,
+     "hand": "L",
+     "spelled": "Eb4"
+    },
+    {
+     "q": 5.0,
+     "durQ": 1.0,
+     "midi": 58,
+     "hand": "R",
+     "spelled": "Bb3"
+    },
+    {
+     "q": 5.0,
+     "durQ": 1.0,
+     "midi": 65,
+     "hand": "L",
+     "spelled": "F4"
+    },
+    {
+     "q": 6.0,
+     "durQ": 3.0,
+     "midi": 51,
+     "hand": "L",
+     "spelled": "Eb3"
+    },
+    {
+     "q": 6.0,
+     "durQ": 3.0,
+     "midi": 58,
+     "hand": "L",
+     "spelled": "Bb3"
+    },
+    {
+     "q": 6.0,
+     "durQ": 2.0,
+     "midi": 77,
+     "hand": "R",
+     "spelled": "F5"
+    },
+    {
+     "q": 8.0,
+     "durQ": 1.0,
+     "midi": 74,
+     "hand": "R",
+     "spelled": "D5"
+    },
+    {
+     "q": 9.0,
+     "durQ": 3.0,
+     "midi": 46,
+     "hand": "L",
+     "spelled": "Bb2"
+    },
+    {
+     "q": 9.0,
+     "durQ": 3.0,
+     "midi": 53,
+     "hand": "L",
+     "spelled": "F3"
+    },
+    {
+     "q": 9.0,
+     "durQ": 3.0,
+     "midi": 70,
+     "hand": "R",
+     "spelled": "Bb4"
+    }
+   ]
+  },
+  {
+   "file": "m2_format0_6-8_triplets.mid",
+   "kind": "midi",
+   "exactNotation": false,
+   "handsGuessed": true,
+   "keySigs": [
+    {
+     "q": 0,
+     "fifths": 1
+    }
+   ],
+   "timeSigs": [
+    {
+     "q": 0,
+     "num": 6,
+     "den": 8
+    },
+    {
+     "q": 6,
+     "num": 2,
+     "den": 4
+    }
+   ],
+   "tempos": [
+    {
+     "q": 0,
+     "bpm": 120
+    },
+    {
+     "q": 6,
+     "bpm": 100
+    }
+   ],
+   "measures": [
+    {
+     "q": 0,
+     "lenQ": 3
+    },
+    {
+     "q": 3,
+     "lenQ": 3
+    },
+    {
+     "q": 6,
+     "lenQ": 2
+    },
+    {
+     "q": 8,
+     "lenQ": 2
+    }
+   ],
+   "notes": [
+    {
+     "q": 0.0,
+     "durQ": 1.5,
+     "midi": 43
+    },
+    {
+     "q": 0.0,
+     "durQ": 0.5,
+     "midi": 67
+    },
+    {
+     "q": 0.5,
+     "durQ": 0.5,
+     "midi": 71
+    },
+    {
+     "q": 1.0,
+     "durQ": 0.5,
+     "midi": 74
+    },
+    {
+     "q": 1.5,
+     "durQ": 1.5,
+     "midi": 50
+    },
+    {
+     "q": 1.5,
+     "durQ": 1.5,
+     "midi": 79
+    },
+    {
+     "q": 3.0,
+     "durQ": 3.0,
+     "midi": 43
+    },
+    {
+     "q": 3.0,
+     "durQ": 1.5,
+     "midi": 78
+    },
+    {
+     "q": 4.5,
+     "durQ": 0.5,
+     "midi": 76
+    },
+    {
+     "q": 5.0,
+     "durQ": 0.5,
+     "midi": 74
+    },
+    {
+     "q": 5.5,
+     "durQ": 0.5,
+     "midi": 72
+    },
+    {
+     "q": 6.0,
+     "durQ": 2.0,
+     "midi": 55
+    },
+    {
+     "q": 6.0,
+     "durQ": 0.333333,
+     "midi": 67
+    },
+    {
+     "q": 6.333333,
+     "durQ": 0.333333,
+     "midi": 69
+    },
+    {
+     "q": 6.666667,
+     "durQ": 0.333333,
+     "midi": 71
+    },
+    {
+     "q": 7.0,
+     "durQ": 0.333333,
+     "midi": 72
+    },
+    {
+     "q": 7.333333,
+     "durQ": 0.333333,
+     "midi": 71
+    },
+    {
+     "q": 7.666667,
+     "durQ": 0.333333,
+     "midi": 69
+    },
+    {
+     "q": 8.0,
+     "durQ": 2.0,
+     "midi": 43
+    },
+    {
+     "q": 8.0,
+     "durQ": 2.0,
+     "midi": 67
+    }
+   ]
+  },
+  {
+   "file": "m3_range_tempo_pedal_drums.mid",
+   "kind": "midi",
+   "exactNotation": false,
+   "handsGuessed": true,
+   "timeSigs": [
+    {
+     "q": 0,
+     "num": 4,
+     "den": 4
+    }
+   ],
+   "tempos": [
+    {
+     "q": 0,
+     "bpm": 60
+    },
+    {
+     "q": 4,
+     "bpm": 120
+    }
+   ],
+   "measures": [
+    {
+     "q": 0,
+     "lenQ": 4
+    },
+    {
+     "q": 4,
+     "lenQ": 4
+    }
+   ],
+   "notes": [
+    {
+     "q": 0.0,
+     "durQ": 2.0,
+     "midi": 21
+    },
+    {
+     "q": 2.0,
+     "durQ": 2.0,
+     "midi": 108
+    },
+    {
+     "q": 4.0,
+     "durQ": 1.0,
+     "midi": 60
+    },
+    {
+     "q": 4.0,
+     "durQ": 1.0,
+     "midi": 64
+    },
+    {
+     "q": 4.0,
+     "durQ": 1.0,
+     "midi": 67
+    },
+    {
+     "q": 5.0,
+     "durQ": 1.0,
+     "midi": 72
+    },
+    {
+     "q": 6.0,
+     "durQ": 2.0,
+     "midi": 36
+    },
+    {
+     "q": 6.0,
+     "durQ": 2.0,
+     "midi": 96
+    }
+   ]
+  },
+  {
+   "file": "m4_no_notes.mid",
+   "kind": "midi",
+   "error": true
+  },
+  {
+   "file": "bad_not_music.musicxml",
+   "kind": "musicxml",
+   "error": true
+  }
+ ]
+}

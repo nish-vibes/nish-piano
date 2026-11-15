@@ -1,0 +1,138 @@
+#!/usr/bin/env node
+/* Behaviour tests for MarkSteady Wapiro v2.0. They drive the real app through window.WapiroTest
+ * (thin wrappers over the same functions the UI calls) and check the defects found in v1.0.
+ *
+ * Usage: node tests/run_behaviour.js [path/to/app.html]
+ */
+const fs = require('fs');
+const path = require('path');
+const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+
+const html = path.resolve(process.argv[2] || path.join(__dirname, '..', 'dist', 'marksteady_waterfall_piano_roll_v2_0_0.html'));
+const fxDir = path.join(__dirname, '..', 'fixtures');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+(async () => {
+  const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const pageErrors = [];
+  page.on('pageerror', (e) => pageErrors.push(String(e)));
+  await page.route('**/*', (route) => {
+    const u = route.request().url();
+    return (u.startsWith('file:') || u.startsWith('data:') || u.startsWith('blob:')) ? route.continue() : route.abort();
+  });
+  const ready = async () => page.waitForFunction(() => window.WapiroTest && typeof window.WapiroTest.state === 'function', null, { timeout: 8000 });
+  await page.goto('file://' + html);
+  try { await ready(); } catch (e) { console.log('FAIL  window.WapiroTest not available'); await browser.close(); process.exit(1); }
+
+  const T = (name, ...args) => page.evaluate(async ([n, a]) => await window.WapiroTest[n](...a), [name, args]);
+  const importFx = (file, as) => page.evaluate(async ({ name, b64 }) => {
+    const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    return await window.WapiroTest.importBytes(name, bin.buffer);
+  }, { name: as || file, b64: fs.readFileSync(path.join(fxDir, file)).toString('base64') });
+  const waitFor = async (pred, ms, step = 50) => { const end = Date.now() + ms; let s; do { s = await T('state'); if (pred(s)) return s; await sleep(step); } while (Date.now() < end); return null; };
+  const best = async (id) => ((await T('listSongs')).find((s) => s.id === id) || {}).best;
+
+  let failures = 0;
+  const check = (name, ok, detail) => { if (ok) console.log('pass  ' + name); else { failures++; console.log('FAIL  ' + name + (detail ? '\n        ' + detail : '')); } };
+  const OPT = { wait: true, hands: 'R', speed: 1, loop: null, restartAfter: 0, metronome: false, countIn: false };
+
+  await T('reset');
+  let s = await T('state');
+  let songs = await T('listSongs');
+  check('first run: a song is loaded and nothing is playing', songs.length >= 1 && !!s.songId && s.playing === false, JSON.stringify({ songs: songs.length, s }));
+
+  // v1 bug: opening the report before playing saved "Best: 100%".
+  await T('openResults');
+  check('opening results before playing records no best score', (await best(s.songId)) == null, 'best=' + (await best(s.songId)));
+  await T('closeResults');
+
+  const before = (await T('listSongs')).length;
+  const r1 = await importFx('x1_c_major_basics.musicxml');
+  const r6 = await importFx('x6_two_parts.musicxml');
+  check('MusicXML files import through the app', r1 && r1.ok && r6 && r6.ok && (await T('listSongs')).length === before + 2, JSON.stringify([r1, r6]));
+  const rEmpty = await importFx('m4_no_notes.mid');
+  check('a MIDI file without notes is refused with a message (v1 silently loaded Ode to Joy)', rEmpty && rEmpty.ok === false && String(rEmpty.error || '').length > 8 && (await T('listSongs')).length === before + 2, JSON.stringify(rEmpty));
+  const rPdf = await page.evaluate(async () => await window.WapiroTest.importBytes('score.pdf', new TextEncoder().encode('%PDF-1.4\n% not a score\n').buffer));
+  check('a PDF is not "recognised": the app explains the MusicXML route instead', rPdf && rPdf.ok === false && /musicxml/i.test(String(rPdf.error || '')) && (await T('listSongs')).length === before + 2, JSON.stringify(rPdf));
+
+  // Wait mode: holds at the first note, advances when it is played.
+  await T('openSong', r1.id); await T('setOptions', OPT); await T('seekMeasure', 1); await T('play');
+  s = await waitFor((x) => x.playing && x.waitingFor.some((n) => n.midi === 72), 2500);
+  check('wait mode holds at the first right-hand note', !!s && s.q <= 0.06, JSON.stringify(s));
+  await T('noteOn', 72, 80); await sleep(60); await T('noteOff', 72);
+  s = await waitFor((x) => x.waitingFor.some((n) => n.midi === 74), 3000);
+  check('after the right note it advances and waits at the next one', !!s && s.q > 0.9 && s.q < 1.06 && s.stats.hit === 1, JSON.stringify(s));
+  const wrongBefore = s ? s.stats.wrong : 0;
+  await T('noteOn', 61, 80); await sleep(40); await T('noteOff', 61);
+  s = await T('state');
+  check('a wrong key counts as wrong, not as a hit', s.stats.wrong === wrongBefore + 1 && s.stats.hit === 1, JSON.stringify(s.stats));
+
+  // v1 bug: with wait mode on, jumping ahead snapped back to the first unplayed note.
+  await T('pause'); await T('seekMeasure', 3); await T('play');
+  s = await waitFor((x) => x.playing && x.waitingFor.some((n) => n.midi === 76), 2500);
+  check('seeking to bar 3 in wait mode stays in bar 3', !!s && s.q >= 7.99 && s.waitingFor.every((n) => n.q >= 7.99), JSON.stringify(s));
+
+  // v1 bug: looping a later section from a fresh start snapped back to bar 1.
+  await T('stop'); await T('setOptions', Object.assign({}, OPT, { loop: { from: 2, to: 3 } })); await T('play');
+  s = await waitFor((x) => x.playing && x.waitingFor.some((n) => n.midi === 81), 4000);
+  check('a loop on bars 2-3 starts in bar 2 and waits there', !!s && s.q >= 4.9 && s.q <= 5.06 && s.waitingFor.every((n) => n.q >= 3.99), JSON.stringify(s));
+  await T('stop'); await T('setOptions', OPT);
+
+  // 88 keys.
+  await T('noteOn', 21, 80); await T('noteOn', 108, 80);
+  s = await T('state');
+  check('A0 and C8 are accepted as input (v1 ignored anything outside C2-C7)', s.activeKeys.includes(21) && s.activeKeys.includes(108), JSON.stringify(s.activeKeys));
+  await T('noteOff', 21); await T('noteOff', 108);
+
+  // v1 bug: watching the demo to the end saved "Best: 100%".
+  await T('openSong', r6.id); await T('setOptions', Object.assign({}, OPT, { speed: 1.5 })); await T('listen');
+  const during = await waitFor((x) => x.playing && x.mode === 'listen', 1500);
+  const done = await waitFor((x) => !x.playing, 9000, 100);
+  check('listen mode plays to the end and records no best score', !!during && !!done && (await best(r6.id)) == null, JSON.stringify({ during: !!during, done: !!done, best: await best(r6.id) }));
+  await T('closeResults');
+
+  // In-tempo mode: notes that are not played are counted as missed.
+  await T('openSong', r6.id); await T('setOptions', Object.assign({}, OPT, { wait: false, speed: 1.5 })); await T('seekMeasure', 1); await T('play');
+  const ended = await waitFor((x) => !x.playing, 9000, 100);
+  check('in-tempo mode counts unplayed notes as missed', !!ended && ended.stats.missed >= 4 && ended.stats.hit === 0, JSON.stringify(ended && ended.stats));
+  await T('closeResults');
+
+  // A complete, correct practice run does record a score.
+  await T('openSong', r6.id); await T('setOptions', Object.assign({}, OPT, { speed: 1.5 })); await T('seekMeasure', 1); await T('play');
+  let played = 0;
+  for (const m of [74, 78, 81, 74]) {
+    const w = await waitFor((x) => x.playing && x.waitingFor.some((n) => n.midi === m), 4000, 30);
+    if (!w) break;
+    await T('noteOn', m, 80); await sleep(50); await T('noteOff', m); played++;
+    await sleep(60);
+  }
+  const fin = await waitFor((x) => !x.playing, 9000, 100);
+  check('a complete correct run records best = 100', played === 4 && !!fin && (await best(r6.id)) === 100, JSON.stringify({ played, fin: fin && fin.stats, best: await best(r6.id) }));
+  await T('closeResults');
+
+  // v1 bug: edits were lost unless Save was pressed; there was no undo.
+  await T('openSong', r1.id);
+  const n0 = (await T('songInfo', r1.id)).notes;
+  await T('editAddNote', { q: 15, durQ: 1, midi: 84, hand: 'R' });
+  const n1 = (await T('songInfo', r1.id)).notes;
+  await T('undo'); const n2 = (await T('songInfo', r1.id)).notes;
+  await T('redo'); const n3 = (await T('songInfo', r1.id)).notes;
+  check('editing adds a note; undo and redo work', n1 === n0 + 1 && n2 === n0 && n3 === n0 + 1, JSON.stringify([n0, n1, n2, n3]));
+  await T('setAppearance', 'dark'); await T('setView', 'sheet');
+  await sleep(900);
+  await page.reload(); await ready(); await sleep(500);
+  s = await T('state');
+  check('edits are saved without a Save button and survive a reload', (await T('songInfo', r1.id)).notes === n0 + 1, 'notes=' + (await T('songInfo', r1.id)).notes);
+  check('appearance and view survive a reload', s.appearance === 'dark' && s.view === 'sheet', JSON.stringify({ appearance: s.appearance, view: s.view }));
+  check('the best score survives a reload', (await best(r6.id)) === 100, 'best=' + (await best(r6.id)));
+
+  const cnt = (await T('listSongs')).length;
+  await T('deleteSong', r6.id);
+  check('songs can be deleted (v1 had no delete)', (await T('listSongs')).length === cnt - 1 && !(await T('listSongs')).some((x) => x.id === r6.id), '');
+
+  check('no page errors', pageErrors.length === 0, pageErrors.slice(0, 4).join(' | '));
+  await browser.close();
+  console.log(failures ? `\n${failures} behaviour check(s) FAILED` : '\nAll behaviour checks passed');
+  process.exit(failures ? 1 : 0);
+})().catch((e) => { console.error(e); process.exit(2); });

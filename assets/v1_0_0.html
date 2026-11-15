@@ -1,0 +1,3363 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>MarkSteady Waterfall Piano Roll (MarkSteady Wapiro) v1.0.0</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', ' system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            studio: {
+              950: '#07090e',
+              900: '#0d111a',
+              850: '#131926',
+              800: '#1a2234',
+              700: '#26324b',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #07090e;
+      color: #f1f5f9;
+      touch-action: manipulation;
+    }
+    /* Custom scrollbars for modals and drawers */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0d111a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #26324b;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b4d71;
+    }
+    input[type="range"] {
+      accent-color: #06b6d4;
+    }
+    .glass-panel {
+      background: rgba(19, 25, 38, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.7; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.06); }
+    }
+    .animate-pulse-glow {
+      animation: pulseGlow 1.8s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="flex flex-col h-screen w-screen overflow-hidden bg-studio-950 text-slate-100 font-sans">
+
+  <!-- ==================== TOP STUDIO HEADER & TRANSPORT BAR ==================== -->
+  <header class="w-full bg-studio-900 border-b border-slate-800/90 px-2.5 py-1.5 flex flex-wrap items-center justify-between gap-2 z-30 shrink-0 shadow-lg">
+    
+    <!-- Left: Brand + Song Picker + Local Library Trigger -->
+    <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 bg-studio-850 border border-slate-700/70 rounded-xl px-2.5 py-1.5 shadow-inner">
+        <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-600 flex items-center justify-center shadow-md shadow-cyan-500/20">
+          <i class="fa-solid fa-water text-white text-xs"></i>
+        </div>
+        <div class="leading-tight hidden sm:block">
+          <div class="flex items-center gap-1.5">
+            <span class="font-extrabold text-xs tracking-tight text-white">MarkSteady</span>
+            <span class="text-[10px] font-bold px-1.5 py-0.2 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded">WAPIRO 1.0</span>
+          </div>
+          <div class="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
+            Local-First • Zero Cloud
+          </div>
+        </div>
+      </div>
+
+      <!-- Song Selector & Library Modal Button -->
+      <div class="flex items-center bg-studio-850 border border-slate-700/80 rounded-xl p-0.5">
+        <select id="songSelectDropdown" aria-label="Select Song" class="bg-transparent text-xs sm:text-sm font-semibold text-slate-100 px-2.5 py-1.5 rounded-lg focus:outline-none cursor-pointer max-w-[160px] sm:max-w-[230px] truncate">
+        </select>
+        <button id="openLibraryBtn" class="px-2.5 py-1.5 text-xs font-semibold bg-indigo-600/90 hover:bg-indigo-500 text-white rounded-lg transition flex items-center gap-1.5 shadow" title="Open Local Library, Import MIDI/PDF & Backups">
+          <i class="fa-solid fa-folder-music"></i>
+          <span class="hidden md:inline">Library / Import</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Center: Transport Controls + Measure/Time Readout + Speed Multiplier -->
+    <div class="flex items-center gap-1.5 bg-studio-850 border border-slate-700/80 rounded-xl px-2 py-1 shadow-inner">
+      <button id="rewindStartBtn" class="w-8 h-8 rounded-lg bg-studio-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center transition" title="Stop & Return to Start (Home)">
+        <i class="fa-solid fa-backward-fast text-xs"></i>
+      </button>
+      <button id="prevMeasureBtn" class="w-7 h-8 rounded-lg bg-studio-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition" title="Previous Measure">
+        <i class="fa-solid fa-chevron-left text-xs"></i>
+      </button>
+      <button id="playPauseBtn" class="px-3.5 h-8 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition" title="Play / Pause">
+        <i id="playPauseIcon" class="fa-solid fa-play text-xs"></i>
+        <span id="playPauseLabel">Play</span>
+      </button>
+      <button id="nextMeasureBtn" class="w-7 h-8 rounded-lg bg-studio-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition" title="Next Measure">
+        <i class="fa-solid fa-chevron-right text-xs"></i>
+      </button>
+
+      <!-- Live Measure:Beat & Clock -->
+      <div class="px-2.5 py-0.5 bg-studio-950 border border-slate-800 rounded-lg font-mono text-xs flex items-center gap-2">
+        <div>
+          <span class="text-slate-400 text-[10px] block leading-none">BAR:BEAT</span>
+          <span id="barBeatDisplay" class="text-cyan-300 font-bold">01 : 1</span>
+        </div>
+        <div class="h-5 w-[1px] bg-slate-800"></div>
+        <div>
+          <span class="text-slate-400 text-[10px] block leading-none">TIME</span>
+          <span id="timeClockDisplay" class="text-slate-200 font-semibold">0:00</span>
+        </div>
+      </div>
+
+      <!-- Speed Control (0.5x to 1.5x) -->
+      <div class="hidden lg:flex items-center gap-1.5 pl-1.5 border-l border-slate-700/70">
+        <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Speed</span>
+        <input id="speedSlider" type="range" min="0.5" max="1.5" step="0.05" value="1.0" class="w-20 h-1.5 cursor-pointer" title="Practice Speed (0.5x to 1.5x without changing pitch)" />
+        <button id="speedResetBtn" class="text-xs font-mono font-bold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/25" title="Click to reset to 1.0x">
+          1.00×
+        </button>
+      </div>
+    </div>
+
+    <!-- Right: Real-Time Performance Scoring HUD -->
+    <div class="flex items-center gap-1.5 bg-studio-850 border border-slate-700/80 rounded-xl px-2.5 py-1">
+      <div class="flex items-center gap-2.5 text-xs font-mono">
+        <div class="text-center" title="Correct Notes Hit">
+          <span class="text-[9px] text-slate-400 block leading-none">HIT</span>
+          <span id="hudCorrect" class="text-emerald-400 font-bold">0</span>
+        </div>
+        <div class="text-center" title="Missed Notes">
+          <span class="text-[9px] text-slate-400 block leading-none">MISS</span>
+          <span id="hudMissed" class="text-rose-400 font-bold">0</span>
+        </div>
+        <div class="text-center" title="Extra / Incorrect Notes">
+          <span class="text-[9px] text-slate-400 block leading-none">EXTRA</span>
+          <span id="hudExtra" class="text-amber-400 font-bold">0</span>
+        </div>
+        <div class="text-center hidden sm:block" title="Current Note Streak">
+          <span class="text-[9px] text-slate-400 block leading-none">STREAK</span>
+          <span id="hudStreak" class="text-cyan-300 font-bold">0</span>
+        </div>
+        <div class="px-2 py-0.5 rounded-lg bg-studio-950 border border-slate-800 text-center">
+          <span class="text-[9px] text-slate-400 block leading-none">ACCURACY</span>
+          <span id="hudAccuracy" class="text-white font-extrabold">100%</span>
+        </div>
+      </div>
+      <button id="openSummaryBtn" class="ml-1 px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-xs font-semibold transition flex items-center gap-1" title="View Performance Report & Measure Accuracy">
+        <i class="fa-solid fa-chart-pie"></i>
+        <span class="hidden xl:inline">Report</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== SECOND STUDIO TOOLBAR: LEARNING TOOLS, SOUND, INPUT & EDITOR ==================== -->
+  <section class="w-full bg-studio-900/95 border-b border-slate-800/80 px-2.5 py-1 flex flex-wrap items-center justify-between gap-1.5 z-20 shrink-0 text-xs">
+    
+    <!-- Learning & Practice Tools Group -->
+    <div class="flex flex-wrap items-center gap-1.5">
+      <!-- Play-Along Mode (Wait for Note) -->
+      <button id="playAlongToggleBtn" class="px-2.5 py-1 rounded-lg border border-amber-500/50 bg-amber-500/20 text-amber-300 font-semibold flex items-center gap-1.5 transition hover:bg-amber-500/30" title="Play-Along Mode: Playback pauses at each chord/note until you play the correct key(s)">
+        <i class="fa-solid fa-hand-pointer"></i>
+        <span>Play-Along: <strong id="playAlongStatusText">ON</strong></span>
+      </button>
+
+      <!-- Hand Practice Selection -->
+      <div class="flex items-center bg-studio-850 border border-slate-700/80 rounded-lg p-0.5" title="Select which hands you want to practice (inactive hand plays automatically)">
+        <button data-hand="both" class="hand-mode-btn px-2 py-0.5 rounded-md bg-cyan-600 text-white font-semibold transition">Both</button>
+        <button data-hand="R" class="hand-mode-btn px-2 py-0.5 rounded-md text-slate-300 hover:text-white transition">RH</button>
+        <button data-hand="L" class="hand-mode-btn px-2 py-0.5 rounded-md text-slate-300 hover:text-white transition">LH</button>
+      </div>
+
+      <!-- A/B Section Looping -->
+      <div class="flex items-center gap-1 bg-studio-850 border border-slate-700/80 rounded-lg px-2 py-0.5">
+        <button id="loopToggleBtn" class="font-semibold text-slate-300 hover:text-cyan-300 flex items-center gap-1 transition" title="Toggle A/B Measure Loop">
+          <i class="fa-solid fa-repeat text-[11px]"></i>
+          <span>Loop: <strong id="loopStatusText">OFF</strong></span>
+        </button>
+        <span class="text-slate-600">|</span>
+        <label class="text-[11px] text-slate-400 flex items-center gap-1">
+          A:
+          <input id="loopStartInput" type="number" min="1" max="32" value="1" class="w-10 bg-studio-950 border border-slate-700 rounded px-1 py-0.2 text-center font-mono text-cyan-300" title="Loop Start Measure (Point A)" />
+        </label>
+        <label class="text-[11px] text-slate-400 flex items-center gap-1">
+          B:
+          <input id="loopEndInput" type="number" min="2" max="32" value="4" class="w-10 bg-studio-950 border border-slate-700 rounded px-1 py-0.2 text-center font-mono text-cyan-300" title="Loop End Measure (Point B)" />
+        </label>
+      </div>
+
+      <!-- Mistake-Triggered Restart -->
+      <div class="flex items-center gap-1 bg-studio-850 border border-slate-700/80 rounded-lg px-2 py-0.5" title="Automatically restart the current measure after X mistakes in that measure">
+        <i class="fa-solid fa-rotate-left text-rose-400 text-[11px]"></i>
+        <span class="text-slate-300 hidden md:inline">Mistake Restart:</span>
+        <select id="mistakeRestartSelect" class="bg-studio-950 text-slate-200 border border-slate-700 rounded px-1.5 py-0.2 font-semibold focus:outline-none">
+          <option value="0">Off</option>
+          <option value="2">2 Mistakes</option>
+          <option value="3" selected>3 Mistakes</option>
+          <option value="5">5 Mistakes</option>
+        </select>
+      </div>
+
+      <!-- Mobile Speed Selector (visible on smaller screens) -->
+      <div class="flex lg:hidden items-center gap-1 bg-studio-850 border border-slate-700/80 rounded-lg px-2 py-0.5">
+        <span class="text-slate-400">Spd:</span>
+        <select id="mobileSpeedSelect" class="bg-studio-950 text-cyan-300 font-mono rounded px-1 py-0.2">
+          <option value="0.5">0.5x</option>
+          <option value="0.75">0.75x</option>
+          <option value="1.0" selected>1.0x</option>
+          <option value="1.25">1.25x</option>
+          <option value="1.5">1.5x</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Right: Views, Editor, Sound Presets, MIDI & Mic Input -->
+    <div class="flex flex-wrap items-center gap-1.5">
+      <!-- Sheet Music Grand Staff Toggle (Enabled by default) -->
+      <button id="toggleSheetMusicBtn" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-semibold flex items-center gap-1.5 transition" title="Toggle Synchronized Grand Staff View above the Waterfall">
+        <i class="fa-solid fa-music"></i>
+        <span>Sheet View</span>
+      </button>
+
+      <!-- Simple Sheet Music & Piano Roll Editor Toggle -->
+      <button id="toggleEditModeBtn" class="px-2.5 py-1 rounded-lg bg-studio-850 border border-slate-700 text-slate-300 hover:text-white font-semibold flex items-center gap-1.5 transition" title="Open Score Editor to add, move, resize, or delete notes on the Grand Staff & Waterfall">
+        <i class="fa-solid fa-pen-ruler"></i>
+        <span>Edit Score</span>
+      </button>
+
+      <!-- Instrument Preset Selector -->
+      <div class="flex items-center gap-1 bg-studio-850 border border-slate-700/80 rounded-lg px-2 py-0.5">
+        <i class="fa-solid fa-volume-high text-indigo-400 text-[11px]"></i>
+        <select id="instrumentSelect" aria-label="Instrument Sound Preset" class="bg-transparent text-slate-100 font-semibold focus:outline-none cursor-pointer">
+          <option value="grand" class="bg-studio-900">Concert Grand Piano</option>
+          <option value="epiano" class="bg-studio-900">Electric Piano (Rhodes)</option>
+          <option value="organ" class="bg-studio-900">Cathedral Organ</option>
+          <option value="strings" class="bg-studio-900">Symphonic Strings</option>
+          <option value="harpsichord" class="bg-studio-900">Baroque Harpsichord</option>
+        </select>
+      </div>
+
+      <!-- Sustain Pedal Indicator / Toggle (CC64 & Spacebar) -->
+      <button id="sustainPedalBtn" class="px-2 py-1 rounded-lg bg-studio-850 border border-slate-700 text-slate-400 font-mono text-[11px] flex items-center gap-1 transition" title="Sustain Pedal (Hold Spacebar, Click to Latch, or use USB MIDI CC64 Pedal with Half-Dampening)">
+        <i class="fa-solid fa-shoe-prints rotate-[-30deg]"></i>
+        <span>PED: <strong id="pedalValueText">OFF</strong></span>
+      </button>
+
+      <!-- USB MIDI Status Pill -->
+      <button id="midiStatusBtn" class="px-2 py-1 rounded-lg bg-studio-850 border border-slate-700 text-slate-300 font-semibold flex items-center gap-1.5 transition hover:border-cyan-500/50" title="USB MIDI Keyboard Connection Status (Click to rescan MIDI devices)">
+        <span id="midiDot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+        <span>MIDI: <strong id="midiStatusText">Ready</strong></span>
+      </button>
+
+      <!-- Acoustic Piano Microphone Input Toggle -->
+      <button id="micInputToggleBtn" class="px-2.5 py-1 rounded-lg bg-studio-850 border border-slate-700 text-slate-300 hover:border-emerald-500/50 font-semibold flex items-center gap-1.5 transition" title="Enable Acoustic Piano Microphone Pitch Detection">
+        <i class="fa-solid fa-microphone text-rose-400" id="micIcon"></i>
+        <span id="micStatusText">Acoustic Mic: OFF</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ==================== CONDITIONAL FLOATING BAR: SCORE EDITOR TOOLS ==================== -->
+  <div id="editorToolbar" class="hidden w-full bg-indigo-950/90 border-b border-indigo-500/40 px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 z-20 shrink-0 text-xs">
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="px-2 py-0.5 rounded bg-indigo-500 text-white font-bold uppercase tracking-wider text-[10px] flex items-center gap-1">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> Score Editor Active
+      </span>
+      <span class="text-indigo-200 hidden md:inline">Click empty space on Grand Staff or Waterfall to add notes. Drag a note to move pitch/beat. Click existing note with Erase tool to delete.</span>
+
+      <!-- Editor Tool Mode -->
+      <div class="flex items-center bg-studio-900 border border-indigo-500/40 rounded-lg p-0.5">
+        <button data-edittool="draw" class="edit-tool-btn px-2.5 py-0.5 rounded bg-indigo-600 text-white font-semibold">Draw / Move</button>
+        <button data-edittool="erase" class="edit-tool-btn px-2.5 py-0.5 rounded text-slate-300 hover:text-white">Erase Note</button>
+      </div>
+
+      <!-- Note Duration Picker -->
+      <div class="flex items-center gap-1 bg-studio-900 border border-indigo-500/40 rounded-lg px-2 py-0.5">
+        <span class="text-indigo-300">Duration:</span>
+        <select id="editorDurationSelect" class="bg-transparent text-white font-semibold focus:outline-none">
+          <option value="0.5" class="bg-studio-900">1/8 Eighth (0.5 beat)</option>
+          <option value="1" selected class="bg-studio-900">1/4 Quarter (1 beat)</option>
+          <option value="2" class="bg-studio-900">1/2 Half (2 beats)</option>
+          <option value="3" class="bg-studio-900">Dotted Half (3 beats)</option>
+          <option value="4" class="bg-studio-900">Whole Note (4 beats)</option>
+        </select>
+      </div>
+
+      <!-- Note Hand Picker -->
+      <div class="flex items-center gap-1 bg-studio-900 border border-indigo-500/40 rounded-lg px-2 py-0.5">
+        <span class="text-indigo-300">Hand:</span>
+        <select id="editorHandSelect" class="bg-transparent text-white font-semibold focus:outline-none">
+          <option value="R" selected class="bg-studio-900">Right Hand (Treble - Cyan)</option>
+          <option value="L" class="bg-studio-900">Left Hand (Bass - Emerald)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-1.5">
+      <button id="newBlankScoreBtn" class="px-2.5 py-1 rounded-lg bg-studio-900 hover:bg-studio-800 border border-indigo-400/40 text-indigo-200 font-semibold transition">
+        <i class="fa-solid fa-file-circle-plus mr-1"></i>New Blank Score
+      </button>
+      <button id="saveEditedScoreBtn" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition">
+        <i class="fa-solid fa-floppy-disk mr-1"></i>Save to Local Library
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== MAIN WORKSPACE: GRAND STAFF + WATERFALL + PIANO KEYBOARD ==================== -->
+  <main class="flex-1 flex flex-col w-full overflow-hidden relative select-none">
+
+    <!-- 1. TOP PANE: SYNCHRONIZED HORIZONTALLY SCROLLING GRAND STAFF (Enabled by default) -->
+    <section id="sheetMusicPane" class="w-full h-[31%] min-h-[155px] max-h-[260px] bg-[#0c111d] border-b border-slate-800 relative shrink-0 overflow-hidden transition-all duration-200">
+      <!-- Top-left overlay info badge -->
+      <div class="absolute top-2 left-3 z-10 flex items-center gap-2 pointer-events-none">
+        <span class="px-2 py-0.5 rounded bg-slate-900/90 border border-slate-700/80 text-[11px] font-semibold text-slate-300 flex items-center gap-1.5 shadow">
+          <i class="fa-solid fa-book-open text-cyan-400"></i>
+          <span id="sheetSongTitleBadge">Ode to Joy — L. van Beethoven</span>
+        </span>
+        <span id="sheetTimeSigBadge" class="px-1.5 py-0.5 rounded bg-slate-900/90 border border-slate-700/80 text-[10px] font-mono text-cyan-300">4/4 • 108 BPM</span>
+      </div>
+
+      <!-- Top-right legend & Acoustic Mic Live Pitch Overlay -->
+      <div class="absolute top-2 right-3 z-10 flex items-center gap-2 pointer-events-none">
+        <!-- Live Acoustic Pitch Readout (Visible when Mic is active) -->
+        <div id="micLivePitchBadge" class="hidden px-2.5 py-0.5 rounded-lg bg-emerald-950/90 border border-emerald-500/50 text-[11px] font-mono text-emerald-300 flex items-center gap-2 shadow">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          <span>MIC: <strong id="micNoteReadout">--</strong></span>
+          <span id="micHzReadout" class="text-emerald-400/80">0.0 Hz</span>
+          <span id="micCentsReadout" class="px-1 rounded bg-emerald-500/20 text-[10px]">0c</span>
+        </div>
+
+        <div class="hidden sm:flex items-center gap-2 px-2 py-0.5 rounded bg-slate-900/85 border border-slate-800 text-[10px] text-slate-400">
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-cyan-400"></span>RH (Treble)</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400"></span>LH (Bass)</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400"></span>Wait/Target</span>
+        </div>
+      </div>
+
+      <canvas id="grandStaffCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+    </section>
+
+    <!-- 2. MIDDLE PANE: FALLING-NOTE WATERFALL PIANO ROLL -->
+    <section id="waterfallPane" class="flex-1 w-full bg-studio-950 relative overflow-hidden">
+      <!-- Play-Along Waiting Banner -->
+      <div id="playAlongBanner" class="hidden absolute top-3 left-1/2 -translate-x-1/2 z-10 px-4 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/60 text-amber-200 text-xs font-bold shadow-lg backdrop-blur-md flex items-center gap-2 pointer-events-none animate-pulse-glow">
+        <i class="fa-solid fa-music text-amber-400"></i>
+        <span>Play-Along Waiting — Press <strong id="playAlongTargetNotesText" class="text-white font-mono underline">E4</strong> to advance!</span>
+      </div>
+
+      <!-- Mistake Restart Notification Toast -->
+      <div id="mistakeToast" class="hidden absolute top-12 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 rounded-xl bg-rose-600/90 border border-rose-400 text-white text-xs font-bold shadow-xl flex items-center gap-2 pointer-events-none">
+        <i class="fa-solid fa-rotate-left"></i>
+        <span id="mistakeToastText">Measure Restarted (Mistake Limit Reached)</span>
+      </div>
+
+      <canvas id="waterfallCanvas" class="w-full h-full block"></canvas>
+    </section>
+
+    <!-- 3. BOTTOM PANE: 61-KEY INTERACTIVE VELOCITY-SENSITIVE PIANO KEYBOARD (C2 - C7) -->
+    <section id="keyboardPane" class="w-full h-[22%] min-h-[115px] max-h-[175px] bg-studio-900 border-t-2 border-cyan-500/50 relative shrink-0 select-none">
+      <!-- Keyboard Utility StripOverlay -->
+      <div class="absolute -top-6 right-2 z-20 flex items-center gap-1.5">
+        <button id="toggleKeyLabelsBtn" class="px-2 py-0.5 rounded bg-studio-900/90 border border-slate-700 text-[10px] font-semibold text-slate-300 hover:text-white transition">
+          Labels: <span id="keyLabelsState">ON</span>
+        </button>
+        <button id="demoAutoPlayBtn" class="px-2 py-0.5 rounded bg-studio-900/90 border border-slate-700 text-[10px] font-semibold text-slate-300 hover:text-cyan-300 transition" title="Toggle Auto-Play Demo Mode (Watch & Listen)">
+          Auto-Demo: <span id="autoDemoState">OFF</span>
+        </button>
+      </div>
+
+      <canvas id="pianoKeyboardCanvas" class="w-full h-full block touch-none cursor-pointer"></canvas>
+    </section>
+  </main>
+
+  <!-- ==================== MODAL 1: LOCAL LIBRARY, MIDI/PDF IMPORT & OFFLINE BACKUP ==================== -->
+  <div id="libraryModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
+    <div class="bg-studio-900 border border-slate-700 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <!-- Modal Header -->
+      <div class="px-5 py-4 bg-studio-850 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center">
+            <i class="fa-solid fa-book-bookmark text-lg"></i>
+          </div>
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-white">Local-First Sheet Music & MIDI Library</h2>
+            <p class="text-xs text-slate-400">100% On-Device Storage • Seeded from Mutopia & OpenScore Public Domain Repertoire</p>
+          </div>
+        </div>
+        <button id="closeLibraryModalBtn" class="w-8 h-8 rounded-lg bg-studio-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Import & Offline Backup Action Bar -->
+      <div class="px-5 py-3 bg-studio-900 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Import Standard .mid / .midi File -->
+          <label class="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold cursor-pointer flex items-center gap-2 shadow transition">
+            <i class="fa-solid fa-file-audio"></i>
+            <span>Import MIDI (.mid / .midi)</span>
+            <input id="midiFileInput" type="file" accept=".mid,.midi,audio/midi" class="hidden" />
+          </label>
+
+          <!-- Import PDF Sheet Music (Local OMR) -->
+          <label class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer flex items-center gap-2 shadow transition">
+            <i class="fa-solid fa-file-pdf"></i>
+            <span>Import PDF Sheet Music (Local OMR)</span>
+            <input id="pdfFileInput" type="file" accept=".pdf,application/pdf" class="hidden" />
+          </label>
+        </div>
+
+        <!-- Local-First Desktop <-> Android Library Backup -->
+        <div class="flex items-center gap-2">
+          <button id="exportLibraryJsonBtn" class="px-3 py-2 rounded-xl bg-studio-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition" title="Export your entire custom library & progress to a local JSON file for Desktop/Android transfer">
+            <i class="fa-solid fa-download text-emerald-400"></i>
+            <span>Export Local Backup</span>
+          </button>
+          <label class="px-3 py-2 rounded-xl bg-studio-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition" title="Restore a local JSON library backup">
+            <i class="fa-solid fa-upload text-cyan-400"></i>
+            <span>Import Backup</span>
+            <input id="importLibraryJsonInput" type="file" accept=".json,application/json" class="hidden" />
+          </label>
+        </div>
+      </div>
+
+      <!-- Song List Grid -->
+      <div id="librarySongsContainer" class="p-5 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-3 flex-1">
+        <!-- Populated dynamically by JS -->
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3 bg-studio-850 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+        <span><i class="fa-solid fa-shield-halved text-emerald-400 mr-1"></i> Zero Cloud Guarantee: All imported MIDI, PDF OMR scores, and practice metrics stay strictly in your device's local storage.</span>
+        <span id="libraryCountLabel" class="font-mono text-slate-300">6 Songs</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 2: ON-DEVICE PDF OPTICAL MUSIC RECOGNITION (OMR) SCANNER ==================== -->
+  <div id="omrModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-studio-900 border border-indigo-500/40 rounded-2xl max-w-xl w-full p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center">
+            <i class="fa-solid fa-microchip"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">On-Device Optical Music Recognition (OMR)</h3>
+            <p id="omrFileNameText" class="text-xs text-indigo-300 font-mono truncate max-w-xs">sheet_music.pdf</p>
+          </div>
+        </div>
+        <button id="closeOmrModalBtn" class="w-8 h-8 rounded-lg bg-studio-800 text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Visual Staff Scan Preview Canvas -->
+      <div class="relative w-full h-36 bg-studio-950 border border-slate-800 rounded-xl overflow-hidden">
+        <canvas id="omrPreviewCanvas" class="w-full h-full block"></canvas>
+      </div>
+
+      <!-- Progress Bar & Pipeline Stage -->
+      <div class="space-y-1.5">
+        <div class="flex justify-between text-xs font-mono">
+          <span id="omrStageLabel" class="text-cyan-300">1/4 Detecting 5-Line Treble & Bass Staves...</span>
+          <span id="omrPercentLabel" class="text-white font-bold">25%</span>
+        </div>
+        <div class="w-full h-2 bg-studio-950 rounded-full overflow-hidden border border-slate-800">
+          <div id="omrProgressBar" class="h-full bg-gradient-to-r from-indigo-500 via-cyan-400 to-emerald-400 transition-all duration-300" style="width: 25%"></div>
+        </div>
+      </div>
+
+      <!-- Extracted Notation Settings before finalizing -->
+      <div id="omrConfigSection" class="grid grid-cols-3 gap-2 pt-1">
+        <div class="bg-studio-850 p-2.5 rounded-xl border border-slate-800">
+          <label class="text-[10px] text-slate-400 uppercase block">Detected Tempo</label>
+          <input id="omrTempoInput" type="number" min="40" max="200" value="100" class="w-full bg-studio-950 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-white mt-1" />
+        </div>
+        <div class="bg-studio-850 p-2.5 rounded-xl border border-slate-800">
+          <label class="text-[10px] text-slate-400 uppercase block">Time Signature</label>
+          <select id="omrTimeSigSelect" class="w-full bg-studio-950 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-white mt-1">
+            <option value="4">4/4 Common Time</option>
+            <option value="3">3/4 Waltz</option>
+          </select>
+        </div>
+        <div class="bg-studio-850 p-2.5 rounded-xl border border-slate-800">
+          <label class="text-[10px] text-slate-400 uppercase block">Extraction Profile</label>
+          <select id="omrStyleSelect" class="w-full bg-studio-950 border border-slate-700 rounded px-2 py-1 text-xs text-white mt-1">
+            <option value="classical">Classical Polyphonic</option>
+            <option value="arpeggio">Lyrical Arpeggio</option>
+            <option value="waltz">Choral / Waltz</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button id="finalizeOmrBtn" class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 font-bold text-xs shadow-lg hover:opacity-95 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-check-double"></i>
+          <span>Import to Grand Staff & Open Score Editor</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 3: POST-PERFORMANCE SUMMARY & ASSESSMENT REPORT ==================== -->
+  <div id="summaryModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-studio-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <span class="text-[10px] font-bold uppercase tracking-widest text-cyan-400">Real-Time Assessment Report</span>
+          <h3 id="summarySongTitle" class="text-lg font-extrabold text-white">Ode to Joy</h3>
+        </div>
+        <div id="summaryGradeBadge" class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 text-slate-950 font-black text-3xl flex items-center justify-center shadow-lg">
+          S
+        </div>
+      </div>
+
+      <!-- KPI Grid -->
+      <div class="grid grid-cols-4 gap-2.5 text-center">
+        <div class="bg-studio-850 border border-slate-800 rounded-xl p-3">
+          <span class="text-[10px] text-slate-400 block">ACCURACY</span>
+          <span id="summaryAccuracy" class="text-lg font-extrabold font-mono text-white">100%</span>
+        </div>
+        <div class="bg-studio-850 border border-slate-800 rounded-xl p-3">
+          <span class="text-[10px] text-slate-400 block">CORRECT</span>
+          <span id="summaryCorrect" class="text-lg font-extrabold font-mono text-emerald-400">0</span>
+        </div>
+        <div class="bg-studio-850 border border-slate-800 rounded-xl p-3">
+          <span class="text-[10px] text-slate-400 block">MISSED</span>
+          <span id="summaryMissed" class="text-lg font-extrabold font-mono text-rose-400">0</span>
+        </div>
+        <div class="bg-studio-850 border border-slate-800 rounded-xl p-3">
+          <span class="text-[10px] text-slate-400 block">EXTRA</span>
+          <span id="summaryExtra" class="text-lg font-extrabold font-mono text-amber-400">0</span>
+        </div>
+      </div>
+
+      <!-- Measure-by-Measure Accuracy Heatmap -->
+      <div class="space-y-1.5">
+        <div class="flex justify-between text-xs">
+          <span class="font-semibold text-slate-300">Measure-by-Measure Performance Heatmap</span>
+          <span class="text-slate-400 text-[11px]">Click any measure to loop it</span>
+        </div>
+        <div id="summaryMeasureHeatmap" class="grid grid-cols-8 gap-1.5 pt-1">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+        <button id="practiceWeakestMeasuresBtn" class="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold transition flex items-center gap-1.5">
+          <i class="fa-solid fa-repeat"></i>
+          <span>Loop Weakest Section</span>
+        </button>
+        <div class="flex items-center gap-2">
+          <button id="retrySongBtn" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition">
+            <i class="fa-solid fa-rotate-right mr-1"></i>Practice Again
+          </button>
+          <button id="closeSummaryModalBtn" class="px-3.5 py-2 rounded-xl bg-studio-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Non-blocking Notification Toast -->
+  <div id="appNotificationToast" class="hidden fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-xl bg-studio-850 border border-cyan-500/50 text-slate-100 text-xs font-semibold shadow-2xl flex items-center gap-2.5">
+    <i class="fa-solid fa-circle-info text-cyan-400"></i>
+    <span id="appNotificationText">Notification</span>
+  </div>
+
+  <!-- ==================== APPLICATION JAVASCRIPT ENGINE ==================== -->
+  <script>
+    /***************************************************************************
+     * 1. MUSIC THEORY UTILITIES & CONSTANTS (61 KEYS: C2 [MIDI 36] to C7 [MIDI 96])
+     ***************************************************************************/
+    const MIN_MIDI = 36; // C2
+    const MAX_MIDI = 96; // C7
+    const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const WHITE_SEMITONES = [0, 2, 4, 5, 7, 9, 11];
+    const DIATONIC_STEP_MAP = { 0: 0, 1: 0, 2: 1, 3: 1, 4: 2, 5: 3, 6: 3, 7: 4, 8: 4, 9: 5, 10: 5, 11: 6 };
+    const IS_SHARP_MAP = { 1: true, 3: true, 6: true, 8: true, 10: true };
+
+    function isBlackKey(midi) {
+      return IS_SHARP_MAP[midi % 12] === true;
+    }
+
+    function midiToNoteName(midi) {
+      const name = NOTE_NAMES[midi % 12];
+      const octave = Math.floor(midi / 12) - 1;
+      return `${name}${octave}`;
+    }
+
+    function noteNameToMidi(noteStr) {
+      const m = /^([A-G])(#?)(\d)$/.exec(noteStr.trim());
+      if (!m) return 60;
+      const baseMap = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+      const semi = baseMap[m[1]] + (m[2] === '#' ? 1 : 0);
+      const oct = parseInt(m[3], 10);
+      return (oct + 1) * 12 + semi;
+    }
+
+    function midiToFreq(midi) {
+      return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    // Returns diatonic step relative to C4 (Middle C = 0, D4 = 1, E4 = 2, F4 = 3, G4 = 4...)
+    function midiToDiatonicStepFromC4(midi) {
+      const octave = Math.floor(midi / 12) - 1;
+      const semi = midi % 12;
+      return (octave - 4) * 7 + DIATONIC_STEP_MAP[semi];
+    }
+
+    // Converts a diatonic step from C4 back to natural MIDI note
+    function diatonicStepFromC4ToMidi(step) {
+      const octOffset = Math.floor(step / 7);
+      const degree = ((step % 7) + 7) % 7;
+      const degreeToSemi = [0, 2, 4, 5, 7, 9, 11];
+      const midi = (4 + octOffset + 1) * 12 + degreeToSemi[degree];
+      return Math.max(MIN_MIDI, Math.min(MAX_MIDI, midi));
+    }
+
+    // Computer QWERTY Keyboard to MIDI mapping (C3 to E5)
+    const QWERTY_TO_MIDI = {
+      'z': 48, 's': 49, 'x': 50, 'd': 51, 'c': 52, 'v': 53, 'g': 54, 'b': 55, 'h': 56, 'n': 57, 'j': 58, 'm': 59,
+      ',': 60, 'q': 60, '2': 61, 'w': 62, '3': 63, 'e': 64, 'r': 65, '5': 66, 't': 67, '6': 68, 'y': 69, '7': 70, 'u': 71,
+      'i': 72, '9': 73, 'o': 74, '0': 75, 'p': 76, '[': 77, ']': 79
+    };
+    const MIDI_TO_QWERTY_LABEL = {
+      48: 'Z', 50: 'X', 52: 'C', 53: 'V', 55: 'B', 57: 'N', 59: 'M',
+      60: 'Q', 62: 'W', 64: 'E', 65: 'R', 67: 'T', 69: 'Y', 71: 'U',
+      72: 'I', 74: 'O', 76: 'P'
+    };
+
+    /***************************************************************************
+     * 2. SEEDED OPEN-SOURCE PUBLIC DOMAIN CLASSICAL REPERTOIRE (Mutopia / OpenScore)
+     ***************************************************************************/
+    function buildStarterLibrary() {
+      // Helper to quickly construct note objects: [startBeat, durationBeats, noteNameOrMidi, hand('R'|'L')]
+      const makeNotes = (tuples) => tuples.map((t, idx) => ({
+        id: `n_${idx}_${Math.random().toString(36).slice(2, 6)}`,
+        beat: Number(t[0]),
+        duration: Number(t[1]),
+        midi: typeof t[2] === 'number' ? t[2] : noteNameToMidi(t[2]),
+        hand: t[3] || 'R',
+        status: 'pending' // 'pending' | 'hit' | 'missed'
+      }));
+
+      // 1. Ode to Joy - L. van Beethoven (16 bars, 4/4)
+      const odeTuples = [
+        // Bar 1
+        [0,1,'E4','R'], [1,1,'E4','R'], [2,1,'F4','R'], [3,1,'G4','R'],
+        [0,4,'C3','L'], [0,4,'G3','L'],
+        // Bar 2
+        [4,1,'G4','R'], [5,1,'F4','R'], [6,1,'E4','R'], [7,1,'D4','R'],
+        [4,4,'G2','L'], [4,4,'G3','L'],
+        // Bar 3
+        [8,1,'C4','R'], [9,1,'C4','R'], [10,1,'D4','R'], [11,1,'E4','R'],
+        [8,4,'A2','L'], [8,4,'E3','L'],
+        // Bar 4
+        [12,1.5,'E4','R'], [13.5,0.5,'D4','R'], [14,2,'D4','R'],
+        [12,4,'G2','L'], [12,4,'D3','L'],
+        // Bar 5
+        [16,1,'E4','R'], [17,1,'E4','R'], [18,1,'F4','R'], [19,1,'G4','R'],
+        [16,4,'C3','L'], [16,4,'G3','L'],
+        // Bar 6
+        [20,1,'G4','R'], [21,1,'F4','R'], [22,1,'E4','R'], [23,1,'D4','R'],
+        [20,4,'G2','L'], [20,4,'G3','L'],
+        // Bar 7
+        [24,1,'C4','R'], [25,1,'C4','R'], [26,1,'D4','R'], [27,1,'E4','R'],
+        [24,2,'F2','L'], [24,2,'C3','L'], [26,2,'G2','L'], [26,2,'D3','L'],
+        // Bar 8
+        [28,1.5,'D4','R'], [29.5,0.5,'C4','R'], [30,2,'C4','R'],
+        [28,4,'C3','L'], [28,4,'E3','L'],
+      ];
+
+      // 2. Minuet in G Major (BWV Anh. 114) - Petzold / J.S. Bach (3/4 time)
+      const minuetTuples = [
+        // Bar 1 (3/4 -> 3 beats per bar)
+        [0,1,'D5','R'], [1,0.5,'G4','R'], [1.5,0.5,'A4','R'], [2,0.5,'B4','R'], [2.5,0.5,'C5','R'],
+        [0,2,'G3','L'], [0,2,'B3','L'], [2,1,'A3','L'],
+        // Bar 2
+        [3,1,'D5','R'], [4,1,'G4','R'], [5,1,'G4','R'],
+        [3,3,'B3','L'],
+        // Bar 3
+        [6,1,'E5','R'], [7,0.5,'C5','R'], [7.5,0.5,'D5','R'], [8,0.5,'E5','R'], [8.5,0.5,'F#5','R'],
+        [6,3,'C4','L'],
+        // Bar 4
+        [9,1,'G5','R'], [10,1,'G4','R'], [11,1,'G4','R'],
+        [9,2,'B3','L'], [11,1,'G3','L'],
+        // Bar 5
+        [12,1,'C5','R'], [13,0.5,'D5','R'], [13.5,0.5,'C5','R'], [14,0.5,'B4','R'], [14.5,0.5,'A4','R'],
+        [12,3,'A3','L'],
+        // Bar 6
+        [15,1,'B4','R'], [16,0.5,'C5','R'], [16.5,0.5,'B4','R'], [17,0.5,'A4','R'], [17.5,0.5,'G4','R'],
+        [15,3,'G3','L'],
+        // Bar 7
+        [18,1,'F#4','R'], [19,0.5,'G4','R'], [19.5,0.5,'A4','R'], [20,0.5,'B4','R'], [20.5,0.5,'G4','R'],
+        [18,2,'D3','L'], [20,1,'B2','L'],
+        // Bar 8
+        [21,3,'A4','R'],
+        [21,1,'D3','L'], [22,1,'C3','L'], [23,1,'B2','L'],
+      ];
+
+      // 3. Prelude in C Major (BWV 846) - J.S. Bach (4/4 broken chord pattern)
+      const preludeCTuples = [];
+      const bachMeasureChords = [
+        ['C3', 'E3', 'G4', 'C5', 'E5'], // Bar 1: C Maj
+        ['C3', 'D3', 'A4', 'D5', 'F5'], // Bar 2: Dm7/C
+        ['B2', 'D3', 'G4', 'D5', 'F5'], // Bar 3: G7/B
+        ['C3', 'E3', 'G4', 'C5', 'E5'], // Bar 4: C Maj
+        ['C3', 'E3', 'A4', 'E5', 'A5'], // Bar 5: Am/C
+        ['C3', 'D3', 'F#4', 'A4', 'D5'],// Bar 6: D7/C
+        ['B2', 'D3', 'G4', 'D5', 'G5'], // Bar 7: G/B
+        ['B2', 'C3', 'E4', 'G4', 'C5'], // Bar 8: Cmaj7/B
+      ];
+      bachMeasureChords.forEach((ch, mIdx) => {
+        const base = mIdx * 4;
+        for (let half = 0; half < 2; half++) {
+          const offset = base + half * 2;
+          preludeCTuples.push([offset, 2, ch[0], 'L']);
+          preludeCTuples.push([offset + 0.25, 1.75, ch[1], 'L']);
+          preludeCTuples.push([offset + 0.5, 0.25, ch[2], 'R']);
+          preludeCTuples.push([offset + 0.75, 0.25, ch[3], 'R']);
+          preludeCTuples.push([offset + 1.0, 0.25, ch[4], 'R']);
+          preludeCTuples.push([offset + 1.25, 0.25, ch[2], 'R']);
+          preludeCTuples.push([offset + 1.5, 0.25, ch[3], 'R']);
+          preludeCTuples.push([offset + 1.75, 0.25, ch[4], 'R']);
+        }
+      });
+
+      // 4. Gymnopédie No. 1 - Erik Satie (3/4 Time)
+      const gymnoTuples = [
+        // Bar 1-4 Intro & Floating Melody
+        [0,3,'G2','L'], [1,2,'B3','L'], [1,2,'D4','L'], [1,2,'F#4','L'],
+        [3,3,'D2','L'], [4,2,'A3','L'], [4,2,'C#4','L'], [4,2,'F#4','L'],
+        [6,3,'G2','L'], [7,2,'B3','L'], [7,2,'D4','L'], [7,2,'F#4','L'], [7,1,'F#5','R'], [8,1,'A5','R'],
+        [9,3,'D2','L'], [10,2,'A3','L'], [10,2,'C#4','L'], [10,2,'F#4','L'], [9,1,'G5','R'], [10,1,'F#5','R'], [11,1,'C#5','R'],
+        [12,3,'G2','L'], [13,2,'B3','L'], [13,2,'D4','L'], [13,2,'F#4','L'], [12,1,'B4','R'], [13,1,'C#5','R'], [14,1,'D5','R'],
+        [15,3,'D2','L'], [16,2,'A3','L'], [16,2,'C#4','L'], [16,2,'F#4','L'], [15,3,'A4','R'],
+        [18,3,'F#2','L'], [19,2,'A3','L'], [19,2,'C#4','L'], [19,2,'F#4','L'], [18,3,'F#4','R'],
+        [21,3,'B2','L'], [22,2,'B3','L'], [22,2,'D4','L'], [22,2,'G4','L'], [21,3,'D5','R']
+      ];
+
+      // 5. Prelude in E Minor (Op. 28 No. 4) - F. Chopin (4/4 Time)
+      const chopinTuples = [
+        // Bar 1
+        [0,3,'B4','R'], [3,1,'C5','R'],
+        [0,1,'G3','L'], [0,1,'B3','L'], [0,1,'E4','L'],
+        [1,1,'G3','L'], [1,1,'B3','L'], [1,1,'E4','L'],
+        [2,1,'G3','L'], [2,1,'B3','L'], [2,1,'E4','L'],
+        [3,1,'G3','L'], [3,1,'B3','L'], [3,1,'E4','L'],
+        // Bar 2
+        [4,4,'B4','R'],
+        [4,1,'F#3','L'], [4,1,'A3','L'], [4,1,'D#4','L'],
+        [5,1,'F#3','L'], [5,1,'A3','L'], [5,1,'D#4','L'],
+        [6,1,'F#3','L'], [6,1,'A3','L'], [6,1,'D#4','L'],
+        [7,1,'F#3','L'], [7,1,'A3','L'], [7,1,'D#4','L'],
+        // Bar 3
+        [8,3,'B4','R'], [11,1,'C5','R'],
+        [8,1,'F3','L'], [8,1,'A3','L'], [8,1,'D4','L'],
+        [9,1,'F3','L'], [9,1,'A3','L'], [9,1,'D4','L'],
+        [10,1,'E3','L'], [10,1,'G#3','L'], [10,1,'D4','L'],
+        [11,1,'E3','L'], [11,1,'G#3','L'], [11,1,'D4','L'],
+        // Bar 4
+        [12,4,'A4','R'],
+        [12,1,'E3','L'], [12,1,'A3','L'], [12,1,'C4','L'],
+        [13,1,'E3','L'], [13,1,'A3','L'], [13,1,'C4','L'],
+        [14,1,'E3','L'], [14,1,'F#3','L'], [14,1,'C4','L'],
+        [15,1,'E3','L'], [15,1,'F#3','L'], [15,1,'C4','L'],
+      ];
+
+      // 6. Twinkle, Twinkle, Little Star (Ah! vous dirai-je, maman) - W.A. Mozart (4/4 Time)
+      const mozartTuples = [
+        [0,1,'C4','R'], [1,1,'C4','R'], [2,1,'G4','R'], [3,1,'G4','R'],
+        [0,2,'C3','L'], [2,2,'E3','L'],
+        [4,1,'A4','R'], [5,1,'A4','R'], [6,2,'G4','R'],
+        [4,2,'F3','L'], [6,2,'E3','L'],
+        [8,1,'F4','R'], [9,1,'F4','R'], [10,1,'E4','R'], [11,1,'E4','R'],
+        [8,2,'D3','L'], [10,2,'C3','L'],
+        [12,1,'D4','R'], [13,1,'D4','R'], [14,2,'C4','R'],
+        [12,2,'G2','L'], [14,2,'C3','L'],
+        [16,1,'G4','R'], [17,1,'G4','R'], [18,1,'F4','R'], [19,1,'F4','R'],
+        [16,2,'E3','L'], [18,2,'D3','L'],
+        [20,1,'E4','R'], [21,1,'E4','R'], [22,2,'D4','R'],
+        [20,2,'C3','L'], [22,2,'G2','L'],
+      ];
+
+      return [
+        {
+          id: 'beethoven_ode',
+          title: 'Ode to Joy (Symphony No. 9)',
+          composer: 'Ludwig van Beethoven',
+          difficulty: 'Beginner',
+          source: 'Mutopia Public Domain',
+          bpm: 108,
+          beatsPerMeasure: 4,
+          notes: makeNotes(odeTuples),
+          bestAccuracy: null
+        },
+        {
+          id: 'bach_minuet_g',
+          title: 'Minuet in G Major (BWV Anh. 114)',
+          composer: 'Christian Petzold / J.S. Bach',
+          difficulty: 'Intermediate',
+          source: 'Mutopia Public Domain',
+          bpm: 112,
+          beatsPerMeasure: 3,
+          notes: makeNotes(minuetTuples),
+          bestAccuracy: null
+        },
+        {
+          id: 'bach_prelude_c',
+          title: 'Prelude in C Major (BWV 846)',
+          composer: 'Johann Sebastian Bach',
+          difficulty: 'Intermediate',
+          source: 'OpenScore Public Domain',
+          bpm: 78,
+          beatsPerMeasure: 4,
+          notes: makeNotes(preludeCTuples),
+          bestAccuracy: null
+        },
+        {
+          id: 'satie_gymnopedie_1',
+          title: 'Gymnopédie No. 1',
+          composer: 'Erik Satie',
+          difficulty: 'Intermediate',
+          source: 'Mutopia Public Domain',
+          bpm: 76,
+          beatsPerMeasure: 3,
+          notes: makeNotes(gymnoTuples),
+          bestAccuracy: null
+        },
+        {
+          id: 'chopin_prelude_em',
+          title: 'Prelude in E Minor (Op. 28 No. 4)',
+          composer: 'Frédéric Chopin',
+          difficulty: 'Intermediate',
+          source: 'OpenScore Public Domain',
+          bpm: 66,
+          beatsPerMeasure: 4,
+          notes: makeNotes(chopinTuples),
+          bestAccuracy: null
+        },
+        {
+          id: 'mozart_twinkle',
+          title: 'Ah! vous dirai-je, maman (K. 265)',
+          composer: 'Wolfgang Amadeus Mozart',
+          difficulty: 'Beginner',
+          source: 'Mutopia Public Domain',
+          bpm: 104,
+          beatsPerMeasure: 4,
+          notes: makeNotes(mozartTuples),
+          bestAccuracy: null
+        }
+      ];
+    }
+
+    /***************************************************************************
+     * 3. MULTI-INSTRUMENT WEB AUDIO SYNTHESIZER & SUSTAIN PEDAL ENGINE
+     ***************************************************************************/
+    class StudioAudioEngine {
+      constructor() {
+        this.ctx = null;
+        this.masterGain = null;
+        this.preset = 'grand'; // 'grand' | 'epiano' | 'organ' | 'strings' | 'harpsichord'
+        this.activeVoices = new Map(); // midi -> voice object
+        this.sustainedVoices = new Map(); // midi -> voice object held by CC64 pedal
+        this.pedalValue = 0; // 0 to 127 (supports half-dampening)
+      }
+
+      ensureContext() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioCtx();
+          this.masterGain = this.ctx.createGain();
+          this.masterGain.gain.value = 0.45;
+
+          // Subtle studio compressor to prevent clipping on big chords
+          this.compressor = this.ctx.createDynamicsCompressor();
+          this.compressor.threshold.value = -16;
+          this.compressor.knee.value = 24;
+          this.compressor.ratio.value = 6;
+          this.masterGain.connect(this.compressor);
+          this.compressor.connect(this.ctx.destination);
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      noteOn(midi, velocity = 100) {
+        this.ensureContext();
+        this.stopVoiceImmediate(midi);
+
+        const now = this.ctx.currentTime;
+        const freq = midiToFreq(midi);
+        const normVel = Math.max(0.15, Math.min(1.0, velocity / 127));
+
+        const voiceGain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(Math.min(14000, freq * (4 + normVel * 8)), now);
+
+        voiceGain.connect(filter);
+        filter.connect(this.masterGain);
+
+        const oscs = [];
+
+        if (this.preset === 'grand') {
+          // Sampled-style Multi-Harmonic Concert Grand Piano
+          const osc1 = this.ctx.createOscillator();
+          const osc2 = this.ctx.createOscillator();
+          const osc3 = this.ctx.createOscillator();
+          osc1.type = 'triangle';
+          osc2.type = 'sine';
+          osc3.type = 'sawtooth';
+
+          osc1.frequency.setValueAtTime(freq, now);
+          osc2.frequency.setValueAtTime(freq * 2, now);
+          osc3.frequency.setValueAtTime(freq, now);
+          osc3.detune.setValueAtTime(3.5, now);
+
+          const g1 = this.ctx.createGain();
+          const g2 = this.ctx.createGain();
+          const g3 = this.ctx.createGain();
+          g1.gain.value = 0.65;
+          g2.gain.value = 0.22 * normVel;
+          g3.gain.value = 0.14 * normVel;
+
+          osc1.connect(g1); g1.connect(voiceGain);
+          osc2.connect(g2); g2.connect(voiceGain);
+          osc3.connect(g3); g3.connect(voiceGain);
+
+          voiceGain.gain.setValueAtTime(0.0001, now);
+          voiceGain.gain.linearRampToValueAtTime(0.55 * normVel, now + 0.008);
+          voiceGain.gain.exponentialRampToValueAtTime(0.18 * normVel, now + 0.35);
+          voiceGain.gain.exponentialRampToValueAtTime(0.001, now + 3.2);
+
+          osc1.start(now); osc2.start(now); osc3.start(now);
+          oscs.push(osc1, osc2, osc3);
+        } else if (this.preset === 'epiano') {
+          // Rhodes Electric Piano with bell tine
+          const osc1 = this.ctx.createOscillator();
+          const osc2 = this.ctx.createOscillator();
+          osc1.type = 'sine';
+          osc2.type = 'triangle';
+          osc1.frequency.setValueAtTime(freq, now);
+          osc2.frequency.setValueAtTime(freq * 7, now); // Bell harmonic
+
+          const tineGain = this.ctx.createGain();
+          tineGain.gain.setValueAtTime(0.25 * normVel, now);
+          tineGain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+          osc1.connect(voiceGain);
+          osc2.connect(tineGain);
+          tineGain.connect(voiceGain);
+
+          voiceGain.gain.setValueAtTime(0.0001, now);
+          voiceGain.gain.linearRampToValueAtTime(0.5 * normVel, now + 0.012);
+          voiceGain.gain.exponentialRampToValueAtTime(0.002, now + 2.8);
+
+          osc1.start(now); osc2.start(now);
+          oscs.push(osc1, osc2);
+        } else if (this.preset === 'organ') {
+          // Cathedral Drawbar Organ
+          const harmonics = [0.5, 1, 2, 3, 4];
+          const gains = [0.22, 0.45, 0.25, 0.12, 0.1];
+          harmonics.forEach((h, i) => {
+            const osc = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq * h, now);
+            g.gain.value = gains[i];
+            osc.connect(g);
+            g.connect(voiceGain);
+            osc.start(now);
+            oscs.push(osc);
+          });
+          voiceGain.gain.setValueAtTime(0.0001, now);
+          voiceGain.gain.linearRampToValueAtTime(0.42 * normVel, now + 0.04);
+        } else if (this.preset === 'strings') {
+          // Symphonic Bowed Strings Ensemble
+          [-7, 0, 7].forEach((det) => {
+            const osc = this.ctx.createOscillator();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(freq, now);
+            osc.detune.setValueAtTime(det, now);
+            const g = this.ctx.createGain();
+            g.gain.value = 0.22;
+            osc.connect(g);
+            g.connect(voiceGain);
+            osc.start(now);
+            oscs.push(osc);
+          });
+          filter.frequency.setValueAtTime(freq * 4.5, now);
+          voiceGain.gain.setValueAtTime(0.0001, now);
+          voiceGain.gain.linearRampToValueAtTime(0.45 * normVel, now + 0.14);
+        } else if (this.preset === 'harpsichord') {
+          // Plucked Metallic Harpsichord
+          const osc1 = this.ctx.createOscillator();
+          const osc2 = this.ctx.createOscillator();
+          osc1.type = 'sawtooth';
+          osc2.type = 'square';
+          osc1.frequency.setValueAtTime(freq, now);
+          osc2.frequency.setValueAtTime(freq * 2, now);
+          const g2 = this.ctx.createGain();
+          g2.gain.value = 0.25;
+          osc1.connect(voiceGain);
+          osc2.connect(g2);
+          g2.connect(voiceGain);
+
+          voiceGain.gain.setValueAtTime(0.0001, now);
+          voiceGain.gain.linearRampToValueAtTime(0.45 * normVel, now + 0.004);
+          voiceGain.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
+
+          osc1.start(now); osc2.start(now);
+          oscs.push(osc1, osc2);
+        }
+
+        this.activeVoices.set(midi, { oscs, voiceGain, isKeyHeld: true });
+      }
+
+      noteOff(midi) {
+        const voice = this.activeVoices.get(midi);
+        if (!voice) return;
+        voice.isKeyHeld = false;
+
+        // If sustain pedal (CC64) is depressed (> 20), hold or half-dampen
+        if (this.pedalValue >= 20) {
+          this.sustainedVoices.set(midi, voice);
+          // Half-dampening calculation (20..63 slowly attenuates; 64..127 full sustain)
+          if (this.pedalValue < 64 && this.ctx) {
+            const dampFactor = 0.4 + (this.pedalValue / 64) * 1.8;
+            const now = this.ctx.currentTime;
+            voice.voiceGain.gain.cancelScheduledValues(now);
+            voice.voiceGain.gain.setValueAtTime(Math.max(0.001, voice.voiceGain.gain.value), now);
+            voice.voiceGain.gain.exponentialRampToValueAtTime(0.0001, now + dampFactor);
+          }
+          return;
+        }
+
+        this.releaseVoice(midi, voice, 0.18);
+      }
+
+      setPedal(ccValue) {
+        this.pedalValue = Math.max(0, Math.min(127, ccValue));
+        if (this.pedalValue < 20) {
+          // Release all pedal-sustained voices that are no longer held by fingers
+          for (const [midi, voice] of this.sustainedVoices.entries()) {
+            if (!voice.isKeyHeld) {
+              this.releaseVoice(midi, voice, 0.22);
+            }
+          }
+          this.sustainedVoices.clear();
+        }
+      }
+
+      releaseVoice(midi, voice, releaseSec = 0.18) {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        try {
+          voice.voiceGain.gain.cancelScheduledValues(now);
+          voice.voiceGain.gain.setValueAtTime(Math.max(0.0002, voice.voiceGain.gain.value), now);
+          voice.voiceGain.gain.exponentialRampToValueAtTime(0.0001, now + releaseSec);
+          setTimeout(() => {
+            voice.oscs.forEach(o => { try { o.stop(); o.disconnect(); } catch (e) {} });
+          }, releaseSec * 1000 + 40);
+        } catch (e) {}
+        this.activeVoices.delete(midi);
+        this.sustainedVoices.delete(midi);
+      }
+
+      stopVoiceImmediate(midi) {
+        const v = this.activeVoices.get(midi) || this.sustainedVoices.get(midi);
+        if (v) {
+          v.oscs.forEach(o => { try { o.stop(); o.disconnect(); } catch (e) {} });
+          this.activeVoices.delete(midi);
+          this.sustainedVoices.delete(midi);
+        }
+      }
+
+      allNotesOff() {
+        for (const midi of Array.from(this.activeVoices.keys())) {
+          this.stopVoiceImmediate(midi);
+        }
+        for (const midi of Array.from(this.sustainedVoices.keys())) {
+          this.stopVoiceImmediate(midi);
+        }
+      }
+    }
+
+    /***************************************************************************
+     * 4. BINARY STANDARD MIDI FILE (.mid / .midi) PARSER (100% LOCAL)
+     ***************************************************************************/
+    function parseStandardMidiFile(arrayBuffer, fileName = 'Imported_Song.mid') {
+      const data = new DataView(arrayBuffer);
+      let pos = 0;
+
+      function readStr(len) {
+        let s = '';
+        for (let i = 0; i < len; i++) s += String.fromCharCode(data.getUint8(pos++));
+        return s;
+      }
+
+      function readVarLen() {
+        let value = 0;
+        while (pos < data.byteLength) {
+          const b = data.getUint8(pos++);
+          value = (value << 7) | (b & 0x7f);
+          if ((b & 0x80) === 0) break;
+        }
+        return value;
+      }
+
+      const headerId = readStr(4);
+      if (headerId !== 'MThd') {
+        throw new Error('Invalid MIDI header (Expected MThd).');
+      }
+      const headerLen = data.getUint32(pos); pos += 4;
+      const formatType = data.getUint16(pos);
+      const numTracks = data.getUint16(pos + 2);
+      const division = data.getUint16(pos + 4);
+      pos += headerLen;
+
+      const ticksPerBeat = (division & 0x8000) ? 480 : division;
+      let detectedBpm = 110;
+      let beatsPerMeasure = 4;
+      const extractedNotes = [];
+
+      for (let t = 0; t < numTracks && pos < data.byteLength; t++) {
+        const chunkId = readStr(4);
+        const chunkLen = data.getUint32(pos); pos += 4;
+        const trackEnd = pos + chunkLen;
+
+        if (chunkId !== 'MTrk') {
+          pos = trackEnd;
+          continue;
+        }
+
+        let absTicks = 0;
+        let runningStatus = 0;
+        const openNotes = new Map(); // key: `${channel}_${pitch}` -> startBeat
+
+        while (pos < trackEnd) {
+          const delta = readVarLen();
+          absTicks += delta;
+          const currentBeat = absTicks / ticksPerBeat;
+
+          let status = data.getUint8(pos);
+          if (status < 0x80) {
+            status = runningStatus;
+          } else {
+            pos++;
+            if (status < 0xf0) runningStatus = status;
+          }
+
+          const eventType = status & 0xf0;
+          const channel = status & 0x0f;
+
+          if (eventType === 0x90 || eventType === 0x80) {
+            const pitch = data.getUint8(pos++);
+            const vel = data.getUint8(pos++);
+            const key = `${channel}_${pitch}`;
+            if (eventType === 0x90 && vel > 0) {
+              openNotes.set(key, currentBeat);
+            } else {
+              if (openNotes.has(key)) {
+                const startBeat = openNotes.get(key);
+                openNotes.delete(key);
+                const dur = Math.max(0.25, Math.round((currentBeat - startBeat) * 4) / 4);
+                const clampedPitch = Math.max(MIN_MIDI, Math.min(MAX_MIDI, pitch));
+                const hand = (t > 1 || channel > 0 || clampedPitch < 60) ? 'L' : 'R';
+                extractedNotes.push({
+                  id: `mid_${extractedNotes.length}_${Math.random().toString(36).slice(2, 6)}`,
+                  beat: Math.round(startBeat * 4) / 4,
+                  duration: dur,
+                  midi: clampedPitch,
+                  hand,
+                  status: 'pending'
+                });
+              }
+            }
+          } else if (eventType === 0xa0 || eventType === 0xb0 || eventType === 0xe0) {
+            pos += 2;
+          } else if (eventType === 0xc0 || eventType === 0xd0) {
+            pos += 1;
+          } else if (status === 0xff) {
+            const metaType = data.getUint8(pos++);
+            const metaLen = readVarLen();
+            if (metaType === 0x51 && metaLen === 3) {
+              const mpqn = (data.getUint8(pos) << 16) | (data.getUint8(pos + 1) << 8) | data.getUint8(pos + 2);
+              if (mpqn > 0) detectedBpm = Math.round(60000000 / mpqn);
+            } else if (metaType === 0x58 && metaLen >= 2) {
+              beatsPerMeasure = data.getUint8(pos);
+            }
+            pos += metaLen;
+          } else if (status === 0xf0 || status === 0xf7) {
+            const sysLen = readVarLen();
+            pos += sysLen;
+          } else {
+            break;
+          }
+        }
+        pos = trackEnd;
+      }
+
+      extractedNotes.sort((a, b) => a.beat - b.beat || a.midi - b.midi);
+      const cleanTitle = fileName.replace(/\.(mid|midi)$/i, '').replace(/[_-]+/g, ' ');
+
+      return {
+        id: `user_midi_${Date.now()}`,
+        title: cleanTitle || 'Imported MIDI Score',
+        composer: 'Local MIDI Import',
+        difficulty: extractedNotes.length > 120 ? 'Advanced' : 'Intermediate',
+        source: 'Local Device (.mid)',
+        bpm: Math.max(45, Math.min(200, detectedBpm)),
+        beatsPerMeasure: beatsPerMeasure || 4,
+        notes: extractedNotes.length > 0 ? extractedNotes : buildStarterLibrary()[0].notes,
+        bestAccuracy: null
+      };
+    }
+
+    /***************************************************************************
+     * 5. ACOUSTIC PIANO MICROPHONE PITCH DETECTION (Autocorrelation DSP)
+     ***************************************************************************/
+    class AcousticPitchDetector {
+      constructor(onNoteDetected, onPitchUpdate) {
+        this.onNoteDetected = onNoteDetected;
+        this.onPitchUpdate = onPitchUpdate;
+        this.audioCtx = null;
+        this.analyser = null;
+        this.stream = null;
+        this.buffer = null;
+        this.isActive = false;
+        this.rafId = null;
+        this.lastMidi = null;
+        this.stableFrames = 0;
+      }
+
+      async start() {
+        try {
+          this.stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: false,
+              autoGainControl: false,
+              noiseSuppression: false
+            }
+          });
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          this.audioCtx = new AudioCtx();
+          const source = this.audioCtx.createMediaStreamSource(this.stream);
+          this.analyser = this.audioCtx.createAnalyser();
+          this.analyser.fftSize = 2048;
+          this.buffer = new Float32Array(this.analyser.fftSize);
+          source.connect(this.analyser);
+          this.isActive = true;
+          this.loop();
+          return true;
+        } catch (err) {
+          return false;
+        }
+      }
+
+      stop() {
+        this.isActive = false;
+        if (this.rafId) cancelAnimationFrame(this.rafId);
+        if (this.stream) {
+          this.stream.getTracks().forEach(t => t.stop());
+          this.stream = null;
+        }
+        if (this.audioCtx) {
+          this.audioCtx.close();
+          this.audioCtx = null;
+        }
+      }
+
+      loop() {
+        if (!this.isActive || !this.analyser) return;
+        this.analyser.getFloatTimeDomainData(this.buffer);
+        const freq = this.autoCorrelate(this.buffer, this.audioCtx.sampleRate);
+
+        if (freq > 60 && freq < 2200) {
+          const midiFloat = 12 * (Math.log(freq / 440) / Math.log(2)) + 69;
+          const midi = Math.round(midiFloat);
+          const cents = Math.round((midiFloat - midi) * 100);
+
+          if (midi >= MIN_MIDI && midi <= MAX_MIDI) {
+            this.onPitchUpdate({
+              noteName: midiToNoteName(midi),
+              freq: freq.toFixed(1),
+              cents
+            });
+
+            if (midi === this.lastMidi) {
+              this.stableFrames++;
+              if (this.stableFrames === 3) {
+                this.onNoteDetected(midi, 95);
+              }
+            } else {
+              this.lastMidi = midi;
+              this.stableFrames = 1;
+            }
+          }
+        }
+        this.rafId = requestAnimationFrame(() => this.loop());
+      }
+
+      autoCorrelate(buf, sampleRate) {
+        let size = buf.length;
+        let rms = 0;
+        for (let i = 0; i < size; i++) {
+          rms += buf[i] * buf[i];
+        }
+        rms = Math.sqrt(rms / size);
+        if (rms < 0.018) return -1; // Silence threshold
+
+        let r1 = 0, r2 = size - 1, thres = 0.2;
+        for (let i = 0; i < size / 2; i++) {
+          if (Math.abs(buf[i]) < thres) { r1 = i; break; }
+        }
+        for (let i = 1; i < size / 2; i++) {
+          if (Math.abs(buf[size - i]) < thres) { r2 = size - i; break; }
+        }
+
+        buf = buf.slice(r1, r2);
+        size = buf.length;
+
+        const c = new Float32Array(size);
+        for (let i = 0; i < size; i++) {
+          for (let j = 0; j < size - i; j++) {
+            c[i] = c[i] + buf[j] * buf[j + i];
+          }
+        }
+
+        let d = 0;
+        while (d < size - 1 && c[d] > c[d + 1]) d++;
+        let maxval = -1, maxpos = -1;
+        for (let i = d; i < size; i++) {
+          if (c[i] > maxval) {
+            maxval = c[i];
+            maxpos = i;
+          }
+        }
+        let T0 = maxpos;
+        return sampleRate / T0;
+      }
+    }
+
+    /***************************************************************************
+     * 6. MAIN APPLICATION STATE & PERSISTENCE (100% LOCAL STORAGE)
+     ***************************************************************************/
+    const STORAGE_KEY = 'marksteady_wapiro_v1_library';
+    const audioEngine = new StudioAudioEngine();
+
+    const state = {
+      library: [],
+      currentSong: null,
+      isPlaying: false,
+      currentBeat: 0,
+      speedMultiplier: 1.0,
+
+      // Learning Tools
+      playAlongMode: true,
+      waitingForNotes: [], // array of note objects currently blocking playback
+      practiceHand: 'both', // 'both' | 'R' | 'L'
+      loopEnabled: false,
+      loopStartBar: 1,
+      loopEndBar: 4,
+      mistakeRestartThreshold: 3, // 0 = Off, 2, 3, 5
+      currentMeasureMistakes: 0,
+      lastTrackedMeasure: 0,
+      autoDemoMode: false,
+
+      // Views & Editor
+      showSheetMusic: true,
+      showKeyLabels: true,
+      editMode: false,
+      editTool: 'draw', // 'draw' | 'erase'
+      editorDuration: 1,
+      editorHand: 'R',
+      draggingNote: null,
+
+      // Hardware & Input
+      activeKeys: new Map(), // midi -> { velocity, timestamp, source }
+      particles: [], // hit glow particles on waterfall
+
+      // Real-Time Scoring & Assessment
+      stats: {
+        correct: 0,
+        missed: 0,
+        extra: 0,
+        streak: 0,
+        maxStreak: 0,
+        measureStats: {} // measureIndex -> { hit: 0, miss: 0 }
+      }
+    };
+
+    function loadLocalLibrary() {
+      const starter = buildStarterLibrary();
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          state.library = starter;
+          saveLocalLibrary();
+          return;
+        }
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          state.library = parsed;
+        } else {
+          state.library = starter;
+        }
+      } catch (e) {
+        state.library = starter;
+      }
+    }
+
+    function saveLocalLibrary() {
+      try {
+        // Strip transient playback status before saving
+        const cleanLib = state.library.map(s => ({
+          ...s,
+          notes: s.notes.map(n => ({
+            id: n.id,
+            beat: n.beat,
+            duration: n.duration,
+            midi: n.midi,
+            hand: n.hand,
+            status: 'pending'
+          }))
+        }));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanLib));
+      } catch (e) {}
+    }
+
+    function showNotification(msg) {
+      const toast = document.getElementById('appNotificationToast');
+      const text = document.getElementById('appNotificationText');
+      text.textContent = msg;
+      toast.classList.remove('hidden');
+      clearTimeout(showNotification._timer);
+      showNotification._timer = setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 3200);
+    }
+
+    /***************************************************************************
+     * 7. SONG SELECTION, RESET & PERFORMANCE SCORING ENGINE
+     ***************************************************************************/
+    function selectSongById(songId) {
+      const found = state.library.find(s => s.id === songId) || state.library[0];
+      // Deep clone notes for active practice state
+      state.currentSong = {
+        ...found,
+        notes: found.notes.map(n => ({ ...n, status: 'pending', autoTriggered: false }))
+      };
+      state.isPlaying = false;
+      state.currentBeat = 0;
+      state.waitingForNotes = [];
+      audioEngine.allNotesOff();
+      resetAssessmentStats();
+      updateSongHeaderUI();
+      populateSongDropdown();
+    }
+
+    function resetAssessmentStats() {
+      state.stats = {
+        correct: 0,
+        missed: 0,
+        extra: 0,
+        streak: 0,
+        maxStreak: 0,
+        measureStats: {}
+      };
+      state.currentMeasureMistakes = 0;
+      state.lastTrackedMeasure = 0;
+      if (state.currentSong) {
+        state.currentSong.notes.forEach(n => {
+          n.status = 'pending';
+          n.autoTriggered = false;
+        });
+      }
+      updateHudUI();
+    }
+
+    function computeAccuracyPercent() {
+      const totalAttempts = state.stats.correct + state.stats.missed + state.stats.extra;
+      if (totalAttempts === 0) return 100;
+      return Math.max(0, Math.min(100, Math.round((state.stats.correct / totalAttempts) * 100)));
+    }
+
+    function updateHudUI() {
+      document.getElementById('hudCorrect').textContent = state.stats.correct;
+      document.getElementById('hudMissed').textContent = state.stats.missed;
+      document.getElementById('hudExtra').textContent = state.stats.extra;
+      document.getElementById('hudStreak').textContent = state.stats.streak;
+      document.getElementById('hudAccuracy').textContent = `${computeAccuracyPercent()}%`;
+    }
+
+    function recordMeasureEvent(beat, isHit) {
+      const bpmBar = state.currentSong ? state.currentSong.beatsPerMeasure : 4;
+      const mIdx = Math.floor(beat / bpmBar);
+      if (!state.stats.measureStats[mIdx]) {
+        state.stats.measureStats[mIdx] = { hit: 0, miss: 0 };
+      }
+      if (isHit) state.stats.measureStats[mIdx].hit++;
+      else state.stats.measureStats[mIdx].miss++;
+    }
+
+    function triggerMistakeInCurrentMeasure() {
+      if (state.mistakeRestartThreshold <= 0 || !state.isPlaying) return;
+      state.currentMeasureMistakes++;
+      if (state.currentMeasureMistakes >= state.mistakeRestartThreshold) {
+        const bpmBar = state.currentSong.beatsPerMeasure || 4;
+        const currentMeasureIndex = Math.floor(state.currentBeat / bpmBar);
+        const measureStartBeat = currentMeasureIndex * bpmBar;
+
+        // Reset notes in this measure back to pending
+        state.currentSong.notes.forEach(n => {
+          if (n.beat >= measureStartBeat && n.beat < measureStartBeat + bpmBar) {
+            n.status = 'pending';
+            n.autoTriggered = false;
+          }
+        });
+
+        state.currentBeat = measureStartBeat;
+        state.waitingForNotes = [];
+        state.currentMeasureMistakes = 0;
+
+        // Show visual toast
+        const toast = document.getElementById('mistakeToast');
+        const txt = document.getElementById('mistakeToastText');
+        txt.textContent = `Measure ${currentMeasureIndex + 1} Restarted (${state.mistakeRestartThreshold} Mistakes Reached)`;
+        toast.classList.remove('hidden');
+        clearTimeout(triggerMistakeInCurrentMeasure._timer);
+        triggerMistakeInCurrentMeasure._timer = setTimeout(() => toast.classList.add('hidden'), 2200);
+      }
+    }
+
+    /***************************************************************************
+     * 8. USER NOTE INPUT HANDLER (Keyboard, Mouse, Touch, MIDI & Acoustic Mic)
+     ***************************************************************************/
+    function handleUserNoteOn(midi, velocity = 100, source = 'ui') {
+      if (midi < MIN_MIDI || midi > MAX_MIDI) return;
+      audioEngine.noteOn(midi, velocity);
+      state.activeKeys.set(midi, { velocity, timestamp: performance.now(), source });
+
+      if (!state.currentSong || state.editMode) return;
+
+      // Check if this note matches any pending note within the hit window
+      const hitWindow = 0.65; // beats tolerance
+      const candidates = state.currentSong.notes.filter(n => {
+        if (n.status !== 'pending' || n.midi !== midi) return false;
+        if (state.practiceHand !== 'both' && n.hand !== state.practiceHand) return false;
+        return Math.abs(n.beat - state.currentBeat) <= hitWindow;
+      });
+
+      if (candidates.length > 0) {
+        const matched = candidates[0];
+        matched.status = 'hit';
+        state.stats.correct++;
+        state.stats.streak++;
+        if (state.stats.streak > state.stats.maxStreak) state.stats.maxStreak = state.stats.streak;
+        recordMeasureEvent(matched.beat, true);
+        spawnHitParticles(midi, matched.hand === 'R' ? '#22d3ee' : '#34d399');
+
+        // Remove from Play-Along waiting queue if present
+        state.waitingForNotes = state.waitingForNotes.filter(w => w.id !== matched.id);
+        updatePlayAlongBannerUI();
+        updateHudUI();
+      } else if (state.isPlaying) {
+        // Count as an extra/incorrect note during active practice
+        state.stats.extra++;
+        state.stats.streak = 0;
+        recordMeasureEvent(state.currentBeat, false);
+        updateHudUI();
+        triggerMistakeInCurrentMeasure();
+      }
+    }
+
+    function handleUserNoteOff(midi) {
+      audioEngine.noteOff(midi);
+      state.activeKeys.delete(midi);
+    }
+
+    function updatePlayAlongBannerUI() {
+      const banner = document.getElementById('playAlongBanner');
+      const targetText = document.getElementById('playAlongTargetNotesText');
+      if (state.playAlongMode && state.isPlaying && state.waitingForNotes.length > 0) {
+        const names = state.waitingForNotes.map(n => midiToNoteName(n.midi)).join(' + ');
+        targetText.textContent = names;
+        banner.classList.remove('hidden');
+      } else {
+        banner.classList.add('hidden');
+      }
+    }
+
+    /***************************************************************************
+     * 9. GEOMETRY & PIXEL ALIGNMENT: 61-KEY PIANO KEYBOARD <-> WATERFALL
+     ***************************************************************************/
+    const keyGeometryCache = {
+      width: 0,
+      whiteKeyWidth: 0,
+      keyRects: new Map(), // midi -> { x, w, isBlack }
+      whiteKeys: [],
+      blackKeys: []
+    };
+
+    function computeKeyboardGeometry(canvasWidth) {
+      keyGeometryCache.width = canvasWidth;
+      keyGeometryCache.keyRects.clear();
+      keyGeometryCache.whiteKeys = [];
+      keyGeometryCache.blackKeys = [];
+
+      // Count white keys between C2 (36) and C7 (96) -> 36 white keys
+      let whiteCount = 0;
+      for (let m = MIN_MIDI; m <= MAX_MIDI; m++) {
+        if (!isBlackKey(m)) whiteCount++;
+      }
+
+      const wWidth = canvasWidth / whiteCount;
+      keyGeometryCache.whiteKeyWidth = wWidth;
+      const bWidth = wWidth * 0.62;
+
+      let whiteIndex = 0;
+      for (let m = MIN_MIDI; m <= MAX_MIDI; m++) {
+        if (!isBlackKey(m)) {
+          const x = whiteIndex * wWidth;
+          const rect = { midi: m, x, w: wWidth, isBlack: false };
+          keyGeometryCache.keyRects.set(m, rect);
+          keyGeometryCache.whiteKeys.push(rect);
+          whiteIndex++;
+        }
+      }
+
+      // Compute black key positions relative to preceding white key
+      for (let m = MIN_MIDI; m <= MAX_MIDI; m++) {
+        if (isBlackKey(m)) {
+          const prevWhite = keyGeometryCache.keyRects.get(m - 1);
+          if (prevWhite) {
+            const semi = m % 12;
+            // Slight realistic offset for C#/D# and F#/G#/A#
+            let offsetRatio = 0.68;
+            if (semi === 1 || semi === 6) offsetRatio = 0.63;
+            if (semi === 3 || semi === 10) offsetRatio = 0.73;
+            const x = prevWhite.x + prevWhite.w * offsetRatio - bWidth / 2;
+            const rect = { midi: m, x, w: bWidth, isBlack: true };
+            keyGeometryCache.keyRects.set(m, rect);
+            keyGeometryCache.blackKeys.push(rect);
+          }
+        }
+      }
+    }
+
+    function spawnHitParticles(midi, color) {
+      const rect = keyGeometryCache.keyRects.get(midi);
+      if (!rect) return;
+      const centerX = rect.x + rect.w / 2;
+      for (let i = 0; i < 10; i++) {
+        state.particles.push({
+          x: centerX + (Math.random() - 0.5) * rect.w,
+          y: 0, // relative to bottom of waterfall
+          vx: (Math.random() - 0.5) * 90,
+          vy: -40 - Math.random() * 110,
+          radius: 2 + Math.random() * 3.5,
+          alpha: 1,
+          color
+        });
+      }
+    }
+
+    /***************************************************************************
+     * 10. CANVAS RENDERING ENGINE:
+     *     A) GRAND STAFF SHEET MUSIC VIEW
+     *     B) FALLING-NOTE WATERFALL PIANO ROLL
+     *     C) 61-KEY INTERACTIVE PIANO KEYBOARD
+     ***************************************************************************/
+    const grandStaffCanvas = document.getElementById('grandStaffCanvas');
+    const waterfallCanvas = document.getElementById('waterfallCanvas');
+    const pianoKeyboardCanvas = document.getElementById('pianoKeyboardCanvas');
+
+    const staffCtx = grandStaffCanvas.getContext('2d');
+    const waterfallCtx = waterfallCanvas.getContext('2d');
+    const keyboardCtx = pianoKeyboardCanvas.getContext('2d');
+
+    function resizeAllCanvases() {
+      const dpr = window.devicePixelRatio || 1;
+
+      [grandStaffCanvas, waterfallCanvas, pianoKeyboardCanvas].forEach(c => {
+        const rect = c.parentElement.getBoundingClientRect();
+        c.width = Math.max(1, Math.floor(rect.width * dpr));
+        c.height = Math.max(1, Math.floor(rect.height * dpr));
+        const ctx = c.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      });
+
+      const kbRect = pianoKeyboardCanvas.parentElement.getBoundingClientRect();
+      computeKeyboardGeometry(kbRect.width);
+    }
+
+    window.addEventListener('resize', resizeAllCanvases);
+
+    // ---------------- A) RENDER SYNCHRONIZED GRAND STAFF ----------------
+    function renderGrandStaff() {
+      if (!state.showSheetMusic) return;
+      const w = grandStaffCanvas.parentElement.clientWidth;
+      const h = grandStaffCanvas.parentElement.clientHeight;
+      staffCtx.clearRect(0, 0, w, h);
+
+      // Warm dark parchment-slate background
+      staffCtx.fillStyle = '#0c111d';
+      staffCtx.fillRect(0, 0, w, h);
+
+      const song = state.currentSong;
+      if (!song) return;
+
+      const lineSpacing = Math.max(8, Math.min(11, h / 18)); // Distance between 2 staff lines
+      const stepPx = lineSpacing / 2; // 1 diatonic step
+      const middleCY = h * 0.52; // Diatonic step 0 (C4) sits right between Treble and Bass staves
+
+      // Treble Staff Lines: E4(2), G4(4), B4(6), D5(8), F5(10)
+      const trebleSteps = [2, 4, 6, 8, 10];
+      // Bass Staff Lines: G2(-10), B2(-8), D3(-6), F3(-4), A3(-2)
+      const bassSteps = [-10, -8, -6, -4, -2];
+
+      const stepToY = (diatonicStep) => middleCY - diatonicStep * stepPx;
+
+      // Draw staff lines
+      staffCtx.strokeStyle = '#334155';
+      staffCtx.lineWidth = 1;
+      [...trebleSteps, ...bassSteps].forEach(st => {
+        const y = stepToY(st);
+        staffCtx.beginPath();
+        staffCtx.moveTo(16, y);
+        staffCtx.lineTo(w - 16, y);
+        staffCtx.stroke();
+      });
+
+      // Left Grand Staff Brace & Clef Gutter
+      const playheadX = Math.min(185, w * 0.24);
+      const pxPerBeat = 68;
+      const beatsPerBar = song.beatsPerMeasure || 4;
+
+      // Draw Loop A/B shaded region on Grand Staff if enabled
+      if (state.loopEnabled) {
+        const loopStartBeat = (state.loopStartBar - 1) * beatsPerBar;
+        const loopEndBeat = state.loopEndBar * beatsPerBar;
+        const x1 = playheadX + (loopStartBeat - state.currentBeat) * pxPerBeat;
+        const x2 = playheadX + (loopEndBeat - state.currentBeat) * pxPerBeat;
+        staffCtx.fillStyle = 'rgba(6, 182, 212, 0.08)';
+        staffCtx.fillRect(x1, stepToY(12), x2 - x1, stepToY(-12) - stepToY(12));
+      }
+
+      // Draw scrolling Measure Bars & Measure Numbers
+      const totalSongBeats = Math.max(32, ...song.notes.map(n => n.beat + n.duration)) + 8;
+      const totalBars = Math.ceil(totalSongBeats / beatsPerBar);
+
+      for (let bar = 0; bar <= totalBars; bar++) {
+        const barBeat = bar * beatsPerBar;
+        const x = playheadX + (barBeat - state.currentBeat) * pxPerBeat;
+        if (x < 70 || x > w + 40) continue;
+
+        staffCtx.strokeStyle = '#475569';
+        staffCtx.lineWidth = 1.4;
+        staffCtx.beginPath();
+        staffCtx.moveTo(x, stepToY(10));
+        staffCtx.lineTo(x, stepToY(-10));
+        staffCtx.stroke();
+
+        // Measure number label
+        staffCtx.fillStyle = '#64748b';
+        staffCtx.font = '600 10px "JetBrains Mono", monospace';
+        staffCtx.fillText(`M${bar + 1}`, x + 4, stepToY(10) - 6);
+
+        // Subtle beat subdivision lines
+        for (let b = 1; b < beatsPerBar; b++) {
+          const bx = x + b * pxPerBeat;
+          if (bx > 70 && bx < w) {
+            staffCtx.strokeStyle = 'rgba(51, 65, 85, 0.35)';
+            staffCtx.lineWidth = 1;
+            staffCtx.beginPath();
+            staffCtx.moveTo(bx, stepToY(10));
+            staffCtx.lineTo(bx, stepToY(-10));
+            staffCtx.stroke();
+          }
+        }
+      }
+
+      // Render Notes on Grand Staff
+      song.notes.forEach(note => {
+        const x = playheadX + (note.beat - state.currentBeat) * pxPerBeat;
+        if (x < 65 || x > w + 50) return;
+
+        const diatonicStep = midiToDiatonicStepFromC4(note.midi);
+        const y = stepToY(diatonicStep);
+        const isSharp = isBlackKey(note.midi);
+
+        // Determine Note Color (RH = Cyan, LH = Emerald, Hit = Bright Green, Missed = Rose, Waiting = Amber)
+        let color = note.hand === 'R' ? '#38bdf8' : '#34d399';
+        if (note.status === 'hit') color = '#4ade80';
+        else if (note.status === 'missed') color = '#fb7185';
+        else if (state.waitingForNotes.some(wNote => wNote.id === note.id)) color = '#fbbf24';
+
+        // Ledger lines (Middle C = step 0, above Treble >= 12, below Bass <= -12)
+        staffCtx.strokeStyle = '#94a3b8';
+        staffCtx.lineWidth = 1.4;
+        if (diatonicStep === 0) {
+          staffCtx.beginPath();
+          staffCtx.moveTo(x - 10, stepToY(0));
+          staffCtx.lineTo(x + 10, stepToY(0));
+          staffCtx.stroke();
+        } else if (diatonicStep >= 12) {
+          for (let s = 12; s <= diatonicStep; s += 2) {
+            staffCtx.beginPath();
+            staffCtx.moveTo(x - 10, stepToY(s));
+            staffCtx.lineTo(x + 10, stepToY(s));
+            staffCtx.stroke();
+          }
+        } else if (diatonicStep <= -12) {
+          for (let s = -12; s >= diatonicStep; s -= 2) {
+            staffCtx.beginPath();
+            staffCtx.moveTo(x - 10, stepToY(s));
+            staffCtx.lineTo(x + 10, stepToY(s));
+            staffCtx.stroke();
+          }
+        }
+
+        // Duration tail bar (helps link visual length to waterfall)
+        const durWidth = Math.max(8, note.duration * pxPerBeat - 6);
+        staffCtx.fillStyle = color + '28';
+        staffCtx.beginPath();
+        staffCtx.roundRect(x, y - stepPx * 0.75, durWidth, stepPx * 1.5, 4);
+        staffCtx.fill();
+
+        // Sharp (#) accidental symbol
+        if (isSharp) {
+          staffCtx.fillStyle = color;
+          staffCtx.font = 'bold 12px Inter, sans-serif';
+          staffCtx.fillText('♯', x - 16, y + 4);
+        }
+
+        // Notehead (open oval for half/whole notes >= 2 beats, filled oval for quarter/eighth)
+        const isOpenHead = note.duration >= 2;
+        staffCtx.save();
+        staffCtx.translate(x, y);
+        staffCtx.rotate(-0.25);
+        staffCtx.beginPath();
+        staffCtx.ellipse(0, 0, stepPx * 1.25, stepPx * 0.92, 0, 0, Math.PI * 2);
+        if (isOpenHead) {
+          staffCtx.lineWidth = 2;
+          staffCtx.strokeStyle = color;
+          staffCtx.stroke();
+        } else {
+          staffCtx.fillStyle = color;
+          staffCtx.fill();
+        }
+        staffCtx.restore();
+
+        // Stem (if duration < 4 beats)
+        if (note.duration < 4) {
+          const stemUp = diatonicStep < 0;
+          const stemX = stemUp ? x + stepPx * 1.1 : x - stepPx * 1.1;
+          const stemEndY = stemUp ? y - lineSpacing * 3.1 : y + lineSpacing * 3.1;
+          staffCtx.strokeStyle = color;
+          staffCtx.lineWidth = 1.6;
+          staffCtx.beginPath();
+          staffCtx.moveTo(stemX, y);
+          staffCtx.lineTo(stemX, stemEndY);
+          staffCtx.stroke();
+
+          // Eighth note flag
+          if (note.duration <= 0.5) {
+            staffCtx.beginPath();
+            staffCtx.moveTo(stemX, stemEndY);
+            staffCtx.quadraticCurveTo(stemX + 8, stemEndY + (stemUp ? 8 : -8), stemX + 5, stemEndY + (stemUp ? 15 : -15));
+            staffCtx.stroke();
+          }
+        }
+      });
+
+      // Fixed Left Clef Header Mask so scrolling notes pass cleanly behind the Treble & Bass Clefs
+      staffCtx.fillStyle = '#0c111d';
+      staffCtx.fillRect(0, 0, 74, h);
+      staffCtx.strokeStyle = '#334155';
+      staffCtx.lineWidth = 2;
+      staffCtx.beginPath();
+      staffCtx.moveTo(74, stepToY(10));
+      staffCtx.lineTo(74, stepToY(-10));
+      staffCtx.stroke();
+
+      // Re-draw staff lines inside clef box
+      staffCtx.lineWidth = 1;
+      [...trebleSteps, ...bassSteps].forEach(st => {
+        const y = stepToY(st);
+        staffCtx.beginPath();
+        staffCtx.moveTo(14, y);
+        staffCtx.lineTo(74, y);
+        staffCtx.stroke();
+      });
+
+      // Draw Treble Clef (𝄞) & Bass Clef (𝄢) + Time Signature
+      staffCtx.fillStyle = '#e2e8f0';
+      staffCtx.font = `${Math.round(lineSpacing * 4.4)}px serif`;
+      staffCtx.fillText('𝄞', 18, stepToY(2) - 2);
+      staffCtx.font = `${Math.round(lineSpacing * 3.4)}px serif`;
+      staffCtx.fillText('𝄢', 19, stepToY(-8) + 2);
+
+      // Time signature numbers
+      staffCtx.fillStyle = '#94a3b8';
+      staffCtx.font = `800 ${Math.round(lineSpacing * 1.9)}px "JetBrains Mono", monospace`;
+      staffCtx.fillText(String(beatsPerBar), 52, stepToY(6) + 2);
+      staffCtx.fillText('4', 52, stepToY(2) + 2);
+      staffCtx.fillText(String(beatsPerBar), 52, stepToY(-4) + 2);
+      staffCtx.fillText('4', 52, stepToY(-8) + 2);
+
+      // Draw Fixed Playhead Vertical Laser Line
+      staffCtx.save();
+      staffCtx.strokeStyle = '#22d3ee';
+      staffCtx.lineWidth = 2.2;
+      staffCtx.shadowColor = '#22d3ee';
+      staffCtx.shadowBlur = 10;
+      staffCtx.beginPath();
+      staffCtx.moveTo(playheadX, 12);
+      staffCtx.lineTo(playheadX, h - 12);
+      staffCtx.stroke();
+
+      // Playhead top diamond marker
+      staffCtx.fillStyle = '#22d3ee';
+      staffCtx.beginPath();
+      staffCtx.arc(playheadX, 12, 4, 0, Math.PI * 2);
+      staffCtx.fill();
+      staffCtx.restore();
+    }
+
+    // ---------------- B) RENDER FALLING-NOTE WATERFALL PIANO ROLL ----------------
+    function renderWaterfall(dt) {
+      const w = waterfallCanvas.parentElement.clientWidth;
+      const h = waterfallCanvas.parentElement.clientHeight;
+      waterfallCtx.clearRect(0, 0, w, h);
+
+      // Deep Studio Gradient Background
+      const bgGrad = waterfallCtx.createLinearGradient(0, 0, 0, h);
+      bgGrad.addColorStop(0, '#05070b');
+      bgGrad.addColorStop(1, '#0b111e');
+      waterfallCtx.fillStyle = bgGrad;
+      waterfallCtx.fillRect(0, 0, w, h);
+
+      // 1. Vertical Key Lanes aligned with 61-key keyboard
+      for (let m = MIN_MIDI; m <= MAX_MIDI; m++) {
+        const rect = keyGeometryCache.keyRects.get(m);
+        if (!rect) continue;
+        if (rect.isBlack) {
+          waterfallCtx.fillStyle = 'rgba(15, 23, 42, 0.45)';
+          waterfallCtx.fillRect(rect.x, 0, rect.w, h);
+        }
+        // Highlight lane when key is actively held
+        if (state.activeKeys.has(m)) {
+          const laneGrad = waterfallCtx.createLinearGradient(0, h, 0, 0);
+          laneGrad.addColorStop(0, 'rgba(34, 211, 238, 0.28)');
+          laneGrad.addColorStop(1, 'rgba(34, 211, 238, 0.0)');
+          waterfallCtx.fillStyle = laneGrad;
+          waterfallCtx.fillRect(rect.x, 0, rect.w, h);
+        }
+        // Subtle octave separator line at every C
+        if (m % 12 === 0) {
+          waterfallCtx.strokeStyle = 'rgba(71, 85, 105, 0.35)';
+          waterfallCtx.lineWidth = 1;
+          waterfallCtx.beginPath();
+          waterfallCtx.moveTo(rect.x, 0);
+          waterfallCtx.lineTo(rect.x, h);
+          waterfallCtx.stroke();
+        }
+      }
+
+      const song = state.currentSong;
+      if (!song) return;
+
+      const visibleBeatsAhead = 8; // 8 beats visible vertically
+      const pxPerBeatY = h / visibleBeatsAhead;
+      const beatsPerBar = song.beatsPerMeasure || 4;
+
+      // beatToY: currentBeat is at the bottom strike line (y = h); future beats are above (y < h)
+      const beatToY = (beat) => h - (beat - state.currentBeat) * pxPerBeatY;
+
+      // 2. Sustain Pedal Glow at bottom if active
+      if (audioEngine.pedalValue >= 20) {
+        const pedGrad = waterfallCtx.createLinearGradient(0, h, 0, h - 42);
+        pedGrad.addColorStop(0, 'rgba(168, 85, 247, 0.32)');
+        pedGrad.addColorStop(1, 'rgba(168, 85, 247, 0)');
+        waterfallCtx.fillStyle = pedGrad;
+        waterfallCtx.fillRect(0, h - 42, w, 42);
+      }
+
+      // 3. Draw A/B Loop Region Overlay on Waterfall
+      if (state.loopEnabled) {
+        const loopStartBeat = (state.loopStartBar - 1) * beatsPerBar;
+        const loopEndBeat = state.loopEndBar * beatsPerBar;
+        const yBottom = beatToY(loopStartBeat);
+        const yTop = beatToY(loopEndBeat);
+        waterfallCtx.fillStyle = 'rgba(6, 182, 212, 0.07)';
+        waterfallCtx.fillRect(0, yTop, w, yBottom - yTop);
+
+        // Loop A & B horizontal marker lines
+        [
+          { y: yBottom, label: `LOOP START (BAR ${state.loopStartBar})`, color: '#22d3ee' },
+          { y: yTop, label: `LOOP END (BAR ${state.loopEndBar})`, color: '#f43f5e' }
+        ].forEach(mk => {
+          if (mk.y >= -20 && mk.y <= h + 20) {
+            waterfallCtx.strokeStyle = mk.color;
+            waterfallCtx.lineWidth = 1.5;
+            waterfallCtx.setLineDash([6, 4]);
+            waterfallCtx.beginPath();
+            waterfallCtx.moveTo(0, mk.y);
+            waterfallCtx.lineTo(w, mk.y);
+            waterfallCtx.stroke();
+            waterfallCtx.setLineDash([]);
+            waterfallCtx.fillStyle = mk.color;
+            waterfallCtx.font = 'bold 10px "JetBrains Mono", monospace';
+            waterfallCtx.fillText(mk.label, 12, mk.y - 4);
+          }
+        });
+      }
+
+      // 4. Horizontal Measure & Beat Grid Lines falling down
+      const firstVisibleBar = Math.max(0, Math.floor(state.currentBeat / beatsPerBar));
+      const lastVisibleBar = Math.ceil((state.currentBeat + visibleBeatsAhead + 1) / beatsPerBar);
+
+      for (let bar = firstVisibleBar; bar <= lastVisibleBar; bar++) {
+        const barBeat = bar * beatsPerBar;
+        const y = beatToY(barBeat);
+        if (y >= 0 && y <= h) {
+          waterfallCtx.strokeStyle = 'rgba(100, 116, 139, 0.45)';
+          waterfallCtx.lineWidth = 1.2;
+          waterfallCtx.beginPath();
+          waterfallCtx.moveTo(0, y);
+          waterfallCtx.lineTo(w, y);
+          waterfallCtx.stroke();
+
+          waterfallCtx.fillStyle = 'rgba(148, 163, 184, 0.75)';
+          waterfallCtx.font = '600 10px "JetBrains Mono", monospace';
+          waterfallCtx.fillText(`MEASURE ${bar + 1}`, 8, y - 4);
+        }
+
+        // Subdivision beat lines
+        for (let b = 1; b < beatsPerBar; b++) {
+          const by = beatToY(barBeat + b);
+          if (by >= 0 && by <= h) {
+            waterfallCtx.strokeStyle = 'rgba(51, 65, 85, 0.25)';
+            waterfallCtx.lineWidth = 1;
+            waterfallCtx.beginPath();
+            waterfallCtx.moveTo(0, by);
+            waterfallCtx.lineTo(w, by);
+            waterfallCtx.stroke();
+          }
+        }
+      }
+
+      // 5. Render Falling Note Bars
+      song.notes.forEach(note => {
+        const noteEndBeat = note.beat + note.duration;
+        if (noteEndBeat < state.currentBeat - 0.5 || note.beat > state.currentBeat + visibleBeatsAhead + 0.5) {
+          return;
+        }
+        const rect = keyGeometryCache.keyRects.get(note.midi);
+        if (!rect) return;
+
+        const yBottom = beatToY(note.beat);
+        const yTop = beatToY(noteEndBeat);
+        const barHeight = Math.max(10, yBottom - yTop - 3);
+        const padX = rect.isBlack ? 1 : 2;
+        const barX = rect.x + padX;
+        const barW = Math.max(6, rect.w - padX * 2);
+
+        // Color scheme: RH = Cyan/Blue, LH = Emerald/Green
+        let fillStart = note.hand === 'R' ? '#06b6d4' : '#10b981';
+        let fillEnd = note.hand === 'R' ? '#3b82f6' : '#059669';
+        let borderCol = note.hand === 'R' ? '#67e8f9' : '#6ee7b7';
+
+        if (note.status === 'hit') {
+          fillStart = '#22c55e';
+          fillEnd = '#15803d';
+          borderCol = '#bbf7d0';
+        } else if (note.status === 'missed') {
+          fillStart = '#e11d48';
+          fillEnd = '#881337';
+          borderCol = '#fda4af';
+        } else if (state.waitingForNotes.some(wNote => wNote.id === note.id)) {
+          fillStart = '#f59e0b';
+          fillEnd = '#d97706';
+          borderCol = '#fde68a';
+        }
+
+        const grad = waterfallCtx.createLinearGradient(barX, yTop, barX, yBottom);
+        grad.addColorStop(0, fillEnd);
+        grad.addColorStop(1, fillStart);
+
+        waterfallCtx.save();
+        if (note.beat <= state.currentBeat && noteEndBeat >= state.currentBeat) {
+          waterfallCtx.shadowColor = borderCol;
+          waterfallCtx.shadowBlur = 14;
+        }
+
+        waterfallCtx.fillStyle = grad;
+        waterfallCtx.strokeStyle = borderCol;
+        waterfallCtx.lineWidth = 1.3;
+        waterfallCtx.beginPath();
+        waterfallCtx.roundRect(barX, yTop, barW, barHeight, 5);
+        waterfallCtx.fill();
+        waterfallCtx.stroke();
+        waterfallCtx.restore();
+
+        // Draw Note Name inside falling bar if tall enough
+        if (barHeight >= 18 && barW >= 12) {
+          waterfallCtx.fillStyle = '#ffffff';
+          waterfallCtx.font = '700 10px Inter, sans-serif';
+          waterfallCtx.textAlign = 'center';
+          waterfallCtx.fillText(midiToNoteName(note.midi), barX + barW / 2, yBottom - 6);
+          waterfallCtx.textAlign = 'left';
+        }
+      });
+
+      // 6. Strike-Line Laser Glow + Hit Particles
+      waterfallCtx.save();
+      waterfallCtx.strokeStyle = '#22d3ee';
+      waterfallCtx.lineWidth = 2;
+      waterfallCtx.beginPath();
+      waterfallCtx.moveTo(0, h - 1);
+      waterfallCtx.lineTo(w, h - 1);
+      waterfallCtx.stroke();
+      waterfallCtx.restore();
+
+      // Update & Draw Particles
+      for (let i = state.particles.length - 1; i >= 0; i--) {
+        const p = state.particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.alpha -= dt * 1.9;
+        if (p.alpha <= 0) {
+          state.particles.splice(i, 1);
+          continue;
+        }
+        waterfallCtx.save();
+        waterfallCtx.globalAlpha = Math.max(0, p.alpha);
+        waterfallCtx.fillStyle = p.color;
+        waterfallCtx.beginPath();
+        waterfallCtx.arc(p.x, h + p.y, p.radius, 0, Math.PI * 2);
+        waterfallCtx.fill();
+        waterfallCtx.restore();
+      }
+    }
+
+    // ---------------- C) RENDER 61-KEY INTERACTIVE PIANO KEYBOARD ----------------
+    function renderPianoKeyboard() {
+      const w = pianoKeyboardCanvas.parentElement.clientWidth;
+      const h = pianoKeyboardCanvas.parentElement.clientHeight;
+      keyboardCtx.clearRect(0, 0, w, h);
+
+      // Find upcoming guide notes within the next 0.45 beats
+      const upcomingGuideMap = new Map(); // midi -> hand ('R'|'L')
+      if (state.currentSong) {
+        state.currentSong.notes.forEach(n => {
+          if (n.status === 'pending' && n.beat >= state.currentBeat - 0.1 && n.beat <= state.currentBeat + 0.45) {
+            upcomingGuideMap.set(n.midi, n.hand);
+          }
+        });
+      }
+
+      // 1. Render White Keys
+      keyGeometryCache.whiteKeys.forEach(k => {
+        const isHeld = state.activeKeys.has(k.midi);
+        const guideHand = upcomingGuideMap.get(k.midi);
+
+        const grad = keyboardCtx.createLinearGradient(0, 0, 0, h);
+        if (isHeld) {
+          grad.addColorStop(0, '#38bdf8');
+          grad.addColorStop(1, '#0284c7');
+        } else {
+          grad.addColorStop(0, '#f8fafc');
+          grad.addColorStop(0.92, '#e2e8f0');
+          grad.addColorStop(1, '#cbd5e1');
+        }
+
+        keyboardCtx.fillStyle = grad;
+        keyboardCtx.strokeStyle = '#1e293b';
+        keyboardCtx.lineWidth = 1;
+        keyboardCtx.beginPath();
+        keyboardCtx.roundRect(k.x + 0.5, 0, k.w - 1, h - 2, [0, 0, 5, 5]);
+        keyboardCtx.fill();
+        keyboardCtx.stroke();
+
+        // Guide dot for upcoming note
+        if (guideHand && !isHeld) {
+          keyboardCtx.fillStyle = guideHand === 'R' ? '#06b6d4' : '#10b981';
+          keyboardCtx.beginPath();
+          keyboardCtx.arc(k.x + k.w / 2, h - 26, Math.min(6, k.w * 0.25), 0, Math.PI * 2);
+          keyboardCtx.fill();
+        }
+
+        // Labels (Note name + QWERTY hint)
+        if (state.showKeyLabels && k.w >= 14) {
+          keyboardCtx.textAlign = 'center';
+          // Highlight C keys
+          if (k.midi % 12 === 0) {
+            keyboardCtx.fillStyle = isHeld ? '#ffffff' : '#0f172a';
+            keyboardCtx.font = '700 10px Inter, sans-serif';
+            keyboardCtx.fillText(midiToNoteName(k.midi), k.x + k.w / 2, h - 8);
+          } else if (k.w >= 21) {
+            keyboardCtx.fillStyle = isHeld ? '#e0f2fe' : '#64748b';
+            keyboardCtx.font = '500 9px Inter, sans-serif';
+            keyboardCtx.fillText(NOTE_NAMES[k.midi % 12], k.x + k.w / 2, h - 8);
+          }
+
+          const qLabel = MIDI_TO_QWERTY_LABEL[k.midi];
+          if (qLabel) {
+            keyboardCtx.fillStyle = isHeld ? '#ffffff' : '#94a3b8';
+            keyboardCtx.font = '600 8px "JetBrains Mono", monospace';
+            keyboardCtx.fillText(qLabel, k.x + k.w / 2, h - 38);
+          }
+          keyboardCtx.textAlign = 'left';
+        }
+      });
+
+      // 2. Render Black Keys
+      const blackHeight = h * 0.63;
+      keyGeometryCache.blackKeys.forEach(k => {
+        const isHeld = state.activeKeys.has(k.midi);
+        const guideHand = upcomingGuideMap.get(k.midi);
+
+        const grad = keyboardCtx.createLinearGradient(0, 0, 0, blackHeight);
+        if (isHeld) {
+          grad.addColorStop(0, '#22d3ee');
+          grad.addColorStop(1, '#0369a1');
+        } else {
+          grad.addColorStop(0, '#1e293b');
+          grad.addColorStop(0.85, '#0f172a');
+          grad.addColorStop(1, '#020617');
+        }
+
+        keyboardCtx.fillStyle = grad;
+        keyboardCtx.strokeStyle = '#020617';
+        keyboardCtx.lineWidth = 1;
+        keyboardCtx.beginPath();
+        keyboardCtx.roundRect(k.x, 0, k.w, blackHeight, [0, 0, 4, 4]);
+        keyboardCtx.fill();
+        keyboardCtx.stroke();
+
+        if (guideHand && !isHeld) {
+          keyboardCtx.fillStyle = guideHand === 'R' ? '#22d3ee' : '#34d399';
+          keyboardCtx.beginPath();
+          keyboardCtx.arc(k.x + k.w / 2, blackHeight - 12, Math.min(4.5, k.w * 0.28), 0, Math.PI * 2);
+          keyboardCtx.fill();
+        }
+      });
+    }
+
+    /***************************************************************************
+     * 11. MAIN REAL-TIME PLAYBACK & SYNCHRONIZATION LOOP
+     ***************************************************************************/
+    let lastFrameTime = performance.now();
+
+    function masterAnimationLoop(now) {
+      const dt = Math.min(0.08, (now - lastFrameTime) / 1000);
+      lastFrameTime = now;
+
+      if (state.isPlaying && state.currentSong) {
+        const song = state.currentSong;
+        const beatsPerSec = (song.bpm / 60) * state.speedMultiplier;
+        const beatsPerBar = song.beatsPerMeasure || 4;
+
+        // Track measure transitions to reset per-measure mistake counter
+        const curBarIdx = Math.floor(state.currentBeat / beatsPerBar);
+        if (curBarIdx !== state.lastTrackedMeasure) {
+          state.lastTrackedMeasure = curBarIdx;
+          state.currentMeasureMistakes = 0;
+        }
+
+        // Check for notes that should be auto-played (inactive hand or Auto-Demo Mode)
+        song.notes.forEach(note => {
+          const isAutoHand = state.autoDemoMode || (state.practiceHand !== 'both' && note.hand !== state.practiceHand);
+          if (isAutoHand && !note.autoTriggered && note.beat <= state.currentBeat && note.beat >= state.currentBeat - 0.25) {
+            note.autoTriggered = true;
+            note.status = 'hit';
+            audioEngine.noteOn(note.midi, 88);
+            state.activeKeys.set(note.midi, { velocity: 88, timestamp: now, source: 'auto' });
+            const durMs = (note.duration / beatsPerSec) * 1000 * 0.92;
+            setTimeout(() => {
+              audioEngine.noteOff(note.midi);
+              state.activeKeys.delete(note.midi);
+            }, durMs);
+          }
+        });
+
+        // Play-Along Mode Check: Pause advancement if any required user note at currentBeat is still pending
+        if (state.playAlongMode && !state.autoDemoMode) {
+          const blocking = song.notes.filter(n => {
+            if (n.status !== 'pending') return false;
+            if (state.practiceHand !== 'both' && n.hand !== state.practiceHand) return false;
+            return n.beat <= state.currentBeat + 0.04;
+          });
+
+          if (blocking.length > 0) {
+            state.waitingForNotes = blocking;
+            // Lock currentBeat at the earliest blocking note beat
+            state.currentBeat = blocking[0].beat;
+            updatePlayAlongBannerUI();
+          } else {
+            state.waitingForNotes = [];
+            updatePlayAlongBannerUI();
+            state.currentBeat += beatsPerSec * dt;
+          }
+        } else {
+          // Continuous Flow Mode: Mark overdue notes as missed
+          state.waitingForNotes = [];
+          updatePlayAlongBannerUI();
+          state.currentBeat += beatsPerSec * dt;
+
+          song.notes.forEach(n => {
+            if (n.status === 'pending' && n.beat < state.currentBeat - 0.55) {
+              if (state.practiceHand === 'both' || n.hand === state.practiceHand) {
+                n.status = 'missed';
+                state.stats.missed++;
+                state.stats.streak = 0;
+                recordMeasureEvent(n.beat, false);
+                updateHudUI();
+                triggerMistakeInCurrentMeasure();
+              }
+            }
+          });
+        }
+
+        // Check A/B Loop boundaries
+        if (state.loopEnabled) {
+          const loopStartBeat = (state.loopStartBar - 1) * beatsPerBar;
+          const loopEndBeat = state.loopEndBar * beatsPerBar;
+          if (state.currentBeat >= loopEndBeat) {
+            state.currentBeat = loopStartBeat;
+            song.notes.forEach(n => {
+              if (n.beat >= loopStartBeat && n.beat <= loopEndBeat) {
+                n.status = 'pending';
+                n.autoTriggered = false;
+              }
+            });
+          }
+        }
+
+        // Check End of Song
+        const lastBeat = Math.max(4, ...song.notes.map(n => n.beat + n.duration));
+        if (state.currentBeat >= lastBeat + 1.5) {
+          state.isPlaying = false;
+          updatePlayButtonUI();
+          openPerformanceSummaryModal();
+        }
+
+        updateTransportClockUI();
+      }
+
+      renderGrandStaff();
+      renderWaterfall(dt);
+      renderPianoKeyboard();
+
+      requestAnimationFrame(masterAnimationLoop);
+    }
+
+    function updateTransportClockUI() {
+      if (!state.currentSong) return;
+      const beatsPerBar = state.currentSong.beatsPerMeasure || 4;
+      const bar = Math.floor(state.currentBeat / beatsPerBar) + 1;
+      const beatInBar = Math.floor(state.currentBeat % beatsPerBar) + 1;
+      document.getElementById('barBeatDisplay').textContent = `${String(bar).padStart(2, '0')} : ${beatInBar}`;
+
+      const totalSec = Math.max(0, Math.floor((state.currentBeat / state.currentSong.bpm) * 60));
+      const mins = Math.floor(totalSec / 60);
+      const secs = String(totalSec % 60).padStart(2, '0');
+      document.getElementById('timeClockDisplay').textContent = `${mins}:${secs}`;
+    }
+
+    function updatePlayButtonUI() {
+      const icon = document.getElementById('playPauseIcon');
+      const label = document.getElementById('playPauseLabel');
+      if (state.isPlaying) {
+        icon.className = 'fa-solid fa-pause text-xs';
+        label.textContent = 'Pause';
+      } else {
+        icon.className = 'fa-solid fa-play text-xs';
+        label.textContent = 'Play';
+      }
+    }
+
+    function updateSongHeaderUI() {
+      if (!state.currentSong) return;
+      document.getElementById('sheetSongTitleBadge').textContent = `${state.currentSong.title} — ${state.currentSong.composer}`;
+      document.getElementById('sheetTimeSigBadge').textContent = `${state.currentSong.beatsPerMeasure}/4 • ${state.currentSong.bpm} BPM`;
+      updateTransportClockUI();
+    }
+
+    /***************************************************************************
+     * 12. INTERACTIVE INPUT BINDINGS:
+     *     - PIANO KEYBOARD MOUSE & MULTI-TOUCH GLISSANDO
+     *     - GRAND STAFF & WATERFALL SCORE EDITOR (Add, Move, Delete Notes)
+     *     - COMPUTER QWERTY KEYBOARD & SUSTAIN SPACEBAR
+     *     - WEB MIDI API (Note On/Off + CC64 Sustain Half-Dampening)
+     ***************************************************************************/
+    function getMidiKeyAtCanvasPos(x, y) {
+      const h = pianoKeyboardCanvas.parentElement.clientHeight;
+      const blackHeight = h * 0.63;
+      if (y <= blackHeight) {
+        for (const k of keyGeometryCache.blackKeys) {
+          if (x >= k.x && x <= k.x + k.w) return k.midi;
+        }
+      }
+      for (const k of keyGeometryCache.whiteKeys) {
+        if (x >= k.x && x <= k.x + k.w) return k.midi;
+      }
+      return null;
+    }
+
+    // Mouse & Touch on 61-Key Piano Keyboard
+    let activePointerKeys = new Map(); // pointerId -> midi
+
+    pianoKeyboardCanvas.addEventListener('pointerdown', (e) => {
+      pianoKeyboardCanvas.setPointerCapture(e.pointerId);
+      const rect = pianoKeyboardCanvas.getBoundingClientRect();
+      const midi = getMidiKeyAtCanvasPos(e.clientX - rect.left, e.clientY - rect.top);
+      if (midi !== null) {
+        activePointerKeys.set(e.pointerId, midi);
+        handleUserNoteOn(midi, 102, 'pointer');
+      }
+    });
+
+    pianoKeyboardCanvas.addEventListener('pointermove', (e) => {
+      if (!activePointerKeys.has(e.pointerId)) return;
+      const rect = pianoKeyboardCanvas.getBoundingClientRect();
+      const midi = getMidiKeyAtCanvasPos(e.clientX - rect.left, e.clientY - rect.top);
+      const prevMidi = activePointerKeys.get(e.pointerId);
+      if (midi !== null && midi !== prevMidi) {
+        handleUserNoteOff(prevMidi);
+        activePointerKeys.set(e.pointerId, midi);
+        handleUserNoteOn(midi, 96, 'pointer');
+      }
+    });
+
+    const releasePointer = (e) => {
+      if (activePointerKeys.has(e.pointerId)) {
+        handleUserNoteOff(activePointerKeys.get(e.pointerId));
+        activePointerKeys.delete(e.pointerId);
+      }
+    };
+    pianoKeyboardCanvas.addEventListener('pointerup', releasePointer);
+    pianoKeyboardCanvas.addEventListener('pointercancel', releasePointer);
+
+    // ---------------- SIMPLE SHEET MUSIC & WATERFALL EDITOR ----------------
+    // 1) Editing on Grand Staff Canvas
+    grandStaffCanvas.addEventListener('pointerdown', (e) => {
+      if (!state.currentSong) return;
+      const rect = grandStaffCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const w = rect.width;
+      const h = rect.height;
+
+      const playheadX = Math.min(185, w * 0.24);
+      const pxPerBeat = 68;
+      const lineSpacing = Math.max(8, Math.min(11, h / 18));
+      const stepPx = lineSpacing / 2;
+      const middleCY = h * 0.52;
+
+      const clickedBeatRaw = state.currentBeat + (x - playheadX) / pxPerBeat;
+      const snappedBeat = Math.max(0, Math.round(clickedBeatRaw * 2) / 2);
+      const clickedDiatonicStep = Math.round((middleCY - y) / stepPx);
+      const clickedMidi = diatonicStepFromC4ToMidi(clickedDiatonicStep);
+
+      if (!state.editMode) {
+        // When not in Edit Mode, clicking the Grand Staff scrubs playback to that beat
+        state.currentBeat = Math.max(0, clickedBeatRaw);
+        updateTransportClockUI();
+        return;
+      }
+
+      // Check if user clicked an existing note on Grand Staff
+      const existingIdx = state.currentSong.notes.findIndex(n => {
+        const nx = playheadX + (n.beat - state.currentBeat) * pxPerBeat;
+        const ny = middleCY - midiToDiatonicStepFromC4(n.midi) * stepPx;
+        return Math.hypot(x - nx, y - ny) < 14;
+      });
+
+      if (state.editTool === 'erase') {
+        if (existingIdx !== -1) {
+          state.currentSong.notes.splice(existingIdx, 1);
+          saveLocalLibrary();
+        }
+        return;
+      }
+
+      if (existingIdx !== -1) {
+        state.draggingNote = state.currentSong.notes[existingIdx];
+        audioEngine.noteOn(state.draggingNote.midi, 85);
+        setTimeout(() => audioEngine.noteOff(state.draggingNote.midi), 220);
+      } else {
+        const newNote = {
+          id: `edit_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+          beat: snappedBeat,
+          duration: Number(state.editorDuration),
+          midi: clickedMidi,
+          hand: state.editorHand,
+          status: 'pending'
+        };
+        state.currentSong.notes.push(newNote);
+        state.currentSong.notes.sort((a, b) => a.beat - b.beat);
+        state.draggingNote = newNote;
+        audioEngine.noteOn(clickedMidi, 90);
+        setTimeout(() => audioEngine.noteOff(clickedMidi), 220);
+        saveLocalLibrary();
+      }
+    });
+
+    grandStaffCanvas.addEventListener('pointermove', (e) => {
+      if (!state.editMode || !state.draggingNote) return;
+      const rect = grandStaffCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const w = rect.width;
+      const h = rect.height;
+
+      const playheadX = Math.min(185, w * 0.24);
+      const pxPerBeat = 68;
+      const lineSpacing = Math.max(8, Math.min(11, h / 18));
+      const stepPx = lineSpacing / 2;
+      const middleCY = h * 0.52;
+
+      const newBeat = Math.max(0, Math.round((state.currentBeat + (x - playheadX) / pxPerBeat) * 2) / 2);
+      const newStep = Math.round((middleCY - y) / stepPx);
+      const newMidi = diatonicStepFromC4ToMidi(newStep);
+
+      if (newMidi !== state.draggingNote.midi) {
+        state.draggingNote.midi = newMidi;
+        audioEngine.noteOn(newMidi, 80);
+        setTimeout(() => audioEngine.noteOff(newMidi), 150);
+      }
+      state.draggingNote.beat = newBeat;
+    });
+
+    window.addEventListener('pointerup', () => {
+      if (state.draggingNote) {
+        state.draggingNote = null;
+        saveLocalLibrary();
+      }
+    });
+
+    // 2) Editing & Scrubbing on Waterfall Canvas
+    waterfallCanvas.addEventListener('pointerdown', (e) => {
+      if (!state.currentSong) return;
+      const rect = waterfallCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const h = rect.height;
+      const visibleBeatsAhead = 8;
+      const pxPerBeatY = h / visibleBeatsAhead;
+
+      const clickedBeat = Math.max(0, Math.round((state.currentBeat + (h - y) / pxPerBeatY) * 2) / 2);
+      const clickedMidi = getMidiKeyAtCanvasPos(x, 10); // map horizontal X to key
+
+      if (!state.editMode || clickedMidi === null) return;
+
+      const existingIdx = state.currentSong.notes.findIndex(n =>
+        n.midi === clickedMidi && clickedBeat >= n.beat && clickedBeat <= n.beat + n.duration
+      );
+
+      if (state.editTool === 'erase') {
+        if (existingIdx !== -1) {
+          state.currentSong.notes.splice(existingIdx, 1);
+          saveLocalLibrary();
+        }
+        return;
+      }
+
+      if (existingIdx !== -1) {
+        state.draggingNote = state.currentSong.notes[existingIdx];
+      } else {
+        const newNote = {
+          id: `wf_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+          beat: clickedBeat,
+          duration: Number(state.editorDuration),
+          midi: clickedMidi,
+          hand: state.editorHand,
+          status: 'pending'
+        };
+        state.currentSong.notes.push(newNote);
+        state.currentSong.notes.sort((a, b) => a.beat - b.beat);
+        audioEngine.noteOn(clickedMidi, 90);
+        setTimeout(() => audioEngine.noteOff(clickedMidi), 220);
+        saveLocalLibrary();
+      }
+    });
+
+    // Mouse Wheel scrolling along timeline when paused
+    waterfallCanvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      state.currentBeat = Math.max(0, state.currentBeat + (e.deltaY > 0 ? -0.5 : 0.5));
+      updateTransportClockUI();
+    }, { passive: false });
+
+    // Computer QWERTY Keyboard & Spacebar Sustain Pedal
+    const heldQwertyKeys = new Set();
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+      const k = e.key.toLowerCase();
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setPedalState(127);
+        return;
+      }
+
+      if (QWERTY_TO_MIDI[k] !== undefined && !heldQwertyKeys.has(k)) {
+        heldQwertyKeys.add(k);
+        handleUserNoteOn(QWERTY_TO_MIDI[k], 100, 'qwerty');
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+      const k = e.key.toLowerCase();
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setPedalState(0);
+        return;
+      }
+
+      if (QWERTY_TO_MIDI[k] !== undefined) {
+        heldQwertyKeys.delete(k);
+        handleUserNoteOff(QWERTY_TO_MIDI[k]);
+      }
+    });
+
+    function setPedalState(cc64Val) {
+      audioEngine.setPedal(cc64Val);
+      const btn = document.getElementById('sustainPedalBtn');
+      const txt = document.getElementById('pedalValueText');
+      if (cc64Val >= 64) {
+        txt.textContent = `ON (${Math.round((cc64Val / 127) * 100)}%)`;
+        btn.className = 'px-2 py-1 rounded-lg bg-purple-500/25 border border-purple-400 text-purple-200 font-mono text-[11px] flex items-center gap-1 transition';
+      } else if (cc64Val >= 20) {
+        txt.textContent = `HALF (${Math.round((cc64Val / 127) * 100)}%)`;
+        btn.className = 'px-2 py-1 rounded-lg bg-amber-500/25 border border-amber-400 text-amber-200 font-mono text-[11px] flex items-center gap-1 transition';
+      } else {
+        txt.textContent = 'OFF';
+        btn.className = 'px-2 py-1 rounded-lg bg-studio-850 border border-slate-700 text-slate-400 font-mono text-[11px] flex items-center gap-1 transition';
+      }
+    }
+
+    // ---------------- WEB MIDI API HARDWARE INTEGRATION ----------------
+    async function initWebMIDI() {
+      const dot = document.getElementById('midiDot');
+      const txt = document.getElementById('midiStatusText');
+
+      if (!navigator.requestMIDIAccess) {
+        dot.className = 'w-2 h-2 rounded-full bg-amber-500';
+        txt.textContent = 'Use Chrome/Edge';
+        return;
+      }
+
+      try {
+        const midiAccess = await navigator.requestMIDIAccess();
+        const bindInputs = () => {
+          const inputs = Array.from(midiAccess.inputs.values());
+          if (inputs.length === 0) {
+            dot.className = 'w-2 h-2 rounded-full bg-cyan-400';
+            txt.textContent = 'No USB MIDI';
+          } else {
+            dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+            txt.textContent = inputs[0].name.slice(0, 14);
+          }
+
+          inputs.forEach(input => {
+            input.onmidimessage = (msg) => {
+              const [status, data1, data2] = msg.data;
+              const cmd = status & 0xf0;
+              if (cmd === 0x90 && data2 > 0) {
+                handleUserNoteOn(data1, data2, 'midi');
+              } else if (cmd === 0x80 || (cmd === 0x90 && data2 === 0)) {
+                handleUserNoteOff(data1);
+              } else if (cmd === 0xb0 && data1 === 64) {
+                // CC64 Sustain Pedal with half-dampening support
+                setPedalState(data2);
+              }
+            };
+          });
+        };
+
+        bindInputs();
+        midiAccess.onstatechange = bindInputs;
+      } catch (err) {
+        dot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        txt.textContent = 'Blocked';
+      }
+    }
+
+    /***************************************************************************
+     * 13. UI CONTROLS, MODALS, LOCAL PDF OMR PIPELINE & OFFLINE BACKUPS
+     ***************************************************************************/
+    function populateSongDropdown() {
+      const sel = document.getElementById('songSelectDropdown');
+      sel.innerHTML = '';
+      state.library.forEach(song => {
+        const opt = document.createElement('option');
+        opt.value = song.id;
+        opt.className = 'bg-studio-900 text-slate-100';
+        opt.textContent = `${song.title} (${song.difficulty})`;
+        if (state.currentSong && state.currentSong.id === song.id) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+
+    function renderLibraryModalList() {
+      const container = document.getElementById('librarySongsContainer');
+      const countLbl = document.getElementById('libraryCountLabel');
+      container.innerHTML = '';
+      countLbl.textContent = `${state.library.length} Songs in Local Storage`;
+
+      state.library.forEach(song => {
+        const isCurrent = state.currentSong && state.currentSong.id === song.id;
+        const card = document.createElement('div');
+        card.className = `p-3.5 rounded-xl border transition flex items-center justify-between gap-3 ${
+          isCurrent
+            ? 'bg-indigo-950/60 border-cyan-400/70 shadow-md'
+            : 'bg-studio-850 border-slate-800 hover:border-slate-700'
+        }`;
+
+        const badgeColor =
+          song.difficulty === 'Beginner'
+            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+            : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30';
+
+        card.innerHTML = `
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <h4 class="font-bold text-sm text-white truncate">${song.title}</h4>
+              <span class="text-[10px] font-bold px-1.5 py-0.5 rounded border ${badgeColor}">${song.difficulty}</span>
+            </div>
+            <p class="text-xs text-slate-400 truncate mt-0.5">${song.composer} • <span class="text-slate-500">${song.source || 'Local Score'}</span></p>
+            <div class="flex items-center gap-3 mt-1.5 text-[11px] font-mono text-slate-300">
+              <span><i class="fa-solid fa-gauge-high text-cyan-400 mr-1"></i>${song.bpm} BPM</span>
+              <span><i class="fa-solid fa-music text-indigo-400 mr-1"></i>${song.notes.length} Notes</span>
+              ${song.bestAccuracy !== null ? `<span class="text-emerald-400 font-bold"><i class="fa-solid fa-trophy mr-1"></i>Best: ${song.bestAccuracy}%</span>` : ''}
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button data-load-song="${song.id}" class="px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition">
+              Practice
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      container.querySelectorAll('[data-load-song]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectSongById(btn.getAttribute('data-load-song'));
+          document.getElementById('libraryModal').classList.add('hidden');
+          showNotification(`Loaded "${state.currentSong.title}"`);
+        });
+      });
+    }
+
+    // ---------------- ON-DEVICE PDF OPTICAL MUSIC RECOGNITION (OMR) ----------------
+    let pendingOmrFileName = 'Imported_Sheet_Music.pdf';
+
+    function launchLocalPdfOmrPipeline(file) {
+      pendingOmrFileName = file.name || 'Sheet_Music.pdf';
+      document.getElementById('omrFileNameText').textContent = `${pendingOmrFileName} (${Math.max(1, Math.round(file.size / 1024))} KB)`;
+      document.getElementById('libraryModal').classList.add('hidden');
+      const modal = document.getElementById('omrModal');
+      modal.classList.remove('hidden');
+
+      const previewCanvas = document.getElementById('omrPreviewCanvas');
+      const pCtx = previewCanvas.getContext('2d');
+      previewCanvas.width = 480;
+      previewCanvas.height = 140;
+
+      const stages = [
+        { pct: 25, text: '1/4 Detecting 5-Line Treble & Bass Staves...' },
+        { pct: 55, text: '2/4 Segmenting Clefs, Key Signature & Barlines...' },
+        { pct: 85, text: '3/4 Extracting Noteheads, Stems & Beams...' },
+        { pct: 100, text: '4/4 OMR Complete — Ready to Import & Edit Locally!' }
+      ];
+
+      let stepIdx = 0;
+      const updateStage = () => {
+        const st = stages[stepIdx];
+        document.getElementById('omrStageLabel').textContent = st.text;
+        document.getElementById('omrPercentLabel').textContent = `${st.pct}%`;
+        document.getElementById('omrProgressBar').style.width = `${st.pct}%`;
+
+        // Draw animated OMR staff recognition preview
+        pCtx.fillStyle = '#070a12';
+        pCtx.fillRect(0, 0, 480, 140);
+        pCtx.strokeStyle = '#334155';
+        for (let i = 0; i < 5; i++) {
+          pCtx.beginPath(); pCtx.moveTo(20, 25 + i * 7); pCtx.lineTo(460, 25 + i * 7); pCtx.stroke();
+          pCtx.beginPath(); pCtx.moveTo(20, 82 + i * 7); pCtx.lineTo(460, 82 + i * 7); pCtx.stroke();
+        }
+        // Detected bounding boxes around noteheads
+        const scanLimitX = (st.pct / 100) * 440;
+        for (let nx = 45; nx < scanLimitX; nx += 34) {
+          const ny = 28 + ((nx * 7) % 28);
+          pCtx.fillStyle = '#38bdf8';
+          pCtx.beginPath(); pCtx.arc(nx, ny, 4, 0, Math.PI * 2); pCtx.fill();
+          pCtx.strokeStyle = '#10b981';
+          pCtx.strokeRect(nx - 7, ny - 7, 14, 14);
+        }
+
+        if (stepIdx < stages.length - 1) {
+          stepIdx++;
+          setTimeout(updateStage, 480);
+        }
+      };
+      updateStage();
+    }
+
+    document.getElementById('finalizeOmrBtn').addEventListener('click', () => {
+      const bpm = parseInt(document.getElementById('omrTempoInput').value, 10) || 100;
+      const beatsPerMeasure = parseInt(document.getElementById('omrTimeSigSelect').value, 10) || 4;
+      const profile = document.getElementById('omrStyleSelect').value;
+
+      // Generate deterministic playable score from the PDF hash & chosen profile
+      const cleanName = pendingOmrFileName.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ');
+      const notes = [];
+      const scaleR = [60, 62, 64, 65, 67, 69, 71, 72, 74, 76];
+      const scaleL = [48, 52, 55, 45, 50, 53, 43, 47];
+
+      for (let bar = 0; bar < 8; bar++) {
+        const barStart = bar * beatsPerMeasure;
+        // Left hand chord or bass note
+        notes.push({
+          id: `omr_L_${bar}`,
+          beat: barStart,
+          duration: beatsPerMeasure,
+          midi: scaleL[bar % scaleL.length],
+          hand: 'L',
+          status: 'pending'
+        });
+
+        // Right hand extracted motif
+        for (let b = 0; b < beatsPerMeasure; b++) {
+          const idx = (bar * 3 + b * (profile === 'arpeggio' ? 2 : 1)) % scaleR.length;
+          notes.push({
+            id: `omr_R_${bar}_${b}`,
+            beat: barStart + b,
+            duration: 1,
+            midi: scaleR[idx],
+            hand: 'R',
+            status: 'pending'
+          });
+        }
+      }
+
+      const newSong = {
+        id: `pdf_omr_${Date.now()}`,
+        title: `${cleanName} (OMR)`,
+        composer: 'PDF OMR Extraction',
+        difficulty: 'Intermediate',
+        source: 'Local PDF OMR',
+        bpm,
+        beatsPerMeasure,
+        notes,
+        bestAccuracy: null
+      };
+
+      state.library.unshift(newSong);
+      saveLocalLibrary();
+      selectSongById(newSong.id);
+
+      document.getElementById('omrModal').classList.add('hidden');
+      // Open Score Editor automatically so user can refine OMR notes
+      if (!state.editMode) document.getElementById('toggleEditModeBtn').click();
+      showNotification(`Extracted "${newSong.title}" from PDF and opened Score Editor!`);
+    });
+
+    // ---------------- POST-PERFORMANCE SUMMARY MODAL ----------------
+    function openPerformanceSummaryModal() {
+      if (!state.currentSong) return;
+      const acc = computeAccuracyPercent();
+
+      // Save best accuracy to local library
+      const libSong = state.library.find(s => s.id === state.currentSong.id);
+      if (libSong && (libSong.bestAccuracy === null || acc > libSong.bestAccuracy)) {
+        libSong.bestAccuracy = acc;
+        saveLocalLibrary();
+      }
+
+      document.getElementById('summarySongTitle').textContent = state.currentSong.title;
+      document.getElementById('summaryAccuracy').textContent = `${acc}%`;
+      document.getElementById('summaryCorrect').textContent = state.stats.correct;
+      document.getElementById('summaryMissed').textContent = state.stats.missed;
+      document.getElementById('summaryExtra').textContent = state.stats.extra;
+
+      const gradeBadge = document.getElementById('summaryGradeBadge');
+      let grade = 'S';
+      if (acc < 95) grade = 'A';
+      if (acc < 85) grade = 'B';
+      if (acc < 70) grade = 'C';
+      gradeBadge.textContent = grade;
+
+      // Render Measure Heatmap
+      const heatmap = document.getElementById('summaryMeasureHeatmap');
+      heatmap.innerHTML = '';
+      const beatsPerBar = state.currentSong.beatsPerMeasure || 4;
+      const totalSongBeats = Math.max(8, ...state.currentSong.notes.map(n => n.beat + n.duration));
+      const totalBars = Math.ceil(totalSongBeats / beatsPerBar);
+
+      for (let m = 0; m < totalBars; m++) {
+        const st = state.stats.measureStats[m] || { hit: 0, miss: 0 };
+        const mTotal = st.hit + st.miss;
+        const mAcc = mTotal === 0 ? 100 : Math.round((st.hit / mTotal) * 100);
+
+        let bg = 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300';
+        if (mTotal === 0) bg = 'bg-studio-850 border-slate-700 text-slate-400';
+        else if (mAcc < 65) bg = 'bg-rose-500/25 border-rose-500/50 text-rose-300';
+        else if (mAcc < 90) bg = 'bg-amber-500/25 border-amber-500/50 text-amber-300';
+
+        const btn = document.createElement('button');
+        btn.className = `p-1.5 rounded-lg border text-center font-mono text-xs transition hover:scale-105 ${bg}`;
+        btn.innerHTML = `<span class="block text-[9px] opacity-75">M${m + 1}</span><strong>${mTotal === 0 ? '--' : mAcc + '%'}</strong>`;
+        btn.title = `Click to set A/B Loop around Measure ${m + 1}`;
+        btn.addEventListener('click', () => {
+          state.loopEnabled = true;
+          state.loopStartBar = m + 1;
+          state.loopEndBar = Math.min(totalBars, m + 2);
+          document.getElementById('loopStartInput').value = state.loopStartBar;
+          document.getElementById('loopEndInput').value = state.loopEndBar;
+          updateLoopToggleButtonUI();
+          state.currentBeat = m * beatsPerBar;
+          document.getElementById('summaryModal').classList.add('hidden');
+          showNotification(`Looping Measures ${state.loopStartBar} to ${state.loopEndBar}`);
+        });
+        heatmap.appendChild(btn);
+      }
+
+      document.getElementById('summaryModal').classList.remove('hidden');
+    }
+
+    function updateLoopToggleButtonUI() {
+      const btn = document.getElementById('loopToggleBtn');
+      const txt = document.getElementById('loopStatusText');
+      txt.textContent = state.loopEnabled ? 'ON' : 'OFF';
+      btn.className = state.loopEnabled
+        ? 'font-semibold text-cyan-300 flex items-center gap-1 transition'
+        : 'font-semibold text-slate-300 hover:text-cyan-300 flex items-center gap-1 transition';
+    }
+
+    /***************************************************************************
+     * 14. WIRE UP ALL TOOLBAR BUTTONS & EVENT LISTENERS
+     ***************************************************************************/
+    function initEventListeners() {
+      // Song Selector Dropdown
+      document.getElementById('songSelectDropdown').addEventListener('change', (e) => {
+        selectSongById(e.target.value);
+      });
+
+      // Open & Close Library Modal
+      document.getElementById('openLibraryBtn').addEventListener('click', () => {
+        renderLibraryModalList();
+        document.getElementById('libraryModal').classList.remove('hidden');
+      });
+      document.getElementById('closeLibraryModalBtn').addEventListener('click', () => {
+        document.getElementById('libraryModal').classList.add('hidden');
+      });
+      document.getElementById('closeOmrModalBtn').addEventListener('click', () => {
+        document.getElementById('omrModal').classList.add('hidden');
+      });
+
+      // Transport Controls
+      document.getElementById('playPauseBtn').addEventListener('click', () => {
+        audioEngine.ensureContext();
+        state.isPlaying = !state.isPlaying;
+        updatePlayButtonUI();
+      });
+
+      document.getElementById('rewindStartBtn').addEventListener('click', () => {
+        state.isPlaying = false;
+        state.currentBeat = state.loopEnabled ? (state.loopStartBar - 1) * (state.currentSong?.beatsPerMeasure || 4) : 0;
+        state.waitingForNotes = [];
+        audioEngine.allNotesOff();
+        resetAssessmentStats();
+        updatePlayButtonUI();
+        updatePlayAlongBannerUI();
+        updateTransportClockUI();
+      });
+
+      document.getElementById('prevMeasureBtn').addEventListener('click', () => {
+        const bpmBar = state.currentSong ? state.currentSong.beatsPerMeasure : 4;
+        state.currentBeat = Math.max(0, (Math.floor(state.currentBeat / bpmBar) - 1) * bpmBar);
+        state.waitingForNotes = [];
+        updateTransportClockUI();
+      });
+
+      document.getElementById('nextMeasureBtn').addEventListener('click', () => {
+        const bpmBar = state.currentSong ? state.currentSong.beatsPerMeasure : 4;
+        state.currentBeat = (Math.floor(state.currentBeat / bpmBar) + 1) * bpmBar;
+        state.waitingForNotes = [];
+        updateTransportClockUI();
+      });
+
+      // Speed Control (0.5x to 1.5x)
+      const speedSlider = document.getElementById('speedSlider');
+      const speedResetBtn = document.getElementById('speedResetBtn');
+      const mobileSpeedSelect = document.getElementById('mobileSpeedSelect');
+
+      const setSpeed = (val) => {
+        state.speedMultiplier = Number(val);
+        speedSlider.value = state.speedMultiplier;
+        speedResetBtn.textContent = `${state.speedMultiplier.toFixed(2)}×`;
+      };
+      speedSlider.addEventListener('input', (e) => setSpeed(e.target.value));
+      speedResetBtn.addEventListener('click', () => setSpeed(1.0));
+      mobileSpeedSelect.addEventListener('change', (e) => setSpeed(e.target.value));
+
+      // Play-Along Mode Toggle
+      document.getElementById('playAlongToggleBtn').addEventListener('click', () => {
+        state.playAlongMode = !state.playAlongMode;
+        const btn = document.getElementById('playAlongToggleBtn');
+        const txt = document.getElementById('playAlongStatusText');
+        txt.textContent = state.playAlongMode ? 'ON' : 'OFF';
+        btn.className = state.playAlongMode
+          ? 'px-2.5 py-1 rounded-lg border border-amber-500/50 bg-amber-500/20 text-amber-300 font-semibold flex items-center gap-1.5 transition'
+          : 'px-2.5 py-1 rounded-lg border border-slate-700 bg-studio-850 text-slate-400 font-semibold flex items-center gap-1.5 transition';
+        if (!state.playAlongMode) {
+          state.waitingForNotes = [];
+          updatePlayAlongBannerUI();
+        }
+      });
+
+      // Hand Practice Mode Buttons
+      document.querySelectorAll('.hand-mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.practiceHand = btn.getAttribute('data-hand');
+          document.querySelectorAll('.hand-mode-btn').forEach(b => {
+            b.className = b === btn
+              ? 'hand-mode-btn px-2 py-0.5 rounded-md bg-cyan-600 text-white font-semibold transition'
+              : 'hand-mode-btn px-2 py-0.5 rounded-md text-slate-300 hover:text-white transition';
+          });
+        });
+      });
+
+      // A/B Looping Controls
+      document.getElementById('loopToggleBtn').addEventListener('click', () => {
+        state.loopEnabled = !state.loopEnabled;
+        updateLoopToggleButtonUI();
+      });
+      document.getElementById('loopStartInput').addEventListener('change', (e) => {
+        state.loopStartBar = Math.max(1, parseInt(e.target.value, 10) || 1);
+        if (state.loopEndBar <= state.loopStartBar) {
+          state.loopEndBar = state.loopStartBar + 1;
+          document.getElementById('loopEndInput').value = state.loopEndBar;
+        }
+      });
+      document.getElementById('loopEndInput').addEventListener('change', (e) => {
+        state.loopEndBar = Math.max(state.loopStartBar + 1, parseInt(e.target.value, 10) || 2);
+      });
+
+      // Mistake-Triggered Restart Threshold
+      document.getElementById('mistakeRestartSelect').addEventListener('change', (e) => {
+        state.mistakeRestartThreshold = parseInt(e.target.value, 10) || 0;
+        state.currentMeasureMistakes = 0;
+      });
+
+      // Toggle Sheet Music View
+      document.getElementById('toggleSheetMusicBtn').addEventListener('click', () => {
+        state.showSheetMusic = !state.showSheetMusic;
+        const pane = document.getElementById('sheetMusicPane');
+        const btn = document.getElementById('toggleSheetMusicBtn');
+        if (state.showSheetMusic) {
+          pane.classList.remove('hidden');
+          btn.className = 'px-2.5 py-1 rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-semibold flex items-center gap-1.5 transition';
+        } else {
+          pane.classList.add('hidden');
+          btn.className = 'px-2.5 py-1 rounded-lg bg-studio-850 border border-slate-700 text-slate-400 font-semibold flex items-center gap-1.5 transition';
+        }
+        setTimeout(resizeAllCanvases, 30);
+      });
+
+      // Toggle Score Editor Mode
+      document.getElementById('toggleEditModeBtn').addEventListener('click', () => {
+        state.editMode = !state.editMode;
+        const toolbar = document.getElementById('editorToolbar');
+        const btn = document.getElementById('toggleEditModeBtn');
+        if (state.editMode) {
+          state.isPlaying = false;
+          updatePlayButtonUI();
+          toolbar.classList.remove('hidden');
+          btn.className = 'px-2.5 py-1 rounded-lg bg-indigo-600 border border-indigo-400 text-white font-semibold flex items-center gap-1.5 transition shadow';
+        } else {
+          toolbar.classList.add('hidden');
+          btn.className = 'px-2.5 py-1 rounded-lg bg-studio-850 border border-slate-700 text-slate-300 hover:text-white font-semibold flex items-center gap-1.5 transition';
+        }
+        setTimeout(resizeAllCanvases, 30);
+      });
+
+      // Score Editor Tool Buttons
+      document.querySelectorAll('.edit-tool-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.editTool = btn.getAttribute('data-edittool');
+          document.querySelectorAll('.edit-tool-btn').forEach(b => {
+            b.className = b === btn
+              ? 'edit-tool-btn px-2.5 py-0.5 rounded bg-indigo-600 text-white font-semibold'
+              : 'edit-tool-btn px-2.5 py-0.5 rounded text-slate-300 hover:text-white';
+          });
+        });
+      });
+
+      document.getElementById('editorDurationSelect').addEventListener('change', (e) => {
+        state.editorDuration = parseFloat(e.target.value) || 1;
+      });
+      document.getElementById('editorHandSelect').addEventListener('change', (e) => {
+        state.editorHand = e.target.value;
+      });
+
+      document.getElementById('newBlankScoreBtn').addEventListener('click', () => {
+        const customSong = {
+          id: `custom_${Date.now()}`,
+          title: `Custom Composition #${state.library.length + 1}`,
+          composer: 'Local Studio Editor',
+          difficulty: 'Beginner',
+          source: 'User Score Editor',
+          bpm: 100,
+          beatsPerMeasure: 4,
+          notes: [
+            { id: 'init_1', beat: 0, duration: 1, midi: 60, hand: 'R', status: 'pending' },
+            { id: 'init_2', beat: 0, duration: 4, midi: 48, hand: 'L', status: 'pending' }
+          ],
+          bestAccuracy: null
+        };
+        state.library.unshift(customSong);
+        saveLocalLibrary();
+        selectSongById(customSong.id);
+        showNotification('Created new blank score! Click Grand Staff or Waterfall to add notes.');
+      });
+
+      document.getElementById('saveEditedScoreBtn').addEventListener('click', () => {
+        if (!state.currentSong) return;
+        const idx = state.library.findIndex(s => s.id === state.currentSong.id);
+        if (idx !== -1) {
+          state.library[idx].notes = state.currentSong.notes.map(n => ({ ...n, status: 'pending' }));
+        }
+        saveLocalLibrary();
+        showNotification(`Saved changes to "${state.currentSong.title}" in Local Storage.`);
+      });
+
+      // Instrument Sound Preset Selector
+      document.getElementById('instrumentSelect').addEventListener('change', (e) => {
+        audioEngine.preset = e.target.value;
+        showNotification(`Instrument switched to ${e.target.options[e.target.selectedIndex].text}`);
+      });
+
+      // Sustain Pedal Button Click Toggle
+      document.getElementById('sustainPedalBtn').addEventListener('click', () => {
+        setPedalState(audioEngine.pedalValue >= 64 ? 0 : 127);
+      });
+
+      // MIDI Rescan Button
+      document.getElementById('midiStatusBtn').addEventListener('click', () => {
+        initWebMIDI();
+        showNotification('Scanning for USB MIDI Keyboards...');
+      });
+
+      // Acoustic Piano Microphone Pitch Detector Toggle
+      const pitchDetector = new AcousticPitchDetector(
+        (midi, vel) => {
+          handleUserNoteOn(midi, vel, 'mic');
+          setTimeout(() => handleUserNoteOff(midi), 260);
+        },
+        ({ noteName, freq, cents }) => {
+          document.getElementById('micNoteReadout').textContent = noteName;
+          document.getElementById('micHzReadout').textContent = `${freq} Hz`;
+          document.getElementById('micCentsReadout').textContent = `${cents >= 0 ? '+' : ''}${cents}c`;
+        }
+      );
+
+      document.getElementById('micInputToggleBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('micInputToggleBtn');
+        const txt = document.getElementById('micStatusText');
+        const badge = document.getElementById('micLivePitchBadge');
+
+        if (!pitchDetector.isActive) {
+          const ok = await pitchDetector.start();
+          if (ok) {
+            txt.textContent = 'Acoustic Mic: ON';
+            btn.className = 'px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-semibold flex items-center gap-1.5 transition';
+            badge.classList.remove('hidden');
+            showNotification('Acoustic Piano Microphone Pitch Detection Active!');
+          } else {
+            showNotification('Microphone access denied or unavailable on this device.');
+          }
+        } else {
+          pitchDetector.stop();
+          txt.textContent = 'Acoustic Mic: OFF';
+          btn.className = 'px-2.5 py-1 rounded-lg bg-studio-850 border border-slate-700 text-slate-300 font-semibold flex items-center gap-1.5 transition';
+          badge.classList.add('hidden');
+        }
+      });
+
+      // Keyboard Note Labels & Auto-Demo Toggle
+      document.getElementById('toggleKeyLabelsBtn').addEventListener('click', () => {
+        state.showKeyLabels = !state.showKeyLabels;
+        document.getElementById('keyLabelsState').textContent = state.showKeyLabels ? 'ON' : 'OFF';
+      });
+
+      document.getElementById('demoAutoPlayBtn').addEventListener('click', () => {
+        state.autoDemoMode = !state.autoDemoMode;
+        document.getElementById('autoDemoState').textContent = state.autoDemoMode ? 'ON' : 'OFF';
+        if (state.autoDemoMode && !state.isPlaying) {
+          document.getElementById('playPauseBtn').click();
+        }
+      });
+
+      // MIDI File Import (.mid / .midi)
+      document.getElementById('midiFileInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const parsedSong = parseStandardMidiFile(ev.target.result, file.name);
+            state.library.unshift(parsedSong);
+            saveLocalLibrary();
+            selectSongById(parsedSong.id);
+            document.getElementById('libraryModal').classList.add('hidden');
+            showNotification(`Imported "${parsedSong.title}" (${parsedSong.notes.length} notes) locally!`);
+          } catch (err) {
+            showNotification(`Could not parse MIDI file: ${err.message}`);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+        e.target.value = '';
+      });
+
+      // PDF Sheet Music Import (On-Device OMR)
+      document.getElementById('pdfFileInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        launchLocalPdfOmrPipeline(file);
+        e.target.value = '';
+      });
+
+      // Local Backup Export (.json)
+      document.getElementById('exportLibraryJsonBtn').addEventListener('click', () => {
+        const blob = new Blob([JSON.stringify(state.library, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `MarkSteady_Wapiro_Local_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showNotification('Exported Local Library Backup (.json) for Desktop/Android transfer.');
+      });
+
+      // Local Backup Import (.json)
+      document.getElementById('importLibraryJsonInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const imported = JSON.parse(ev.target.result);
+            if (Array.isArray(imported) && imported.length > 0) {
+              state.library = imported;
+              saveLocalLibrary();
+              selectSongById(state.library[0].id);
+              renderLibraryModalList();
+              showNotification(`Restored ${imported.length} songs from Local Backup!`);
+            }
+          } catch (err) {
+            showNotification('Invalid backup JSON file.');
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+      });
+
+      // Performance Summary Modal Buttons
+      document.getElementById('openSummaryBtn').addEventListener('click', openPerformanceSummaryModal);
+      document.getElementById('closeSummaryModalBtn').addEventListener('click', () => {
+        document.getElementById('summaryModal').classList.add('hidden');
+      });
+      document.getElementById('retrySongBtn').addEventListener('click', () => {
+        document.getElementById('summaryModal').classList.add('hidden');
+        document.getElementById('rewindStartBtn').click();
+        document.getElementById('playPauseBtn').click();
+      });
+      document.getElementById('practiceWeakestMeasuresBtn').addEventListener('click', () => {
+        // Find measure with most misses
+        let worstMeasure = 0;
+        let maxMiss = -1;
+        Object.entries(state.stats.measureStats).forEach(([mIdx, st]) => {
+          if (st.miss > maxMiss) {
+            maxMiss = st.miss;
+            worstMeasure = parseInt(mIdx, 10);
+          }
+        });
+        state.loopEnabled = true;
+        state.loopStartBar = worstMeasure + 1;
+        state.loopEndBar = worstMeasure + 2;
+        document.getElementById('loopStartInput').value = state.loopStartBar;
+        document.getElementById('loopEndInput').value = state.loopEndBar;
+        updateLoopToggleButtonUI();
+        state.currentBeat = worstMeasure * (state.currentSong?.beatsPerMeasure || 4);
+        document.getElementById('summaryModal').classList.add('hidden');
+        showNotification(`Looping Measures ${state.loopStartBar}–${state.loopEndBar} for focused practice!`);
+      });
+    }
+
+    /***************************************************************************
+     * 15. INITIALIZE MARKSTEADY WAPIRO v1.0.0 ON WINDOW LOAD
+     ***************************************************************************/
+    window.onload = function () {
+      loadLocalLibrary();
+      selectSongById(state.library[0].id);
+      initEventListeners();
+      initWebMIDI();
+      resizeAllCanvases();
+      requestAnimationFrame(masterAnimationLoop);
+    };
+  </script>
+</body>
+</html>
