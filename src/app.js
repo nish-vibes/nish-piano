@@ -5,7 +5,7 @@
   const App = (W.app = {});
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  App.sourceLabel = (s) => (s.source === 'builtin' ? 'Built-in excerpt' : s.source === 'v1' ? 'From version 1' : s.source === 'pdf' ? (s.exactNotation ? 'From PDF' : 'From PDF, edited') : s.source === 'midi' ? 'MIDI' : s.exactNotation ? 'MusicXML' : 'MusicXML, edited');
+  App.sourceLabel = (s) => (s.source === 'builtin' ? 'Built-in excerpt' : s.source === 'v1' ? 'From version 1' : s.source === 'pdf' ? (s.exactNotation ? 'From PDF' : 'From PDF, edited') : s.source === 'scan' ? (s.exactNotation ? 'From scan' : 'From scan, edited') : s.source === 'midi' ? 'MIDI' : s.exactNotation ? 'MusicXML' : 'MusicXML, edited');
 
   // ---------------------------------------------------------------- appearance
   const mqDark = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
@@ -41,7 +41,7 @@
     const rec = S.find(id);
     if (!rec) return false;
     const st = S.settings;
-    const prefs = Object.assign({ wait: st.wait, hands: st.hands, speed: 1, loop: null, restartAfter: st.restartAfter, metronome: st.metronome, countIn: st.countIn, mode: st.mode }, rec.prefs || {});
+    const prefs = Object.assign({ wait: st.wait, hands: st.hands, speed: 1, loop: null, restartAfter: st.restartAfter, metronome: st.metronome, countIn: st.countIn, mode: 'practice', playAlong: st.playAlong !== false }, rec.prefs || {});
     E.load(rec.song, prefs);
     history.length = 0; future.length = 0;
     if (W.editor && W.editor.active) W.editor.stop();
@@ -52,7 +52,7 @@
   // Persist options: global ones in settings, per-song ones with the song.
   E.on('change', () => {
     const o = E.opts, st = S.settings;
-    st.wait = o.wait; st.metronome = o.metronome; st.countIn = o.countIn; st.restartAfter = o.restartAfter; st.mode = o.mode; st.hands = o.hands;
+    st.wait = o.wait; st.metronome = o.metronome; st.countIn = o.countIn; st.restartAfter = o.restartAfter; st.mode = o.mode; st.hands = o.hands; st.playAlong = o.playAlong;
     if (E.song) { const rec = S.find(E.song.id); if (rec) { rec.prefs = { speed: o.speed, hands: o.hands, loop: o.loop }; S.saveSoon(rec.id, 600); } }
     S.saveSettings();
   });
@@ -147,7 +147,7 @@
   }
   function applySettings() {
     const st = S.settings;
-    A.volume = st.volume; A.accVolume = st.accVolume; A.mute = st.mute; A.instrument = st.instrument;
+    A.volume = st.volume; A.accVolume = st.accVolume; A.metroVolume = st.metroVolume == null ? 0.7 : st.metroVolume; A.mute = st.mute; A.instrument = st.instrument;
     document.documentElement.setAttribute('data-theme', App.resolveTheme(st.appearance));
     W.waterfall.setLookBars(st.lookBars);
     Sh.el.zoom.setValue(st.lookBars);
@@ -184,7 +184,7 @@
     UI.closePopover(false); UI.closeDialog();
     await S.clearAll();
     S.settings = Object.assign({}, S.defaults);
-    Object.assign(E.opts, { wait: true, hands: 'R', speed: 1, loop: null, restartAfter: 0, metronome: false, countIn: null, mode: 'practice' });
+    Object.assign(E.opts, { wait: true, hands: 'both', speed: 1, loop: null, restartAfter: 0, metronome: false, countIn: null, mode: 'practice', playAlong: true });
     await seedBuiltins();
     history.length = 0; future.length = 0;
     applySettings();

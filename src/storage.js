@@ -108,15 +108,22 @@
 
   // ---- settings
   S.defaults = {
-    appearance: 'auto', view: 'waterfall', split: 0.5, volume: 0.7, accVolume: 0.7, mute: false, userSound: true, instrument: 'piano',
-    kbdNotes: false, wait: true, hands: 'R', mode: 'practice', metronome: false, countIn: null, restartAfter: 0,
-    lookBars: 2, staffSize: 12, showAll: false, lastSong: null,
+    v: 3, appearance: 'auto', view: 'split', split: 0.5, volume: 0.7, accVolume: 0.7, metroVolume: 0.7, mute: false, userSound: true, instrument: 'piano',
+    kbdNotes: false, kbdBinds: null, wait: true, hands: 'both', mode: 'practice', playAlong: true, metronome: false, countIn: null, restartAfter: 0,
+    lookBars: 4, staffSize: 12, showAll: false, keyW: null, keysH: 120, lastSong: null,
   };
   S.settings = Object.assign({}, S.defaults);
   S.loadSettings = function () {
     try {
       const raw = localStorage.getItem(SETTINGS_KEY);
-      if (raw) { const o = JSON.parse(raw); if (o && typeof o === 'object') S.settings = Object.assign({}, S.defaults, o); }
+      if (raw) {
+        const o = JSON.parse(raw);
+        if (o && typeof o === 'object') {
+          // version 3 layout: system appearance, Split view, both hands and play-along by default
+          if (!(o.v >= 3)) { o.v = 3; o.appearance = 'auto'; o.view = 'split'; o.hands = 'both'; o.playAlong = true; o.mode = 'practice'; o.lookBars = 4; }
+          S.settings = Object.assign({}, S.defaults, o);
+        }
+      }
     } catch (e) { fail('Could not read your settings', e); }
     return S.settings;
   };

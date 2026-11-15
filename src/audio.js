@@ -1,9 +1,9 @@
-/* Web Audio synth: piano (modest additive model with hammer noise), electric piano, organ. Also the metronome click. */
+/* Web Audio synth: piano (modest additive model with hammer noise), electric piano, organ, harpsichord, strings. Also the metronome click. */
 (function () {
   'use strict';
   const W = window.Wapiro;
-  const A = (W.audio = { available: !!(window.AudioContext || window.webkitAudioContext), instrument: 'piano', volume: 0.7, accVolume: 0.7, mute: false, ctx: null });
-  let master, userBus, accBus, comp, noise;
+  const A = (W.audio = { available: !!(window.AudioContext || window.webkitAudioContext), instrument: 'piano', volume: 0.7, accVolume: 0.7, metroVolume: 0.7, mute: false, ctx: null });
+  let master, userBus, accBus, metroBus, comp, noise;
   const active = new Map();   // midi -> voice (user notes)
   const sustained = new Set();
   const scheduled = new Set(); // accompaniment voices
@@ -17,7 +17,7 @@
         A.ctx = new C({ latencyHint: 'interactive' });
       } catch (e) { A.available = false; return false; }
       const c = A.ctx;
-      master = c.createGain(); userBus = c.createGain(); accBus = c.createGain();
+      master = c.createGain(); userBus = c.createGain(); accBus = c.createGain(); metroBus = c.createGain(); metroBus.connect(c.destination);
       comp = c.createDynamicsCompressor();
       comp.threshold.value = -14; comp.knee.value = 20; comp.ratio.value = 5; comp.attack.value = 0.004; comp.release.value = 0.2;
       userBus.connect(master); accBus.connect(master); master.connect(comp); comp.connect(c.destination);
@@ -35,6 +35,7 @@
     const t = A.ctx.currentTime;
     master.gain.setTargetAtTime(A.mute ? 0 : A.volume * 0.6, t, 0.01);
     accBus.gain.setTargetAtTime(A.accVolume, t, 0.01);
+    metroBus.gain.setTargetAtTime(A.mute ? 0 : A.metroVolume, t, 0.01);
   };
   A.now = () => (A.ctx ? A.ctx.currentTime : 0);
 
@@ -72,6 +73,18 @@
       mod2.connect(mg2); mg2.connect(car.frequency);
       car.connect(out); car.start(t); mod.start(t); mod2.start(t); oscs.push(car, mod, mod2);
       end = t + 7;
+    } else if (inst === 'harpsichord') {
+      // plucked: bright sawtooth through a closing filter, quick decay
+      lp.frequency.setValueAtTime(Math.min(14000, f * 14 + 2000), t); lp.frequency.setTargetAtTime(Math.min(8000, f * 5 + 800), t, 0.08);
+      out.gain.setValueAtTime(0.0001, t); out.gain.linearRampToValueAtTime(0.28 * (0.5 + 0.5 * v), t + 0.002);
+      osc('sawtooth', f, 0.6, 1.1 - 0.5 * ((midi - 21) / 87)); osc('square', f * 2, 0.12, 0.4);
+      end = t + 3;
+    } else if (inst === 'strings') {
+      // bowed: detuned sawtooths, slow attack, soft filter
+      lp.frequency.value = Math.min(6000, f * 4 + 900);
+      out.gain.setValueAtTime(0.0001, t); out.gain.linearRampToValueAtTime(0.16 * (0.5 + 0.5 * v), t + 0.18);
+      osc('sawtooth', f, 0.5, 0, -7); osc('sawtooth', f, 0.5, 0, 7); osc('triangle', f / 2, 0.2, 0);
+      end = t + 60;
     } else if (inst === 'organ') {
       lp.frequency.value = 7000;
       out.gain.setValueAtTime(0.0001, t); out.gain.linearRampToValueAtTime(0.32 * v + 0.08, t + 0.012);
@@ -110,7 +123,7 @@
       v.oscs.forEach((o) => { try { o.stop(t + tau * 9); } catch (e) { /* ignore */ } });
     } catch (e) { /* ignore */ }
   }
-  const relTau = () => (A.instrument === 'organ' ? 0.03 : A.instrument === 'epiano' ? 0.12 : 0.16);
+  const relTau = () => ({ organ: 0.03, epiano: 0.12, harpsichord: 0.08, strings: 0.25 }[A.instrument] || 0.16);
 
   /** The user's note (keyboard, MIDI or screen): sounds now, until noteOff. */
   A.noteOn = function (midi, vel) {
@@ -173,6 +186,6 @@
     const o = c.createOscillator(), g = c.createGain();
     o.type = 'square'; o.frequency.value = accent ? 1760 : 1175;
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(accent ? 0.35 : 0.22, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
-    o.connect(g); g.connect(accBus); o.start(t); o.stop(t + 0.06);
+    o.connect(g); g.connect(metroBus); o.start(t); o.stop(t + 0.06);
   };
 })();

@@ -24,8 +24,12 @@
   // Icons: inline SVG, mono, 1.5px stroke, drawn here. Static markup only (no user data).
   const ICONS = {
     restart: '<path d="M5 4v12"/><path d="M15 5l-7 5 7 5z"/>',
-    prev: '<path d="M6 4v12"/><path d="M16 5l-7 5 7 5z"/>',
-    next: '<path d="M14 4v12"/><path d="M4 5l7 5-7 5z"/>',
+    prev: '<path d="M10 5l-7 5 7 5z"/><path d="M17 5l-7 5 7 5z"/>',
+    next: '<path d="M10 5l7 5-7 5z"/><path d="M3 5l7 5-7 5z"/>',
+    wait: '<path d="M5 3h10"/><path d="M5 17h10"/><path d="M6 3c0 4 8 4 8 7s-8 3-8 7"/><path d="M14 3c0 4-8 4-8 7s8 3 8 7"/>',
+    metronome: '<path d="M7 3h6l3 14H4z"/><path d="M4.8 13.5h10.4"/><path d="M10 13.5l4-8"/>',
+    speakerOff: '<path d="M3 8h3l4-3.5v11L6 12H3z"/><path d="M13 7.5l5 5"/><path d="M18 7.5l-5 5"/>',
+    piano: '<rect x="3" y="4" width="14" height="12" rx="1.5"/><path d="M7 4v12"/><path d="M10 4v12"/><path d="M13 4v12"/><path d="M6 4h2v6H6z" fill="currentColor"/><path d="M12 4h2v6h-2z" fill="currentColor"/>',
     play: '<path d="M6 4l10 6-10 6z"/>',
     pause: '<path d="M6.5 4v12"/><path d="M13.5 4v12"/>',
     sliders: '<path d="M3 6h8"/><path d="M15 6h2"/><circle cx="13" cy="6" r="2"/><path d="M3 14h2"/><path d="M9 14h8"/><circle cx="7" cy="14" r="2"/>',
@@ -175,6 +179,16 @@
       h('span', { class: 'switch-text' }, h('span', { class: 'ds-label', text: label }), hint ? h('span', { class: 'ds-caption', text: hint }) : null), sw);
     b.setValue = (v) => { b.setAttribute('aria-checked', String(!!v)); sw.classList.toggle('is-on', !!v); };
     return b;
+  };
+  /** A compact labelled range input for tool strips. */
+  UI.miniSlider = function (label, min, max, step, value, onInput) {
+    const inp = h('input', { type: 'range', class: 'range', min: String(min), max: String(max), step: String(step), value: String(value), 'aria-label': label });
+    const fill = () => inp.style.setProperty('--fill', ((inp.value - min) / (max - min)) * 100 + '%');
+    inp.addEventListener('input', () => { fill(); onInput(+inp.value); });
+    fill();
+    const wrap = h('label', { class: 'mini-slider' }, h('span', { class: 'ds-caption', text: label }), inp);
+    wrap.setValue = (v) => { inp.value = String(v); fill(); };
+    return wrap;
   };
   UI.slider = function (label, min, max, step, value, onInput, fmt) {
     const out = h('span', { class: 'ds-caption slider-val' });

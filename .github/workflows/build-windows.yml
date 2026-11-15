@@ -1,0 +1,97 @@
+name: Build Windows app
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      AUDIVERIS_VERSION: '5.11.0'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Build the web app
+        run: python -I build.py
+
+      - name: Copy the web app into the desktop shell
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force desktop/app | Out-Null
+          Copy-Item dist/marksteady_waterfall_piano_roll_v2_0_0.html desktop/app/index.html
+
+      - name: Fetch and unpack Audiveris (console build, with its own Java)
+        shell: pwsh
+        run: |
+          $v = $env:AUDIVERIS_VERSION
+          $names = @("Audiveris-$v-windowsConsole-x86_64.msi", "Audiveris-$v-windows-x86_64.msi")
+          $msi = $null
+          foreach ($n in $names) {
+            try {
+              Invoke-WebRequest "https://github.com/Audiveris/audiveris/releases/download/$v/$n" -OutFile $n -ErrorAction Stop
+              $msi = $n; break
+            } catch { Write-Host "Not found: $n" }
+          }
+          if (-not $msi) { throw "No Audiveris installer found for $v" }
+          $target = Join-Path $env:RUNNER_TEMP 'audiveris-extract'
+          Start-Process msiexec.exe -Wait -ArgumentList @('/a', (Resolve-Path $msi), '/qn', "TARGETDIR=$target")
+          $exe = Get-ChildItem $target -Recurse -Filter 'Audiveris.exe' | Select-Object -First 1
+          if (-not $exe) { throw 'Audiveris.exe not found after unpacking' }
+          New-Item -ItemType Directory -Force desktop/resources/audiveris | Out-Null
+          Copy-Item (Join-Path $exe.DirectoryName '*') desktop/resources/audiveris -Recurse -Force
+          Invoke-WebRequest 'https://raw.githubusercontent.com/Audiveris/audiveris/master/LICENSE' -OutFile desktop/licenses/AUDIVERIS-LICENSE.txt
+          "{0:N0} MB Audiveris" -f ((Get-ChildItem desktop/resources/audiveris -Recurse | Measure-Object Length -Sum).Sum / 1MB)
+
+      - name: Smoke test the reader on a generated low-resolution page
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP 'omr-test'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          & desktop/resources/audiveris/Audiveris.exe -batch -export -output $out -- tests/scan/smoke_page.png
+          Get-ChildItem $out -Recurse | Format-Table Name, Length
+          if (-not (Get-ChildItem $out -Recurse -Filter *.mxl)) { Write-Warning 'Audiveris produced no MusicXML for the smoke page' }
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm install --no-audit --no-fund
+
+      - name: Build installer, portable app and zip
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm run dist
+
+      - name: Bundle everything into one zip
+        shell: pwsh
+        run: |
+          $rel = 'desktop/release'
+          $pkg = Join-Path $env:RUNNER_TEMP 'MarkSteady-Wapiro-Windows'
+          New-Item -ItemType Directory -Force $pkg | Out-Null
+          Copy-Item "$rel/*.exe" $pkg
+          Copy-Item desktop/licenses/* $pkg
+          Copy-Item README-WINDOWS.txt $pkg
+          Compress-Archive -Path "$pkg/*" -DestinationPath MarkSteady-Wapiro-Windows.zip -Force
+          "{0:N0} MB zip" -f ((Get-Item MarkSteady-Wapiro-Windows.zip).Length / 1MB)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MarkSteady-Wapiro-Windows
+          path: MarkSteady-Wapiro-Windows.zip
+
+      - name: Attach to the release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: MarkSteady-Wapiro-Windows.zip
+          draft: true

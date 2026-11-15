@@ -6,7 +6,7 @@
   const isBlack = (m) => !WHITE.includes(((m % 12) + 12) % 12);
   const BLACK_SHIFT = { 1: -0.1, 3: 0.1, 6: -0.1, 8: 0, 10: 0.1 };
 
-  const G = (W.geom = { lo: 48, hi: 83, width: 800, whiteW: 20, whites: [], index: new Map(), showAll: false });
+  const G = (W.geom = { lo: 21, hi: 108, width: 800, whiteW: 20, whites: [], index: new Map(), showAll: false, scrollX: 0, viewW: 800 });
 
   /** Choose the displayed range: the song's range rounded out to whole octaves, at least three octaves; or all 88 keys. */
   G.rangeFor = function (song, showAll) {
@@ -57,8 +57,8 @@
   };
   K.layout = function (lo, hi) {
     const el = K.el;
-    const width = el.clientWidth || 800;
-    G.setRange(lo, hi, width);
+    G.setRange(lo, hi, G.whiteWFixed * 52);
+    el.style.width = G.width + 'px';
     el.textContent = '';
     K.keys.clear(); K.last.clear();
     const frag = document.createDocumentFragment();

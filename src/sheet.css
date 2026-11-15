@@ -1,6 +1,7 @@
 /* Sheet notation. Ink is --foreground, the paper is --card. */
 .sh-ink { fill: var(--foreground); }
 .sh-line { stroke: var(--foreground); fill: none; }
+.sh-staff { stroke: var(--staff-line); fill: none; }
 .sh-time { fill: var(--foreground); font-family: Georgia, "Times New Roman", serif; font-weight: 700; }
 .sh-tup { fill: var(--foreground); font-family: Georgia, "Times New Roman", serif; font-style: italic; }
 .sh-num { fill: var(--muted-foreground); font-family: var(--font-sans); font-size: 12px; font-weight: 500; }

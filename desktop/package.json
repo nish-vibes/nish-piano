@@ -1,0 +1,45 @@
+{
+  "name": "marksteady-wapiro",
+  "productName": "MarkSteady Wapiro",
+  "version": "2.0.0",
+  "description": "Waterfall piano roll and sheet music practice, with a built-in reader for scanned sheet music.",
+  "main": "main.js",
+  "author": "nish-vibes",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis portable zip --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "io.github.nishvibes.marksteadywapiro",
+    "productName": "MarkSteady Wapiro",
+    "artifactName": "MarkSteady-Wapiro-${version}-${arch}.${ext}",
+    "directories": { "output": "release", "buildResources": "build" },
+    "files": ["main.js", "preload.js", "app/**/*", "package.json"],
+    "extraResources": [
+      { "from": "resources/audiveris", "to": "audiveris", "filter": ["**/*"] },
+      { "from": "licenses", "to": "licenses", "filter": ["**/*"] }
+    ],
+    "fileAssociations": [
+      { "ext": "musicxml", "name": "MusicXML score", "role": "Viewer" },
+      { "ext": "mxl", "name": "Compressed MusicXML score", "role": "Viewer" },
+      { "ext": "mid", "name": "MIDI file", "role": "Viewer" }
+    ],
+    "win": { "target": ["nsis", "portable", "zip"] },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "MarkSteady Wapiro",
+      "license": "licenses/INSTALLER_NOTICE.txt"
+    },
+    "portable": { "artifactName": "MarkSteady-Wapiro-${version}-portable.exe" }
+  }
+}

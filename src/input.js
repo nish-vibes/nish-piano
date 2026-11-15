@@ -34,14 +34,26 @@
     });
   };
 
-  // computer keyboard notes (off by default). Keys that map to notes:
-  const MAP = { z: 48, s: 49, x: 50, d: 51, c: 52, v: 53, g: 54, b: 55, h: 56, n: 57, j: 58, m: 59, ',': 60, q: 60, '2': 61, w: 62, '3': 63, e: 64, r: 65, '5': 66, t: 67, '6': 68, y: 69, '7': 70, u: 71, i: 72, '9': 73, o: 74, '0': 75, p: 76, '[': 77, ']': 79 };
+  // ---------------------------------------------------------------- computer-keyboard notes (off by default)
+  // A W S E D F T G Y H U J K play C to C (like a piano row); I or Q shifts an octave down, O or R an octave up. Rebindable.
+  I.DEFAULT_BINDS = {
+    notes: ['KeyA', 'KeyW', 'KeyS', 'KeyE', 'KeyD', 'KeyF', 'KeyT', 'KeyG', 'KeyY', 'KeyH', 'KeyU', 'KeyJ', 'KeyK'],
+    octDown: ['KeyI', 'KeyQ'], octUp: ['KeyO', 'KeyR'],
+  };
+  I.NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C (octave up)'];
+  I.binds = () => { const b = W.storage.settings.kbdBinds; return b && Array.isArray(b.notes) && b.notes.length === 13 ? b : I.DEFAULT_BINDS; };
+  I.keyLabel = (code) => (code || '').replace(/^Key/, '').replace(/^Digit/, '').replace(/^Numpad/, 'Num ').replace('Semicolon', ';').replace('Comma', ',').replace('Period', '.').replace('Slash', '/').replace('BracketLeft', '[').replace('BracketRight', ']').replace('Quote', "'").replace('Backquote', '`').replace('Minus', '-').replace('Equal', '=');
+  I.octave = 0; // shift in octaves from C4
   const down = new Map();
   I.keyDown = function (e) {
     if (!W.storage.settings.kbdNotes || e.ctrlKey || e.metaKey || e.altKey) return false;
-    const m = MAP[e.key.toLowerCase()];
-    if (m == null) return false;
-    if (!e.repeat && !down.has(e.code)) { down.set(e.code, m); E.noteOn(m, 90); }
+    const b = I.binds();
+    if (b.octDown.includes(e.code)) { if (!e.repeat) { I.octave = Math.max(-3, I.octave - 1); changed(); } return true; }
+    if (b.octUp.includes(e.code)) { if (!e.repeat) { I.octave = Math.min(3, I.octave + 1); changed(); } return true; }
+    const k = b.notes.indexOf(e.code);
+    if (k < 0) return false;
+    const m = 60 + 12 * I.octave + k;
+    if (!e.repeat && !down.has(e.code) && m >= 21 && m <= 108) { down.set(e.code, m); E.noteOn(m, 90); }
     return true;
   };
   I.keyUp = function (e) {

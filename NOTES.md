@@ -33,3 +33,19 @@ backup and restore with validation and merge summary, version 1 library conversi
 ## Known limits
 - Real MIDI keyboard, audio and touch not tested on hardware.
 - Results bar strip uses hatched patterns plus numbers; colours are tokens with transparency.
+
+## Scans and photos (v2.0, `src/scan.js`)
+
+Most users bring a low-resolution scan, not a notation-software PDF. Flow:
+
+1. **Any image or image-only PDF** goes to the scan flow: drop, file picker (PNG/JPG/WebP/BMP/GIF/PDF), or paste a copied image (Ctrl+V). A PDF whose pages have no vector staves is routed here from the PDF reader (`err.code === 'NO_VECTOR'`).
+2. **Prepare** each page: render at the embedded image's own resolution, measure the staff-line spacing from vertical run lengths (white+black "combo" histogram, as Audiveris does), enlarge in ≤2× steps to about 20 px between lines (Audiveris's sweet spot), contrast-stretch, sharpen, gentle S-curve. Cap 6000 px.
+3. **Check**: each page with a verdict in words and an icon — Good (≥14 px), Fair (8–13), Low resolution (<8), No staff found — and what was done ("Staff lines 3 px apart, enlarged 6.7× to 20 px").
+4. **Read**: pages are packed into one 300 dpi JPEG PDF (`scan.pagesToPdf`) so Audiveris treats them as one score. The desktop shell runs `Audiveris.exe -batch -export -output <tmp> -- scan.pdf` and returns the `.mxl`. In a browser there is no reader: "Download prepared pages" gives the enlarged PNGs for Audiveris by hand.
+5. **Review**: the first original page sits beside the app's reading; the song keeps the page images (`song.scanPages`) and the MusicXML (`song.scanXml`, downloadable).
+
+Real example: the River Flows In You scan is 510×722 px, staff lines 3 px apart → enlarged 6.7×. Audiveris itself has not been run on it in this sandbox (no Windows / no download access); the CI workflow runs a smoke test on `tests/scan/smoke_page.png`.
+
+## Windows desktop app (`desktop/`)
+
+Electron shell around the built HTML (`desktop/app/index.html`), Web MIDI allowed for the local page only, sandboxed preload exposing `window.wapiroDesktop` (`omr`, `cancelOmr`, `omrAvailable`, `onOpenFile`). Audiveris (AGPLv3, with its own Java) is unpacked from the official MSI into `resources/audiveris` and runs as a separate process. electron-builder makes a per-user NSIS installer (no admin), a portable exe and a zip. `.github/workflows/build-windows.yml` builds it all on a Windows runner and uploads `MarkSteady-Wapiro-Windows.zip` (draft release on `v*` tags). Builds are unsigned, so SmartScreen warns on first run.

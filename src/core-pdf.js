@@ -567,7 +567,7 @@
         if (r) all.push(r);
       }
     }
-    if (!anyStaff) throw new Error('No staff lines were found in this PDF. It is probably a scan or a photo of sheet music. The app can read PDFs exported from notation software such as MuseScore; for a scan, convert it with Audiveris first.');
+    if (!anyStaff) { const e = new Error('No staff lines were found in this PDF. It is probably a scan or a photo of sheet music. Convert it to MusicXML with a tool such as Audiveris, then import that file here.'); e.code = 'NO_VECTOR'; throw e; }
     if (!anyGlyph || !all.length) throw new Error('This PDF has staff lines, but its music symbols use a font the app does not recognise. The reader understands PDFs whose music font follows the SMuFL standard (MuseScore, Dorico, Finale 27 and later). Try exporting MusicXML from the program that made the PDF, or convert the PDF with Audiveris.');
     const nStaves = Math.max(...all.map((s) => s.staves.length));
     if (all.some((s) => s.staves.length !== nStaves)) warnings.push('Some systems have a different number of staves. Only systems with ' + nStaves + ' staves were read.');

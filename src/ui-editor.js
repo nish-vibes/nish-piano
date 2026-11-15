@@ -106,7 +106,7 @@
   Ed.bind = function (canvas) {
     canvas.addEventListener('pointerdown', (e) => {
       if (!Ed.active || !E.song || !WF.map) return;
-      const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      const r = canvas.getBoundingClientRect(), x = e.clientX - r.left + (G.scrollX || 0), y = e.clientY - r.top;
       e.preventDefault();
       const hit = noteAt(x, y);
       if (!hit) {
@@ -127,8 +127,8 @@
       canvas.setPointerCapture(e.pointerId);
     });
     canvas.addEventListener('pointermove', (e) => {
-      const d = Ed.drag; if (!d) { if (Ed.active && WF.map) { const r = canvas.getBoundingClientRect(), y = e.clientY - r.top, x = e.clientX - r.left; const n = noteAt(x, y); const rr = n && rectOf(n); canvas.style.cursor = n ? (y <= rr.y + 7 && rr.h > 10 ? 'ns-resize' : 'grab') : 'crosshair'; } return; }
-      const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      const d = Ed.drag; if (!d) { if (Ed.active && WF.map) { const r = canvas.getBoundingClientRect(), y = e.clientY - r.top, x = e.clientX - r.left + (G.scrollX || 0); const n = noteAt(x, y); const rr = n && rectOf(n); canvas.style.cursor = n ? (y <= rr.y + 7 && rr.h > 10 ? 'ns-resize' : 'grab') : 'crosshair'; } return; }
+      const r = canvas.getBoundingClientRect(), x = e.clientX - r.left + (G.scrollX || 0), y = e.clientY - r.top;
       if (Math.abs(x - d.x0) + Math.abs(y - d.y0) > 3) d.moved = true;
       const dq = (d.y0 - y) / WF.map.ppq;
       if (d.mode === 'resize') d.ghost.durQ = rd(Math.max(Ed.grid, snapNear(d.durQ + dq)));

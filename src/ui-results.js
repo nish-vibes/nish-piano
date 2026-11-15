@@ -73,7 +73,7 @@
     const done = () => { S.settings.hintDone = true; S.saveSettings(); card.remove(); };
     const card = h('div', { class: 'hint ds-popover', role: 'note' },
       h('div', { class: 'hint-text' }, h('span', { class: 'ds-control-text', text: 'Press Space or the play button. The notes wait for you.' }),
-        h('span', { class: 'ds-caption', text: 'You start with the right hand. Change hands in Practice options.' })),
+        h('span', { class: 'ds-caption', text: 'The speaker button plays the music along with you. Drop a scan, PDF, MusicXML or MIDI file anywhere to add a song.' })),
       h('button', { class: 'ds-btn ds-btn--ghost ds-btn--icon', type: 'button', 'aria-label': 'Dismiss the hint', onclick: done }, UI.icon('close')));
     root.appendChild(card);
     const off = () => { if (E.playing && card.isConnected) done(); };

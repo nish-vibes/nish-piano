@@ -1,0 +1,12 @@
+MarkSteady Wapiro installs for your Windows user only. No administrator rights are needed.
+
+Included third-party software:
+
+Audiveris (optical music recognition), licensed under the GNU Affero General Public License v3.
+It runs as a separate program that MarkSteady Wapiro starts to read scanned sheet music.
+Source code: https://github.com/Audiveris/audiveris
+The full licence text is installed in resources\licenses\AUDIVERIS-LICENSE.txt.
+
+Audiveris includes its own Java runtime.
+
+pdf.js (Mozilla, Apache License 2.0) is built into the app to read PDF files.

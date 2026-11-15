@@ -50,7 +50,9 @@
     const botY = staffY[ns - 1] + 4 * S;
 
     // staff lines
-    for (let s = 0; s < ns; s++) for (let k = 0; k < 5; k++) L1(sys.x0, staffY[s] + k * S, sys.x1, staffY[s] + k * S);
+    const staffLines = [];
+    for (let s = 0; s < ns; s++) for (let k = 0; k < 5; k++) staffLines.push('M' + f(sys.x0) + ' ' + f(staffY[s] + k * S) + 'L' + f(sys.x1) + ' ' + f(staffY[s] + k * S));
+    el('path', { d: staffLines.join(''), class: 'sh-staff', 'stroke-width': f(sw) }, g);
     const first = sys.measures[0];
     const st0 = lay.state[first];
     // system start line and brace

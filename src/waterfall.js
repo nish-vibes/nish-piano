@@ -24,15 +24,16 @@
     const song = E.song;
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = cssVar('--background'); ctx.fillRect(0, 0, w, h);
+    ctx.save(); ctx.translate(-Math.round(G.scrollX || 0), 0);
     // lane guides: a line at every C
     ctx.strokeStyle = cssVar('--border'); ctx.lineWidth = 1;
     ctx.beginPath();
     for (let m = G.lo; m <= G.hi; m++) if (m % 12 === 0) { const x = Math.round(G.keyRect(m).x) + 0.5; ctx.moveTo(x, 0); ctx.lineTo(x, h); }
     ctx.stroke();
-    if (!song) return;
+    if (!song) { ctx.restore(); return; }
     const { measures, n, nq, nd, nm, nh, endQ } = E.get();
     const mi0 = E.measureIndexAt(q);
-    const barLen = measures[mi0] ? measures[mi0].lenQ : 4;
+    const barLen = q < 0 ? E.lead / 2 : measures[mi0] ? measures[mi0].lenQ : 4;
     const look = Math.max(1, WF.lookBars * barLen);
     const ppq = h / look;
     const qTop = q + look;
@@ -43,16 +44,20 @@
     for (let i = Math.max(0, mi0 - 1); i < measures.length && measures[i].q <= qTop; i++) {
       const y = Math.round(yOf(measures[i].q)) + 0.5;
       if (y > h) continue;
-      ctx.strokeStyle = cssVar('--border'); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-      ctx.fillStyle = cssVar('--muted-foreground'); ctx.fillText(String(i + 1), 6, y - 2);
+      ctx.strokeStyle = cssVar('--border'); ctx.beginPath(); ctx.moveTo(G.scrollX, y); ctx.lineTo(G.scrollX + w, y); ctx.stroke();
+      ctx.fillStyle = cssVar('--muted-foreground'); ctx.fillText(String(i + 1), G.scrollX + 6, y - 2);
+    }
+    // the two empty lead-in bars before bar 1
+    for (let k = 1; k <= 2; k++) {
+      const lq = -k * E.lead / 2; if (lq < q - 1e-6 || lq > qTop) continue;
+      const y = Math.round(yOf(lq)) + 0.5; ctx.strokeStyle = cssVar('--border'); ctx.beginPath(); ctx.moveTo(G.scrollX, y); ctx.lineTo(G.scrollX + w, y); ctx.stroke();
     }
     // notes
     const opts = E.opts;
     const prac = E.runMode === 'practice';
     const dim = prac && opts.hands !== 'both';
     const rhFill = cssVar('--primary'), border = cssVar('--input');
-    const dark = document.documentElement.getAttribute('data-theme') || 'light';
-    const lhFill = dark.indexOf('dark') === 0 ? cssVar('--neutral-200') : cssVar('--neutral-700');
+    const lhFill = cssVar('--hand-left');
     const destr = cssVar('--destructive'), ring = cssVar('--ring');
     const waiting = new Set();
     for (const wn of E.waitingFor()) waiting.add(wn.midi + ':' + wn.q.toFixed(4));
@@ -92,6 +97,7 @@
     }
     WF.map = { q, ppq, h };
     if (WF.overlay) WF.overlay(ctx);
+    ctx.restore();
     // strike line at the keyboard's top edge
     ctx.fillStyle = cssVar('--input'); ctx.fillRect(0, h - 1, w, 1);
   };

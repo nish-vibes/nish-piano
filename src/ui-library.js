@@ -127,7 +127,7 @@
 
   // ---------------------------------------------------------------- import with review
   Lib.pickAndImport = function () {
-    pickFile('.musicxml,.xml,.mxl,.mid,.midi,.pdf', (f) => Lib.importFile(f));
+    pickFile('.musicxml,.xml,.mxl,.mid,.midi,.pdf,.png,.jpg,.jpeg,.webp,.bmp,.gif', (f) => Lib.importFile(f));
   };
   Lib.importFile = async function (file) {
     let buf;
@@ -140,12 +140,18 @@
   Lib.importBuffer = async function (name, buffer, auto) {
     const u8 = new Uint8Array(buffer);
     const pdf = isPdf(name, u8);
+    // scans and photos (images, or PDFs that only hold images) go to the scan flow
+    if (W.scan.isImage(name, u8)) {
+      if (auto) return { ok: false, error: 'Images are read in the scan flow.' };
+      return W.scan.open(name, buffer);
+    }
     let song, busy = null;
     if (pdf && !auto) busy = UI.openDialog('Reading the PDF', h('div', { class: 'ds-help', role: 'status' }, 'Reading the music in "' + U.cleanTitle(name) + '". This can take a few seconds per page.'), null);
     try { song = await W.core.importFile(name, buffer); }
     catch (err) {
       const msg = (err && err.message) || String(err);
       if (busy) UI.closeDialog();
+      if (pdf && !auto && err && err.code === 'NO_VECTOR') return W.scan.open(name, buffer);
       if (pdf && !auto) Lib.pdfHelp(name, msg);
       else if (!auto) UI.openDialog('Could not import "' + U.cleanTitle(name) + '"', h('div', { class: 'ds-alert ds-alert--danger', role: 'alert' }, UI.icon('alert'), h('div', null, h('strong', { text: 'The file was not added.' }), h('span', { text: msg }))));
       else UI.toast(msg, 'error');
@@ -192,6 +198,7 @@
       add('Notes', String(song.notes.length) + ' (' + song.notes.filter((n) => n.hand === 'R').length + ' right, ' + song.notes.filter((n) => n.hand === 'L').length + ' left)');
       if (song.tempos.length > 1) add('Tempo changes', String(song.tempos.length - 1));
       if (song.timeSigs.length > 1) add('Time signature changes', String(song.timeSigs.length - 1));
+      if (song.scanPages) add('Read from a scan', song.scanPages.length + (song.scanPages.length === 1 ? ' page' : ' pages'));
       if (song.pdfReport) add('Read from the PDF', song.pdfReport.pages + (song.pdfReport.pages === 1 ? ' page, ' : ' pages, ') + song.pdfReport.systems + (song.pdfReport.systems === 1 ? ' system' : ' systems'));
       add('Notation', song.source === 'pdf' ? 'Rebuilt from the PDF' : song.exactNotation ? 'From the MusicXML file' : 'Approximate (worked out from the notes)');
     };
@@ -242,9 +249,13 @@
         field('Title', title), field('Composer', composer),
         field('Key', keySel, isMidi ? null : fromWhere), field('Time signature', tsSel, isMidi ? (song.timeSigs.length > 1 ? 'Changes later in the piece are kept.' : null) : fromWhere),
         field('Tempo (BPM)', tempo)),
-      facts, song.pdfXml ? h('div', null, h('button', { class: 'ds-btn ds-btn--outline', type: 'button', onclick: () => download(fileSafe(title.value || song.title) + '.musicxml', song.pdfXml, 'application/vnd.recordare.musicxml+xml') }, UI.icon('download'), 'Download MusicXML')) : null,
+      facts, song.scanXml ? h('div', null, h('button', { class: 'ds-btn ds-btn--outline', type: 'button', onclick: () => download(fileSafe(title.value || song.title) + '.musicxml', song.scanXml, 'application/vnd.recordare.musicxml+xml') }, UI.icon('download'), 'Download MusicXML')) : null,
+      song.pdfXml ? h('div', null, h('button', { class: 'ds-btn ds-btn--outline', type: 'button', onclick: () => download(fileSafe(title.value || song.title) + '.musicxml', song.pdfXml, 'application/vnd.recordare.musicxml+xml') }, UI.icon('download'), 'Download MusicXML')) : null,
       handsInfo, warnBox,
-      h('div', { class: 'ds-label', text: 'First bars' }), preview);
+      song.scanPages ? h('div', { class: 'review-compare' },
+        h('div', null, h('div', { class: 'ds-label', text: 'Original' }), h('img', { class: 'review-original', src: song.scanPages[0], alt: 'First page of the original scan' })),
+        h('div', null, h('div', { class: 'ds-label', text: 'Read by the app' }), preview))
+        : h('div', null, h('div', { class: 'ds-label', text: 'First bars' }), preview));
     const add = async () => {
       song.title = title.value.trim() || song.title;
       song.composer = composer.value.trim();
@@ -356,7 +367,7 @@
   // ---------------------------------------------------------------- drop files anywhere
   Lib.bindDrop = function (root) {
     let depth = 0;
-    const veil = h('div', { class: 'drop-veil', 'aria-hidden': 'true' }, h('div', { class: 'drop-card ds-card' }, UI.icon('upload'), h('span', { class: 'ds-control-text', text: 'Drop a MusicXML or MIDI file to import it' })));
+    const veil = h('div', { class: 'drop-veil', 'aria-hidden': 'true' }, h('div', { class: 'drop-card ds-card' }, UI.icon('upload'), h('span', { class: 'ds-control-text', text: 'Drop a scan, PDF, MusicXML or MIDI file to add it' })));
     const show = (v) => { if (v) { if (!veil.isConnected) root.appendChild(veil); } else veil.remove(); };
     const hasFiles = (e) => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
     window.addEventListener('dragenter', (e) => { if (!hasFiles(e)) return; depth++; show(true); e.preventDefault(); });
@@ -368,5 +379,17 @@
       const f = e.dataTransfer.files && e.dataTransfer.files[0];
       if (f) Lib.importFile(f);
     });
+    // paste a screenshot or a copied image of sheet music
+    window.addEventListener('paste', (e) => {
+      const t = e.target;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      const item = [...((e.clipboardData && e.clipboardData.items) || [])].find((i) => i.kind === 'file' && /^image\//.test(i.type));
+      if (!item) return;
+      e.preventDefault();
+      const f = item.getAsFile();
+      f.arrayBuffer().then((buf) => W.scan.open('Pasted image.png', buf));
+    });
+    // desktop app: files opened with "Open with" or passed on the command line
+    if (window.wapiroDesktop && window.wapiroDesktop.onOpenFile) window.wapiroDesktop.onOpenFile((f) => Lib.importBuffer(f.name, f.data, false));
   };
 })();

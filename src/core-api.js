@@ -26,7 +26,7 @@
     if (sig4 === '%PDF' || ext === 'pdf') {
       if (sig4 !== '%PDF') throw new Error('This file is not a PDF. ' + PDF_MSG);
       let res;
-      try { res = await W.pdf.read(u8, name); } catch (e) { const err = new Error(((e && e.message) || String(e)) + (/MusicXML/.test(e && e.message) ? '' : ' ' + PDF_MSG)); err.pdf = true; throw err; }
+      try { res = await W.pdf.read(u8, name); } catch (e) { const err = new Error(((e && e.message) || String(e)) + (/MusicXML/.test(e && e.message) ? '' : ' ' + PDF_MSG)); err.pdf = true; err.code = e && e.code; throw err; }
       const song = W.musicxml.parse(res.xml, name);
       song.source = 'pdf';
       song.pdfXml = res.xml;
@@ -50,6 +50,6 @@
 
   function exportMidi(song) { return W.midi.exportMidi(song); }
 
-  W.core = { importFile, exportMidi, PDF_MSG };
+  W.core = { importFile, exportMidi, PDF_MSG, finish };
   window.WapiroCore = { importFile, exportMidi };
 })();

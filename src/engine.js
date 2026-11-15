@@ -8,7 +8,8 @@
 
   const E = (W.engine = {
     song: null, playing: false, runMode: 'practice', phase: 'run',
-    opts: { wait: true, hands: 'R', speed: 1, loop: null, restartAfter: 0, metronome: false, countIn: null, mode: 'practice' },
+    opts: { wait: true, hands: 'both', speed: 1, loop: null, restartAfter: 0, metronome: false, countIn: null, mode: 'practice', playAlong: true },
+    lead: 8,
     sec: 0, q: 0, holding: false, holdQ: 0,
     stats: { hit: 0, missed: 0, wrong: 0 },
     activeKeys: new Set(),
@@ -58,7 +59,9 @@
     return { from: a, to: b, q0: measures[a - 1].q, q1: measures[b - 1].q + measures[b - 1].lenQ };
   };
   E.loopRange = loopRange;
-  const startQ = () => { const l = loopRange(); return l ? l.q0 : 0; };
+  // Every song starts with two empty bars (only in the waterfall), so the first notes fall in from above.
+  const startQ = () => { const l = loopRange(); return l ? l.q0 : -E.lead; };
+  E.startQ = startQ;
 
   // ---------------------------------------------------------------- practised set
   const practising = () => E.runMode === 'practice';
@@ -98,6 +101,7 @@
   function song_timeSigAt(q) { const ts = E.song.timeSigs; let r = ts[0]; for (const t of ts) if (t.q <= q + EPS) r = t; return r; }
   function nextBeatAtOrAfter(q) {
     if (!measures || !measures.length) return Infinity;
+    if (q < -1e-9) { const bl = beatLenAt(0), bq = Math.ceil(q / bl - 1e-6) * bl; if (bq < -1e-6) return bq; q = 0; }
     let mi = E.measureIndexAt(q);
     for (let guard = 0; guard < 3 && mi < measures.length; guard++, mi++) {
       const m = measures[mi], bl = beatLenAt(mi);
@@ -120,6 +124,7 @@
     for (let i = 0; i < n; i++) { nq[i] = notes[i].q; nd[i] = notes[i].durQ; nm[i] = notes[i].midi; nh[i] = notes[i].hand === 'L' ? 1 : 0; if (nd[i] > maxDur) maxDur = nd[i]; }
     status = new Uint8Array(n);
     endQ = measures.length ? measures[measures.length - 1].q + measures[measures.length - 1].lenQ : 0;
+    { const ts = song.timeSigs[0] || { num: 4, den: 4 }; E.lead = 2 * ts.num * 4 / ts.den; }
     buildTempo(song);
     barWrong = new Int32Array(measures.length);
     if (prefs) Object.assign(E.opts, prefs);
@@ -156,6 +161,7 @@
     if (o.metronome !== undefined) E.opts.metronome = !!o.metronome;
     if (o.countIn !== undefined) E.opts.countIn = o.countIn === null ? null : !!o.countIn;
     if (o.mode !== undefined) E.opts.mode = o.mode === 'listen' ? 'listen' : 'practice';
+    if (o.playAlong !== undefined) E.opts.playAlong = !!o.playAlong;
     if (o.loop !== undefined) {
       if (o.loop === null) E.opts.loop = null;
       else if (measures && measures.length) {
@@ -188,7 +194,7 @@
     E.playing = true; E.phase = 'run'; E.holding = false;
     lastNow = performance.now();
     E.resultsOpen = false;
-    if (E.runMode === 'practice' && E.effectiveCountIn()) startCountIn();
+    if (E.runMode === 'practice' && E.effectiveCountIn() && E.q > -1e-6) startCountIn(); // in the lead-in bars the clicks count in instead
     emit('change');
   }
   E.play = function () { begin(false); };
@@ -222,7 +228,7 @@
 
   E.seekQ = function (q, keepRun) {
     if (!E.song) return;
-    q = Math.max(0, Math.min(endQ, q));
+    q = Math.max(-E.lead, Math.min(endQ, q));
     const wasPlaying = E.playing;
     if (A.cancelScheduled) A.cancelScheduled();
     startRun(q, true);
@@ -235,6 +241,7 @@
     const mi = E.measureIndexAt(E.q);
     const m = measures[mi];
     // inside a bar by more than a little: go to its start; else to the previous bar
+    if (mi === 0 && E.q - m.q <= 0.25) { E.seekQ(-E.lead); return; }
     E.seekQ(E.q - m.q > 0.25 && !E.holding ? m.q : measures[Math.max(0, mi - 1)].q);
   };
   E.nextBar = function () { const mi = E.measureIndexAt(E.q); if (mi + 1 < measures.length) E.seekQ(measures[mi + 1].q); };
@@ -360,22 +367,23 @@
     if (l) horizonQ = Math.min(horizonQ, l.q1 - 1e-5);
     horizonQ = Math.min(horizonQ, endQ);
     const t0 = A.now();
-    const auto = E.runMode === 'listen';
+    // the speaker button: the app plays the music along with you (every note); Listen mode always plays
+    const auto = E.runMode === 'listen' || E.opts.playAlong;
     while (schedI < n && nq[schedI] <= horizonQ) {
       const i = schedI++;
-      if (!auto && handOk(i)) continue;
-      if (!auto && E.opts.hands === 'both') continue;
+      if (!auto) continue;
       const ts = qToSec(nq[i]);
       A.schedule(nm[i], 78, t0 + Math.max(0, (ts - E.sec) / spd), (qToSec(nq[i] + nd[i]) - ts) / spd);
     }
-    if (E.opts.metronome) {
-      while (metroQ <= horizonQ && metroQ < endQ) {
-        const mi = E.measureIndexAt(metroQ);
-        const accent = Math.abs(metroQ - measures[mi].q) < 1e-4;
+    const leadBar = E.lead / 2;
+    while (metroQ <= horizonQ && metroQ < endQ) {
+      const inLead = metroQ < -1e-6;
+      if (E.opts.metronome || (inLead && E.effectiveCountIn() && practising())) {
+        const accent = inLead ? Math.abs(((metroQ % leadBar) + leadBar) % leadBar) < 1e-4 || Math.abs(((metroQ % leadBar) + leadBar) % leadBar - leadBar) < 1e-4 : Math.abs(metroQ - measures[E.measureIndexAt(metroQ)].q) < 1e-4;
         A.click(accent, t0 + Math.max(0, (qToSec(metroQ) - E.sec) / spd));
-        metroQ = nextBeatAtOrAfter(metroQ + 1e-4);
-      }
-    } else metroQ = Math.max(metroQ, nextBeatAtOrAfter(Math.max(E.q, horizonQ) - 1e-6));
+      } else if (!inLead) { metroQ = Math.max(metroQ, nextBeatAtOrAfter(Math.max(E.q, horizonQ) - 1e-6)); break; }
+      metroQ = nextBeatAtOrAfter(metroQ + 1e-4);
+    }
   }
   function skipSchedule() {
     const horizonQ = secToQ(E.sec);

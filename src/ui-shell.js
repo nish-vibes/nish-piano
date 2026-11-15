@@ -4,7 +4,7 @@
   const W = window.Wapiro, E = W.engine, UI = W.ui, h = UI.h, S = W.storage, K = W.keyboard, WF = W.waterfall, SH = W.sheet, T = W.timeline;
   const Sh = (W.shell = { el: {}, dirty: { wf: true, sheet: true, tl: true } });
   const el = Sh.el;
-  const VIEWS = [['waterfall', 'Waterfall'], ['sheet', 'Sheet'], ['split', 'Split']];
+  const VIEWS = [['split', 'Split'], ['waterfall', 'Waterfall'], ['sheet', 'Sheet']];
 
   Sh.build = function (root) {
     root.textContent = '';
@@ -21,17 +21,21 @@
     el.play = h('button', { class: 'ds-btn ds-btn--primary play-btn', type: 'button', 'aria-label': 'Play', onclick: () => W.app.togglePlay() }, UI.icon('play'));
     el.counter = h('span', { class: 'bar-counter ds-tabular', text: 'Bar 1 of 1' });
     el.views = h('div', { class: 'ds-tabs view-switch', role: 'group', 'aria-label': 'View' }, VIEWS.map(([v, t]) => h('button', { class: 'ds-tab', type: 'button', 'aria-pressed': 'false', 'data-view': v, onclick: () => W.app.setView(v) }, t)));
+    const toggle = (name, label, fn) => h('button', { class: 'ds-btn ds-btn--icon ds-btn--ghost tip tb-toggle', type: 'button', 'aria-label': label, 'data-tip': label, 'aria-pressed': 'false', onclick: fn }, UI.icon(name));
+    el.bWait = toggle('wait', 'Wait for me (W)', () => E.setOptions({ wait: !E.opts.wait, countIn: null }));
+    el.bAlong = toggle('speaker', 'Play along (P)', () => E.setOptions({ playAlong: !E.opts.playAlong }));
+    el.bMetro = toggle('metronome', 'Metronome (M)', () => E.setOptions({ metronome: !E.opts.metronome }));
     el.bPractice = iconBtn('sliders', 'Practice options', () => W.popovers.practice(el.bPractice), { 'aria-haspopup': 'dialog', 'aria-expanded': 'false' });
-    el.bSound = iconBtn('speaker', 'Sound and devices', () => W.popovers.sound(el.bSound), { 'aria-haspopup': 'dialog', 'aria-expanded': 'false' });
+    el.bSound = iconBtn('piano', 'Sound and devices', () => W.popovers.sound(el.bSound), { 'aria-haspopup': 'dialog', 'aria-expanded': 'false' });
     el.bMore = iconBtn('more', 'More', () => W.popovers.more(el.bMore), { 'aria-haspopup': 'menu', 'aria-expanded': 'false' });
     el.topbar = h('header', { class: 'topbar' },
       h('div', { class: 'tb-left chrome' }, el.titleBtn),
       h('div', { class: 'tb-center' }, h('span', { class: 'chrome tb-group' }, el.restart, el.prev), el.play, h('span', { class: 'chrome tb-group' }, el.next), el.counter),
-      h('div', { class: 'tb-right chrome' }, el.views, el.bPractice, el.bSound, el.bMore));
+      h('div', { class: 'tb-right chrome' }, h('span', { class: 'tb-group tb-toggles', role: 'group', 'aria-label': 'Practice toggles' }, el.bWait, el.bAlong, el.bMetro), el.views, el.bPractice, el.bSound, el.bMore));
     el.timeline = h('div', { class: 'timeline chrome' });
     // stage
     el.wfCanvas = h('canvas', { class: 'wf-canvas', 'aria-label': 'Waterfall of falling notes', role: 'img' });
-    el.zoom = UI.seg('Look-ahead', [[1, '1 bar'], [2, '2 bars'], [4, '4 bars']], S.settings.lookBars, (v) => Sh.setLook(v));
+    el.zoom = UI.seg('Look-ahead', [[2, '2 bars'], [4, '4 bars'], [6, '6 bars']], S.settings.lookBars, (v) => Sh.setLook(v));
     el.zoom.classList.add('wf-zoom', 'ds-reveal');
     el.wfPane = h('section', { class: 'pane pane-wf ds-row' }, el.wfCanvas, el.zoom);
     el.badgeApprox = h('span', { class: 'ds-badge', text: '' });
@@ -43,12 +47,18 @@
     el.handle = h('div', { class: 'split-handle ds-row', role: 'separator', 'aria-orientation': 'horizontal', 'aria-label': 'Resize the sheet and waterfall', tabindex: '0' }, h('span', { class: 'split-grip ds-reveal' }));
     el.stage = h('main', { class: 'stage' }, el.sheetPane, el.handle, el.wfPane);
     el.keys = h('div', { class: 'keys', role: 'group', 'aria-label': 'Piano keyboard' });
-    el.keysWrap = h('footer', { class: 'keys-wrap' }, el.keys);
+    el.keysScroll = h('div', { class: 'keys-scroll' }, el.keys);
+    el.kWidth = UI.miniSlider('Key width', 10, 60, 1, S.settings.keyW || 24, (v) => Sh.setKeyWidth(v));
+    el.kHeight = UI.miniSlider('Keyboard height', 70, 260, 5, S.settings.keysH || 120, (v) => Sh.setKeysHeight(v));
+    el.kFit = h('button', { class: 'ds-btn ds-btn--ghost', type: 'button', onclick: () => Sh.setKeyWidth(null) }, 'Fit to song');
+    el.kTools = h('div', { class: 'keys-tools ds-reveal ds-popover', role: 'group', 'aria-label': 'Keyboard size' }, el.kWidth, el.kHeight, el.kFit);
+    el.keysWrap = h('footer', { class: 'keys-wrap ds-row' }, el.kTools, el.keysScroll);
     root.append(el.topbar, el.timeline, el.stage, el.keysWrap);
     UI.mountToasts(root);
 
     K.mount(el.keys); WF.mount(el.wfCanvas); W.editor.bind(el.wfCanvas); SH.mount(el.sheetScroll); T.mount(el.timeline);
-    Sh.bindResize(); Sh.bindSplit(); Sh.bindIdle(); Sh.bindKeys();
+    Sh.bindResize(); Sh.bindSplit(); Sh.bindIdle(); Sh.bindKeys(); Sh.bindKeyScroll();
+    el.root.style.setProperty('--kbd-h', (S.settings.keysH || 120) + 'px');
     E.on('change', onChange); E.on('seek', mark); E.on('song', onSong); E.on('wrap', mark); E.on('result', mark); E.on('finish', mark);
     E.on('key', () => { Sh.dirty.wf = true; });
     onChange();
@@ -61,6 +71,10 @@
     el.play.textContent = '';
     el.play.append(UI.icon(p ? 'pause' : 'play'));
     el.root.classList.toggle('is-playing', p);
+    el.bWait.setAttribute('aria-pressed', String(!!E.opts.wait));
+    el.bAlong.setAttribute('aria-pressed', String(!!E.opts.playAlong));
+    el.bAlong.textContent = ''; el.bAlong.append(UI.icon(E.opts.playAlong ? 'speaker' : 'speakerOff'));
+    el.bMetro.setAttribute('aria-pressed', String(!!E.opts.metronome));
     if (!p) Sh.wake();
     else Sh.wake();
     mark();
@@ -105,16 +119,42 @@
     SH.update(E.q, true);
     mark();
   };
-  Sh.relayoutKeyboard = function () {
+  /** All 88 keys, a chosen white-key width (or fitted to the song's range), scrolled horizontally. The waterfall follows the scroll. */
+  Sh.relayoutKeyboard = function (keepCenter) {
     if (!E.song) return;
-    const [lo, hi] = W.geom.rangeFor(E.song, S.settings.showAll);
-    K.layout(lo, hi);
+    const G = W.geom, view = el.keysScroll.clientWidth || el.root.clientWidth || 800;
+    G.viewW = view;
+    const [lo, hi] = G.rangeFor(E.song, false);
+    let whites = 0; for (let m = lo; m <= hi; m++) if ([0, 2, 4, 5, 7, 9, 11].includes(m % 12)) whites++;
+    const fitW = Math.max(10, Math.min(60, view / whites));
+    const prevCenter = (el.keysScroll.scrollLeft + view / 2) / Math.max(1, G.width);
+    G.whiteWFixed = S.settings.keyW ? S.settings.keyW : Math.max(fitW, view / 52);
+    K.layout(21, 108);
+    if (keepCenter) el.keysScroll.scrollLeft = prevCenter * G.width - view / 2;
+    else el.keysScroll.scrollLeft = Math.max(0, G.keyRect(lo).x - (S.settings.keyW ? 0 : (view - (G.keyRect(hi).x + G.keyRect(hi).w - G.keyRect(lo).x)) / 2));
+    G.scrollX = el.keysScroll.scrollLeft;
+    el.kWidth.setValue(Math.round(G.whiteWFixed));
     WF.dirty = true; mark();
+  };
+  Sh.setKeyWidth = function (v) { S.settings.keyW = v == null ? null : Math.max(10, Math.min(60, v)); S.saveSettings(); Sh.relayoutKeyboard(v != null); };
+  Sh.setKeysHeight = function (v) { S.settings.keysH = Math.max(70, Math.min(260, v)); el.root.style.setProperty('--kbd-h', S.settings.keysH + 'px'); el.kHeight.setValue(S.settings.keysH); S.saveSettings(); };
+  Sh.bindKeyScroll = function () {
+    const G = W.geom;
+    el.keysScroll.addEventListener('scroll', () => { G.scrollX = el.keysScroll.scrollLeft; WF.dirty = true; mark(); }, { passive: true });
+    // horizontal scroll from the waterfall or keys: trackpad sideways, or Shift + wheel
+    const wheel = (e) => {
+      if (W.editor && W.editor.active && !e.shiftKey && Math.abs(e.deltaX) < Math.abs(e.deltaY)) return;
+      const dx = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.shiftKey ? e.deltaY : 0;
+      if (!dx) return;
+      e.preventDefault(); el.keysScroll.scrollLeft += dx;
+    };
+    el.wfCanvas.addEventListener('wheel', wheel, { passive: false });
+    el.keysScroll.addEventListener('wheel', wheel, { passive: false });
   };
   Sh.relayoutAll = function () {
     Sh.relayoutKeyboard(); Sh.layoutSheet(); WF.resize(); T.resize(); mark();
   };
-  Sh.resizeAll = function () { WF.resize(); T.resize(); if (el.sheetScroll.clientWidth !== Sh.lastSheetW || el.sheetScroll.clientHeight !== Sh.lastSheetH) { Sh.lastSheetW = el.sheetScroll.clientWidth; Sh.lastSheetH = el.sheetScroll.clientHeight; Sh.layoutSheet(); } if (el.keys.clientWidth !== Sh.lastKeysW) { Sh.lastKeysW = el.keys.clientWidth; Sh.relayoutKeyboard(); } mark(); };
+  Sh.resizeAll = function () { WF.resize(); T.resize(); if (el.sheetScroll.clientWidth !== Sh.lastSheetW || el.sheetScroll.clientHeight !== Sh.lastSheetH) { Sh.lastSheetW = el.sheetScroll.clientWidth; Sh.lastSheetH = el.sheetScroll.clientHeight; Sh.layoutSheet(); } if (el.keysScroll.clientWidth !== Sh.lastKeysW) { Sh.lastKeysW = el.keysScroll.clientWidth; Sh.relayoutKeyboard(!!S.settings.keyW); } mark(); };
   Sh.bindResize = function () {
     let t = null;
     const go = () => { clearTimeout(t); t = setTimeout(() => Sh.resizeAll(), 60); };
@@ -186,8 +226,9 @@
       else if (lettersOn && kl === 'l') W.app.toggleLoop();
       else if (lettersOn && kl === 'w') E.setOptions({ wait: !E.opts.wait, countIn: null });
       else if (lettersOn && kl === 'h') E.setOptions({ hands: { both: 'R', R: 'L', L: 'both' }[E.opts.hands] });
-      else if (lettersOn && kl === 'v') W.app.setView({ waterfall: 'sheet', sheet: 'split', split: 'waterfall' }[S.settings.view]);
+      else if (lettersOn && kl === 'v') W.app.setView({ split: 'waterfall', waterfall: 'sheet', sheet: 'split' }[S.settings.view]);
       else if (lettersOn && kl === 'm') E.setOptions({ metronome: !E.opts.metronome });
+      else if (lettersOn && kl === 'p') E.setOptions({ playAlong: !E.opts.playAlong });
       else used = false;
       if (used) e.preventDefault();
     });
@@ -214,7 +255,7 @@
     if (Sh.dirty.tl || T.dirty || moved) { T.draw(q); Sh.dirty.tl = false; T.dirty = false; }
     K.update();
     const mi = E.measureIndexAt(q) + 1;
-    const txt = 'Bar ' + mi + ' of ' + E.get().measures.length;
+    const txt = q < -1e-6 ? 'Lead-in, then bar 1 of ' + E.get().measures.length : 'Bar ' + mi + ' of ' + E.get().measures.length;
     if (txt !== lastBar) { lastBar = txt; el.counter.textContent = txt; }
     void lastRes;
   };
