@@ -250,3 +250,5 @@ body { font-family: var(--font-sans); }
 .scan-verdict.is-good svg { color: var(--success); } .scan-verdict.is-fair svg { color: var(--warning); } .scan-verdict.is-poor svg, .scan-verdict.is-none svg { color: var(--destructive); }
 .review-compare { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3); }
 .review-original { width: 100%; height: auto; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--neutral-0); }
+.scan-pages { max-height: none; overflow: visible; }
+.scan-thumb { max-height: 260px; width: auto; max-width: 100%; object-fit: contain; align-self: flex-start; }
