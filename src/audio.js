@@ -1,8 +1,8 @@
-/* Web Audio synth: piano (modest additive model with hammer noise), electric piano, organ, harpsichord, strings. Also the metronome click. */
+/* Web Audio synth: piano (modest additive model with hammer noise), electric piano, organ, harpsichord, marimba, strings. Any one can be layered over another. Also the metronome click. */
 (function () {
   'use strict';
   const W = window.Wapiro;
-  const A = (W.audio = { available: !!(window.AudioContext || window.webkitAudioContext), instrument: 'piano', volume: 0.7, accVolume: 0.7, metroVolume: 0.7, mute: false, ctx: null });
+  const A = (W.audio = { available: !!(window.AudioContext || window.webkitAudioContext), instrument: 'piano', layer: null, volume: 0.7, accVolume: 0.7, metroVolume: 0.7, mute: false, ctx: null });
   let master, userBus, accBus, metroBus, comp, noise;
   const active = new Map();   // midi -> voice (user notes)
   const sustained = new Set();
@@ -42,10 +42,10 @@
   function freq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
 
   /** Build a voice that starts at time t. Returns { rel, oscs, end } where rel is the release gate. */
-  function makeVoice(midi, vel, t, bus) {
+  function makeVoice(midi, vel, t, bus, inst, level) {
     const c = A.ctx, f = freq(midi);
     const v = Math.max(0.12, Math.min(1, vel / 127));
-    const rel = c.createGain(); rel.gain.value = 1;
+    const rel = c.createGain(); rel.gain.value = level == null ? 1 : level;
     const lp = c.createBiquadFilter(); lp.type = 'lowpass';
     const oscs = [];
     const out = c.createGain();
@@ -59,8 +59,19 @@
       o.connect(e); e.connect(out); o.start(t); oscs.push(o);
       return e;
     };
-    const inst = A.instrument;
-    if (inst === 'epiano') {
+    inst = inst || A.instrument;
+    if (inst === 'marimba') {
+      // struck wooden bar: a strong fundamental with a short-lived tone about two octaves up, and a soft mallet tap
+      lp.frequency.value = Math.min(7000, f * 6 + 800);
+      const dec = 0.5 - 0.38 * ((midi - 21) / 87);
+      out.gain.setValueAtTime(0.0001, t); out.gain.linearRampToValueAtTime(0.55 * (0.4 + 0.6 * v), t + 0.002);
+      osc('sine', f, 1, dec); osc('sine', f * 3.97, 0.35, dec * 0.35); osc('sine', f * 9.9, 0.08, dec * 0.12);
+      const ns = c.createBufferSource(); ns.buffer = noise;
+      const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = Math.min(4000, f * 2 + 500); bp.Q.value = 1.2;
+      const ng = c.createGain(); ng.gain.setValueAtTime(0.1 * v, t); ng.gain.setTargetAtTime(0.0001, t, 0.01);
+      ns.connect(bp); bp.connect(ng); ng.connect(out); ns.start(t); oscs.push(ns);
+      end = t + 2.5;
+    } else if (inst === 'epiano') {
       lp.frequency.value = Math.min(9000, f * 8 + 1200);
       out.gain.setValueAtTime(0.0001, t); out.gain.linearRampToValueAtTime(0.5 * v, t + 0.006);
       out.gain.setTargetAtTime(0.0001, t + 0.05, 1.4);
@@ -113,7 +124,7 @@
     }
     const stopAt = end;
     oscs.forEach((o) => { try { o.stop(stopAt); } catch (e) { /* already stopped */ } });
-    return { rel, oscs, end: stopAt, t0: t };
+    return { rel, oscs, end: stopAt, t0: t, inst };
   }
 
   function releaseVoice(v, t, tau) {
@@ -123,17 +134,24 @@
       v.oscs.forEach((o) => { try { o.stop(t + tau * 9); } catch (e) { /* ignore */ } });
     } catch (e) { /* ignore */ }
   }
-  const relTau = () => ({ organ: 0.03, epiano: 0.12, harpsichord: 0.08, strings: 0.25 }[A.instrument] || 0.16);
+  const relTau = (inst) => ({ organ: 0.03, epiano: 0.12, harpsichord: 0.08, strings: 0.25, marimba: 0.06 }[inst || A.instrument] || 0.16);
+  /** The sounding voices of one note: the main instrument, plus the layered one when set (a little quieter). */
+  function voices(midi, vel, t, bus) {
+    const out = [makeVoice(midi, vel, t, bus, A.instrument, 1)];
+    if (A.layer && A.layer !== A.instrument) out.push(makeVoice(midi, vel, t, bus, A.layer, 0.7));
+    return out;
+  }
+  const releaseAll = (vs, t, mul) => vs.forEach((v) => releaseVoice(v, t, relTau(v.inst) * (mul || 1)));
 
   /** The user's note (keyboard, MIDI or screen): sounds now, until noteOff. */
   A.noteOn = function (midi, vel) {
     if (!A.ensure()) return;
     const old = active.get(midi);
-    if (old) releaseVoice(old, A.now(), 0.03);
+    if (old) old.forEach((o) => releaseVoice(o, A.now(), 0.03));
     sustained.delete(old);
     const t = A.now() + 0.001;
-    if (active.size > 40) { const first = active.keys().next().value; releaseVoice(active.get(first), t, 0.05); active.delete(first); }
-    const v = makeVoice(midi, vel || 90, t, userBus);
+    if (active.size > 40) { const first = active.keys().next().value; active.get(first).forEach((o) => releaseVoice(o, t, 0.05)); active.delete(first); }
+    const v = voices(midi, vel || 90, t, userBus);
     v.held = true;
     active.set(midi, v);
   };
@@ -143,20 +161,20 @@
     v.held = false;
     if (pedal) { sustained.add(v); return; }
     active.delete(midi);
-    releaseVoice(v, A.now(), relTau());
+    releaseAll(v, A.now());
   };
   A.setPedal = function (down) {
     pedal = !!down;
     if (!pedal) {
       for (const v of sustained) {
-        releaseVoice(v, A.now(), relTau() * 1.4);
+        releaseAll(v, A.now(), 1.4);
         for (const [m, vv] of active) if (vv === v) active.delete(m);
       }
       sustained.clear();
     }
   };
   A.releaseAllUser = function () {
-    for (const [, v] of active) releaseVoice(v, A.now(), 0.05);
+    for (const [, v] of active) v.forEach((o) => releaseVoice(o, A.now(), 0.05));
     active.clear(); sustained.clear();
   };
 
@@ -164,10 +182,11 @@
   A.schedule = function (midi, vel, when, durSec) {
     if (!A.ctx || A.ctx.state !== 'running') return;
     const t = Math.max(A.now(), when);
-    const v = makeVoice(midi, vel || 80, t, accBus);
-    releaseVoice(v, t + Math.max(0.05, durSec), relTau());
-    v.stopAt = t + Math.max(0.05, durSec) + 3;
-    scheduled.add(v);
+    for (const v of voices(midi, vel || 80, t, accBus)) {
+      releaseVoice(v, t + Math.max(0.05, durSec), relTau(v.inst));
+      v.stopAt = t + Math.max(0.05, durSec) + 3;
+      scheduled.add(v);
+    }
     if (scheduled.size > 200) { const now = A.now(); for (const s of scheduled) if (s.stopAt < now) scheduled.delete(s); }
   };
   /** A short note when a note is added or moved in Correct notes. */

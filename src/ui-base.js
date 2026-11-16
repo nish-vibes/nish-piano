@@ -45,6 +45,8 @@
     trash: '<path d="M4 6h12"/><path d="M8 6V4h4v2"/><path d="M5.5 6l1 10h7l1-10"/>',
     edit: '<path d="M4 16l1-4 8-8 3 3-8 8z"/><path d="M11.5 5.5l3 3"/>',
     download: '<path d="M10 3v10"/><path d="M6 9l4 4 4-4"/><path d="M4 16h12"/>',
+    keyboard: '<rect x="2" y="5" width="16" height="10" rx="1.5"/><path d="M5 8h.01"/><path d="M8.5 8h.01"/><path d="M12 8h.01"/><path d="M15 8h.01"/><path d="M6 11.5h8"/>',
+    loop: '<path d="M14 3l3 3-3 3"/><path d="M3 10V8.5A2.5 2.5 0 015.5 6H17"/><path d="M6 17l-3-3 3-3"/><path d="M17 10v1.5a2.5 2.5 0 01-2.5 2.5H3"/>',
     upload: '<path d="M10 14V4"/><path d="M6 8l4-4 4 4"/><path d="M4 16h12"/>',
     search: '<circle cx="9" cy="9" r="5"/><path d="M13 13l4 4"/>',
     x: '<path d="M6 6l8 8"/><path d="M14 6l-8 8"/>',
@@ -178,6 +180,12 @@
     const b = h('button', { type: 'button', class: 'switch-row', role: 'switch', 'aria-checked': String(!!value), onclick: (e) => { onToggle(b.getAttribute('aria-checked') !== 'true'); if (e.detail > 0) b.blur(); } },
       h('span', { class: 'switch-text' }, h('span', { class: 'ds-label', text: label }), hint ? h('span', { class: 'ds-caption', text: hint }) : null), sw);
     b.setValue = (v) => { b.setAttribute('aria-checked', String(!!v)); sw.classList.toggle('is-on', !!v); };
+    return b;
+  };
+  /** A pressed/unpressed toggle button with an icon and a label (Sound menu). */
+  UI.toggleBtn = function (icon, label, value, onToggle) {
+    const b = h('button', { type: 'button', class: 'ds-btn ds-btn--outline pop-toggle', 'aria-pressed': String(!!value), onclick: (e) => { onToggle(b.getAttribute('aria-pressed') !== 'true'); if (e.detail > 0) b.blur(); } }, UI.icon(icon), h('span', { text: label }));
+    b.setValue = (v) => b.setAttribute('aria-pressed', String(!!v));
     return b;
   };
   /** A compact labelled range input for tool strips. */

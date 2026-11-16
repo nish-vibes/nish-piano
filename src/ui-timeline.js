@@ -109,6 +109,14 @@
     for (let i = 0; i < measures.length; i += stepT) { const x = Math.round(xq(measures[i].q)) + 0.5; ctx.moveTo(x, ty - 3); ctx.lineTo(x, ty + th); }
     ctx.stroke();
     for (let i = 0; i < measures.length; i += stepN) { if (i === 0 || (i + 1) % Math.max(1, stepN) === 0 || stepN === 1) ctx.fillText(String(i + 1), Math.round(xq(measures[i].q)) + 3, 1); }
+    // current bar: bold accent number with an underline across the bar
+    const ci = Math.max(0, Math.min(measures.length - 1, E.measureIndexAt(q)));
+    { const bx = xq(measures[ci].q), bw = xq(ci + 1 < measures.length ? measures[ci + 1].q : endQ) - bx;
+      const lab = String(ci + 1); ctx.font = '600 12px ' + cssVar('--font-sans');
+      const lw = ctx.measureText(lab).width;
+      ctx.fillStyle = cssVar('--card'); ctx.fillRect(Math.round(bx) + 2, 0, lw + 4, 16);
+      ctx.fillStyle = cssVar('--primary-ink'); ctx.fillText(lab, Math.round(bx) + 3, 1);
+      ctx.fillRect(Math.round(bx), hh - 2, Math.max(2, Math.round(bw)), 2); }
     // position marker
     ctx.fillStyle = cssVar('--foreground'); ctx.fillRect(Math.round(px) - 1, 0, 2, hh);
     ctx.beginPath(); ctx.moveTo(px - 4, 0); ctx.lineTo(px + 4, 0); ctx.lineTo(px, 5); ctx.closePath(); ctx.fill();

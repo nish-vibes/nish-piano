@@ -12,14 +12,12 @@
     root.classList.add('app');
     // top bar
     el.title = h('span', { class: 'tb-title', text: '' });
-    el.badge = h('span', { class: 'ds-badge', text: '' });
-    el.titleBtn = h('button', { class: 'title-btn ds-btn ds-btn--ghost', type: 'button', 'aria-haspopup': 'dialog', 'aria-label': 'Library: open a song', onclick: () => W.library.open() }, UI.icon('music'), el.title, el.badge);
+    el.titleBtn = h('button', { class: 'title-btn ds-btn ds-btn--ghost', type: 'button', 'aria-haspopup': 'dialog', 'aria-label': 'Library: open a song', onclick: () => W.library.open() }, UI.icon('music'), el.title);
     const iconBtn = (name, label, fn, extra) => h('button', Object.assign({ class: 'ds-btn ds-btn--icon ds-btn--ghost tip', type: 'button', 'aria-label': label, 'data-tip': label, onclick: fn }, extra || {}), UI.icon(name));
     el.restart = iconBtn('restart', 'Restart', () => E.restart());
     el.prev = iconBtn('prev', 'Previous bar', () => E.prevBar());
     el.next = iconBtn('next', 'Next bar', () => E.nextBar());
     el.play = h('button', { class: 'ds-btn ds-btn--primary play-btn', type: 'button', 'aria-label': 'Play', onclick: () => W.app.togglePlay() }, UI.icon('play'));
-    el.counter = h('span', { class: 'bar-counter ds-tabular', text: 'Bar 1 of 1' });
     el.views = h('div', { class: 'ds-tabs view-switch', role: 'group', 'aria-label': 'View' }, VIEWS.map(([v, t]) => h('button', { class: 'ds-tab', type: 'button', 'aria-pressed': 'false', 'data-view': v, onclick: () => W.app.setView(v) }, t)));
     const toggle = (name, label, fn) => h('button', { class: 'ds-btn ds-btn--icon ds-btn--ghost tip tb-toggle', type: 'button', 'aria-label': label, 'data-tip': label, 'aria-pressed': 'false', onclick: fn }, UI.icon(name));
     el.bWait = toggle('wait', 'Wait for me (W)', () => E.setOptions({ wait: !E.opts.wait, countIn: null }));
@@ -30,8 +28,8 @@
     el.bMore = iconBtn('more', 'More', () => W.popovers.more(el.bMore), { 'aria-haspopup': 'menu', 'aria-expanded': 'false' });
     el.topbar = h('header', { class: 'topbar' },
       h('div', { class: 'tb-left chrome' }, el.titleBtn),
-      h('div', { class: 'tb-center' }, h('span', { class: 'chrome tb-group' }, el.restart, el.prev), el.play, h('span', { class: 'chrome tb-group' }, el.next), el.counter),
-      h('div', { class: 'tb-right chrome' }, h('span', { class: 'tb-group tb-toggles', role: 'group', 'aria-label': 'Practice toggles' }, el.bWait, el.bAlong, el.bMetro), el.views, el.bPractice, el.bSound, el.bMore));
+      h('div', { class: 'tb-center' }, h('span', { class: 'chrome tb-group' }, el.restart, el.prev), el.play, h('span', { class: 'chrome tb-group' }, el.next)),
+      h('div', { class: 'tb-right chrome' }, h('span', { class: 'tb-group tb-toggles', role: 'group', 'aria-label': 'Practice' }, el.bWait), h('span', { class: 'tb-group tb-toggles', role: 'group', 'aria-label': 'Sound' }, el.bAlong, el.bMetro), el.views, el.bPractice, el.bSound, el.bMore));
     el.timeline = h('div', { class: 'timeline chrome' });
     // stage
     el.wfCanvas = h('canvas', { class: 'wf-canvas', 'aria-label': 'Waterfall of falling notes', role: 'img' });
@@ -82,7 +80,6 @@
   function onSong() {
     const s = E.song;
     el.title.textContent = s.title;
-    el.badge.textContent = W.app.sourceLabel(s);
     const approx = s.notation && s.notation.approximate;
     el.badgeApprox.textContent = approx ? (s.source === 'midi' ? 'Approximate notation (from MIDI)' : s.source === 'builtin' ? 'Approximate notation (built-in excerpt)' : s.source === 'v1' ? 'Approximate notation (from version 1)' : 'Approximate notation (edited)') : s.source === 'pdf' ? 'Notation rebuilt from the PDF' : 'Notation from the MusicXML file';
     Sh.relayoutAll();
@@ -254,9 +251,6 @@
     if (view !== 'waterfall' && SH.lay && E.stats.missed !== lastMissed) { lastMissed = E.stats.missed; SH.updateMisses(); }
     if (Sh.dirty.tl || T.dirty || moved) { T.draw(q); Sh.dirty.tl = false; T.dirty = false; }
     K.update();
-    const mi = E.measureIndexAt(q) + 1;
-    const txt = q < -1e-6 ? 'Lead-in, then bar 1 of ' + E.get().measures.length : 'Bar ' + mi + ' of ' + E.get().measures.length;
-    if (txt !== lastBar) { lastBar = txt; el.counter.textContent = txt; }
     void lastRes;
   };
   Sh.start = () => requestAnimationFrame(Sh.frame);

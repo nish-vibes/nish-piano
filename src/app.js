@@ -147,7 +147,7 @@
   }
   function applySettings() {
     const st = S.settings;
-    A.volume = st.volume; A.accVolume = st.accVolume; A.metroVolume = st.metroVolume == null ? 0.7 : st.metroVolume; A.mute = st.mute; A.instrument = st.instrument;
+    A.volume = st.volume; A.accVolume = st.accVolume; A.metroVolume = st.metroVolume == null ? 0.7 : st.metroVolume; A.mute = st.mute; A.instrument = st.instrument; A.layer = st.layer || null;
     document.documentElement.setAttribute('data-theme', App.resolveTheme(st.appearance));
     W.waterfall.setLookBars(st.lookBars);
     Sh.el.zoom.setValue(st.lookBars);

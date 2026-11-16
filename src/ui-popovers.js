@@ -10,52 +10,80 @@
 
   P.practice = function (anchor) {
     const o = E.opts;
-    const bpmText = (v) => Math.round(v * 100) + '% · ' + Math.round(E.bpmAt(Math.max(0, E.q)) * v) + ' BPM';
-    const speed = UI.slider('Speed', 25, 150, 5, Math.round(o.speed * 100), (v) => E.setOptions({ speed: v / 100 }), (v) => bpmText(v / 100));
-    const loopSw = UI.switchBtn('Loop', !!o.loop, (v) => {
-      if (!v) E.setOptions({ loop: null });
+    const speed = UI.slider('Speed', 25, 150, 5, Math.round(o.speed * 100), (v) => E.setOptions({ speed: v / 100 }), (v) => v + ' %');
+    const reset = h('button', { class: 'ds-btn ds-btn--ghost pop-dashed', type: 'button', onclick: () => { E.setOptions({ speed: 1 }); speed.setValue(100); } }, 'Reset');
+    const loopTxt = h('span', { class: 'loop-text' });
+    const loopBtn = h('button', { class: 'ds-btn ds-btn--ghost pop-dashed', type: 'button', onclick: () => {
+      if (E.opts.loop) E.setOptions({ loop: null });
       else { const cur = E.curMeasure(), last = E.get().measures.length; E.setOptions({ loop: { from: cur, to: Math.min(last, cur + 3) } }); }
-    }, 'Drag the handles on the timeline to change the bars.');
-    const loopTxt = h('span', { class: 'ds-caption' });
-    const loopClear = h('button', { class: 'ds-btn ds-btn--outline', type: 'button', onclick: () => E.setOptions({ loop: null }) }, 'Clear');
-    const loopRow = h('div', { class: 'row-between loop-row' }, loopTxt, loopClear);
-    const restart = UI.seg('Restart bar after mistakes', [[0, 'Off'], [2, '2'], [3, '3'], [5, '5'], [10, '10']], o.restartAfter, (v) => E.setOptions({ restartAfter: v }));
-    const box = h('div', { class: 'pop-body' }, section(null, speed), section(null, loopSw, loopRow), section('Restart bar after mistakes', restart));
+    } }, 'Set');
+    const loopRow = h('div', { class: 'row-gap loop-row' }, UI.icon('loop'), loopTxt, loopBtn);
+    const box = h('div', { class: 'pop-body' }, section(null, h('div', { class: 'row-gap' }, h('div', { style: 'flex:1 1 0;min-width:0' }, speed), reset)), section('Loop', loopRow));
     live = () => {
       const q = E.opts;
-      speed.setValue(Math.round(q.speed * 100)); loopSw.setValue(!!q.loop); restart.setValue(q.restartAfter);
+      speed.setValue(Math.round(q.speed * 100));
       const l = E.loopRange();
-      loopRow.style.display = l ? '' : 'none';
-      loopTxt.textContent = l ? (l.from === l.to ? 'Bar ' + l.from : 'Bars ' + l.from + ' to ' + l.to) : '';
+      loopTxt.textContent = l ? (l.from === l.to ? 'Bar ' + l.from : 'Bars ' + l.from + ' to ' + l.to) : 'Off. Set a loop from this bar.';
+      loopBtn.textContent = l ? 'Clear' : 'Set';
     };
     live();
     return UI.openPopover(anchor, box, { label: 'Practice options', onClose: () => { live = null; } });
   };
 
+  const INSTRUMENTS = [['piano', 'Piano'], ['epiano', 'E-piano'], ['organ', 'Organ'], ['harpsichord', 'Harpsichord'], ['marimba', 'Marimba'], ['strings', 'Strings']];
+
   P.sound = function (anchor) {
     const st = S.settings, A = W.audio, I = W.input;
-    const vol = UI.slider('Volume', 0, 100, 1, Math.round(st.volume * 100), (v) => { st.volume = v / 100; A.volume = st.volume; A.applyVolumes(); S.saveSettings(); }, (v) => v + '%');
-    const mvol = UI.slider('Metronome volume', 0, 100, 1, Math.round((st.metroVolume == null ? 0.7 : st.metroVolume) * 100), (v) => { st.metroVolume = v / 100; A.metroVolume = st.metroVolume; A.applyVolumes(); S.saveSettings(); }, (v) => v + '%');
-    const countIn = UI.switchBtn('Count-in', E.effectiveCountIn(), (v) => E.setOptions({ countIn: v }), 'One bar of clicks before play starts from the middle of a song. From the start, the two empty bars count in.');
-    const inst = UI.seg('Instrument', [['piano', 'Piano'], ['epiano', 'E-piano'], ['organ', 'Organ'], ['harpsichord', 'Harpsichord'], ['strings', 'Strings']], st.instrument, (v) => { st.instrument = v; A.instrument = v; inst.setValue(v); S.saveSettings(); if (A.preview) A.preview(60); });
-    inst.classList.add('seg-wrap');
+    const row = (btn, slider) => h('div', { class: 'row-gap' }, btn, slider);
+    const along = UI.toggleBtn('speaker', 'Play along', E.opts.playAlong, (v) => E.setOptions({ playAlong: v }));
+    const vol = UI.miniSlider('Play-along volume', 0, 100, 1, Math.round(st.accVolume * 100), (v) => { st.accVolume = v / 100; A.accVolume = st.accVolume; A.applyVolumes(); S.saveSettings(); });
+    const metro = UI.toggleBtn('metronome', 'Metronome', E.opts.metronome, (v) => E.setOptions({ metronome: v }));
+    const mvol = UI.miniSlider('Metronome volume', 0, 100, 1, Math.round((st.metroVolume == null ? 0.7 : st.metroVolume) * 100), (v) => { st.metroVolume = v / 100; A.metroVolume = st.metroVolume; A.applyVolumes(); S.saveSettings(); });
+    [vol, mvol].forEach((m) => { m.querySelector('span').remove(); m.classList.add('grow'); });
+    // two instruments: the main one and an optional layer; picking the active layer again turns it off
+    const picker = (label, key, cls) => {
+      const wrap = h('div', { class: 'inst-grid ' + cls, role: 'group', 'aria-label': label });
+      const btns = INSTRUMENTS.map(([v, t]) => { const b = h('button', { type: 'button', class: 'inst-btn', 'aria-pressed': 'false', 'data-v': v, onclick: () => pick(v) }, t); wrap.append(b); return b; });
+      const paint = () => btns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === st[key])));
+      const pick = (v) => {
+        if (key === 'layer') st.layer = st.layer === v ? null : v; else st.instrument = v;
+        A.instrument = st.instrument; A.layer = st.layer || null;
+        S.saveSettings(); drawInst(); if (A.preview) A.preview(60);
+      };
+      wrap.paint = paint;
+      return wrap;
+    };
+    const main = picker('Main instrument', 'instrument', 'inst-main'), layer = picker('Layer instrument', 'layer', 'inst-layer');
+    const drawInst = () => { main.paint(); layer.paint(); };
+    drawInst();
     const devs = h('div', { class: 'dev-list' });
     const drawDevs = () => {
       devs.textContent = '';
       if (!I.supported) devs.append(h('div', { class: 'ds-help', text: 'MIDI is not available here. Use the desktop app, Chrome or Edge.' }));
       else if (I.error) devs.append(h('div', { class: 'ds-help is-error' }, UI.icon('alert'), I.error));
       else if (!I.devices.length) devs.append(h('div', { class: 'ds-help', text: 'No MIDI keyboard found. Connect one by USB.' }));
-      for (const d of I.devices) devs.append(h('div', { class: 'row-between dev-row' }, h('span', { class: 'ds-control-text dev-name', text: d.name }), h('span', { class: 'ds-badge ' + (d.state === 'connected' ? 'ds-badge--success' : '') }, d.state === 'connected' ? UI.icon('check') : null, d.state === 'connected' ? 'Connected' : 'Not connected')));
+      for (const d of I.devices) devs.append(h('div', { class: 'dev-row' }, h('span', { class: 'dev-ok' + (d.state === 'connected' ? '' : ' is-off') }, UI.icon(d.state === 'connected' ? 'check' : 'minus')), h('span', { class: 'ds-control-text dev-name', text: d.name + (d.state === 'connected' ? ' connected' : ' not connected') })));
     };
     drawDevs();
     I.onChange(drawDevs);
-    const b = I.binds();
-    const kbHint = () => b.notes.slice(0, 13).map(I.keyLabel).join(' ') + ' play C to C. Octave down: ' + b.octDown.map(I.keyLabel).join(' or ') + '. Octave up: ' + b.octUp.map(I.keyLabel).join(' or ') + '.';
-    const kb = UI.switchBtn('Activate keystroke input', st.kbdNotes, (v) => { st.kbdNotes = v; kb.setValue(v); if (!v) I.releaseAll(); S.saveSettings(); }, kbHint());
-    const rebind = h('button', { class: 'ds-btn ds-btn--outline', type: 'button', onclick: () => { UI.closePopover(false); P.bindings(); } }, 'Change bindings');
-    const box = h('div', { class: 'pop-body' }, section(null, vol), section('Metronome', mvol, countIn), section('Instrument', inst),
-      section('MIDI devices', devs), section(null, kb, h('div', null, rebind)));
-    live = () => countIn.setValue(E.effectiveCountIn());
+    const kb = UI.toggleBtn('keyboard', 'Keystroke input', st.kbdNotes, (v) => { st.kbdNotes = v; kb.setValue(v); if (!v) I.releaseAll(); S.saveSettings(); });
+    kb.classList.add('self-start');
+    // the keystroke layout, drawn like a computer keyboard: white-key letters light, black-key letters dark, octave keys dashed
+    const layout = () => {
+      const b = I.binds(), n = b.notes, kc = (code, cls, sub) => h('kbd', { class: 'kcap ' + cls }, I.keyLabel(code), sub ? h('small', { text: sub }) : null);
+      const top = [kc(b.octDown[1], 'oct', '−1'), kc(n[1], 'blk'), kc(n[3], 'blk'), kc(b.octUp[1], 'oct', '+1'), kc(n[6], 'blk'), kc(n[8], 'blk'), kc(n[10], 'blk'), kc(b.octDown[0], 'oct', '−1'), kc(b.octUp[0], 'oct', '+1')];
+      const bot = [0, 2, 4, 5, 7, 9, 11, 12, 13].map((i) => kc(n[i], 'wht'));
+      const lab = 'Keystroke layout: ' + [0, 2, 4, 5, 7, 9, 11, 12, 13].map((i) => I.keyLabel(n[i])).join(' ') + ' play the white keys, ' + [1, 3, 6, 8, 10].map((i) => I.keyLabel(n[i])).join(' ') + ' the black keys. ' + b.octDown.map(I.keyLabel).join(' or ') + ' go one octave down, ' + b.octUp.map(I.keyLabel).join(' or ') + ' one octave up.';
+      return h('div', { class: 'kb-layout', role: 'img', 'aria-label': lab }, h('div', { class: 'kb-row' }, ...top), h('div', { class: 'kb-row kb-row2' }, ...bot));
+    };
+    const rebind = h('button', { class: 'ds-btn ds-btn--outline self-start', type: 'button', onclick: () => { UI.closePopover(false); P.bindings(); } }, UI.icon('keyboard'), 'Change bindings');
+    const sec = (title, ...kids) => h('section', { class: 'pop-section' }, h('h3', { class: 'pop-h', text: title }), ...kids);
+    const sep = () => h('div', { class: 'menu-sep', 'aria-hidden': 'true' });
+    const box = h('div', { class: 'pop-body pop-sound' },
+      sec('Volume', row(along, vol), row(metro, mvol)), sep(),
+      sec('Playback instruments', h('div', { class: 'pop-section' }, h('span', { class: 'ds-label', text: 'Main' }), main), h('div', { class: 'pop-section' }, h('span', { class: 'ds-label', text: 'Layer' }), layer)), sep(),
+      sec('Devices', devs, kb, layout(), rebind));
+    live = () => { along.setValue(E.opts.playAlong); metro.setValue(E.opts.metronome); };
     return UI.openPopover(anchor, box, { label: 'Sound and devices', onClose: () => { live = null; } });
   };
 
