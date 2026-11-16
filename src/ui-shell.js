@@ -19,6 +19,10 @@
     el.bLoop = iconBtn('loop', 'Loop (L)', () => W.app.toggleLoop(), { 'aria-pressed': 'false' });
     el.bLoop.classList.add('tb-toggle', 'loop-flip');
     el.next = iconBtn('next', 'Next bar', () => E.nextBar());
+    // Freeplay and Record
+    el.bFree = h('button', { class: 'ds-btn ds-btn--ghost tip tb-toggle free-btn', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Freeplay: play without a song (F)', 'data-tip': 'Freeplay: play without a song (F)', onclick: () => W.free.toggle() }, UI.icon('sparkle'), h('span', { text: 'Freeplay' }));
+    el.recTime = h('span', { class: 'rec-time', text: 'Record' });
+    el.bRec = h('button', { class: 'ds-btn ds-btn--ghost tip rec-btn', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Record what you play', 'data-tip': 'Record what you play', onclick: () => W.free.toggleRecording() }, h('span', { class: 'rec-dot', 'aria-hidden': 'true' }), el.recTime);
     el.play = h('button', { class: 'ds-btn ds-btn--primary play-btn', type: 'button', 'aria-label': 'Play', onclick: () => W.app.togglePlay() }, UI.icon('play'));
     el.views = h('div', { class: 'ds-tabs view-switch', role: 'group', 'aria-label': 'View' }, VIEWS.map(([v, t]) => h('button', { class: 'ds-tab', type: 'button', 'aria-pressed': 'false', 'data-view': v, onclick: () => W.app.setView(v) }, t)));
     const toggle = (name, label, fn) => h('button', { class: 'ds-btn ds-btn--icon ds-btn--ghost tip tb-toggle', type: 'button', 'aria-label': label, 'data-tip': label, 'aria-pressed': 'false', onclick: fn }, UI.icon(name));
@@ -30,7 +34,7 @@
     el.bSound = iconBtn('piano', 'Sound and devices', () => W.popovers.sound(el.bSound), { 'aria-haspopup': 'dialog', 'aria-expanded': 'false' });
     el.bMore = iconBtn('more', 'More', () => W.popovers.more(el.bMore), { 'aria-haspopup': 'menu', 'aria-expanded': 'false' });
     el.topbar = h('header', { class: 'topbar' },
-      h('div', { class: 'tb-left chrome' }, el.titleBtn),
+      h('div', { class: 'tb-left chrome' }, el.titleBtn, h('span', { class: 'tb-group' }, el.bFree, el.bRec)),
       h('div', { class: 'tb-center' }, h('span', { class: 'chrome tb-group' }, el.restart, el.prev, el.bLoop), el.play, h('span', { class: 'chrome tb-group' }, el.next)),
       h('div', { class: 'tb-right chrome' }, h('span', { class: 'tb-group tb-toggles', role: 'group', 'aria-label': 'Practice' }, el.bWait), h('span', { class: 'tb-group tb-toggles', role: 'group', 'aria-label': 'Sound' }, el.bAlong, el.bMetro), el.views, el.bPractice, el.bSound, el.bMore));
     el.timeline = h('div', { class: 'timeline chrome' });
@@ -90,7 +94,7 @@
     const s = E.song;
     el.title.textContent = s.title;
     const approx = s.notation && s.notation.approximate;
-    el.badgeApprox.textContent = approx ? (s.source === 'midi' ? 'Approximate notation (from MIDI)' : s.source === 'builtin' ? 'Approximate notation (built-in excerpt)' : s.source === 'v1' ? 'Approximate notation (from version 1)' : 'Approximate notation (edited)') : s.source === 'pdf' ? 'Notation rebuilt from the PDF' : 'Notation from the MusicXML file';
+    el.badgeApprox.textContent = approx ? (s.source === 'midi' ? 'Approximate notation (from MIDI)' : s.source === 'builtin' ? 'Approximate notation (built-in excerpt)' : s.source === 'recording' ? 'Approximate notation (from your recording)' : s.source === 'v1' ? 'Approximate notation (from version 1)' : 'Approximate notation (edited)') : s.source === 'pdf' ? 'Notation rebuilt from the PDF' : 'Notation from the MusicXML file';
     Sh.relayoutAll();
   }
 
@@ -98,7 +102,7 @@
   Sh.setStaff = (v) => { v = Math.max(7, Math.min(18, v)); S.settings.staffSize = v; S.saveSettings(); Sh.layoutSheet(); };
 
   Sh.applyView = function () {
-    const v = S.settings.view;
+    const v = S.viewOverride || S.settings.view; // Freeplay and video export show the waterfall alone, without changing the saved view
     el.root.dataset.view = v;
     el.views.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === v)));
     const f = Math.max(0.2, Math.min(0.8, S.settings.split));
@@ -248,6 +252,7 @@
       else if (e.key === '+' || e.key === '=') E.setOptions({ speed: Math.min(1.5, E.opts.speed + 0.05) });
       else if (e.key === '-' || e.key === '_') E.setOptions({ speed: Math.max(0.25, E.opts.speed - 0.05) });
       else if (lettersOn && kl === 'l') W.app.toggleLoop();
+      else if (lettersOn && kl === 'f') W.free.toggle();
       else if (lettersOn && kl === 'w') E.setOptions({ wait: !E.opts.wait, countIn: null });
       else if (lettersOn && kl === 'h') E.setOptions({ hands: { both: 'R', R: 'L', L: 'both' }[E.opts.hands] });
       else if (lettersOn && kl === 'v') W.app.setView({ split: 'waterfall', waterfall: 'sheet', sheet: 'split' }[S.settings.view]);
@@ -271,14 +276,31 @@
     if (!E.song) return;
     const playing = E.playing;
     const q = playing ? E.liveQ() : E.q;
-    const view = S.settings.view;
+    const view = S.viewOverride || S.settings.view;
     const moved = q !== lastQ; lastQ = q;
-    if (view !== 'sheet' && (Sh.dirty.wf || WF.dirty || playing)) { WF.draw(q); Sh.dirty.wf = false; WF.dirty = WF.fxAlive(); } // effects keep the canvas drawing until they end
+    if (view !== 'sheet' && (Sh.dirty.wf || WF.dirty || playing)) { WF.draw(q); Sh.dirty.wf = false; WF.dirty = WF.fxAlive(); if (W.exporter && W.exporter.active) W.exporter.frame(q); } // effects keep the canvas drawing until they end
     if (view !== 'waterfall' && SH.lay && (Sh.dirty.sheet || moved)) { SH.update(q); Sh.dirty.sheet = false; }
     if (view !== 'waterfall' && SH.lay && E.stats.missed !== lastMissed) { lastMissed = E.stats.missed; SH.updateMisses(); }
     if (Sh.dirty.tl || T.dirty || moved) { T.draw(q); Sh.dirty.tl = false; T.dirty = false; }
     K.update();
     void lastRes;
+  };
+  /** Header state for Freeplay and Record. Called when either changes. */
+  Sh.bindFree = function () {
+    const F = W.free; let timer = null;
+    const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+    F.onChange(() => {
+      el.root.classList.toggle('is-free', F.active);
+      el.bFree.setAttribute('aria-pressed', String(F.active));
+      el.bRec.setAttribute('aria-pressed', String(F.recording));
+      const lab = F.recording ? 'Stop recording and save' : 'Record what you play';
+      el.bRec.setAttribute('aria-label', lab); el.bRec.setAttribute('data-tip', lab);
+      [el.play, el.restart, el.prev, el.next, el.bLoop].forEach((b) => { b.disabled = F.active; });
+      el.title.textContent = F.active ? 'Freeplay' : E.song ? E.song.title : '';
+      clearInterval(timer);
+      if (F.recording) { const tick = () => { el.recTime.textContent = fmt(F.elapsed()); }; tick(); timer = setInterval(tick, 250); } else el.recTime.textContent = 'Record';
+      mark();
+    });
   };
   Sh.start = () => requestAnimationFrame(Sh.frame);
   Sh.themeChanged = () => { WF.themeChanged(); T.themeChanged(); mark(); };

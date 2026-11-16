@@ -39,6 +39,12 @@ backup and restore with validation and merge summary, version 1 library conversi
 - More than three wrong keys a second: later beams rise slowly and stay dim, so a run of wrong keys never strobes (WCAG 2.3.1).
 - Effects keep the canvas drawing only until they end (`WF.fxAlive()`); nothing is queued in Sheet view.
 
+## Freeplay, Record and Export video (`src/freeplay.js`)
+- Playing a key outside a scored run emits `free`; the waterfall shows a ray in the hand's colour (left below middle C = c1 = MIDI 60).
+- Freeplay (header button, F): waterfall alone via `S.viewOverride` (the saved view is untouched), the song is hidden and cannot play, notes leave rising glass bars. Leaving restores the song and view.
+- Record (header button): enters Freeplay, keeps key presses, and on stop saves a song (120 bpm, 1/32 grid, starts at the first note, `source: 'recording'`) and opens it. The sustain pedal is not recorded.
+- Export video (More menu): plays the song once in listen mode and records a composite canvas (waterfall + painted keys + title) with the app's sound through `MediaRecorder`. Real time, at the current speed. MP4 (H.264 with AAC, else Opus) when the browser can, else WebM. The window must stay visible.
+
 ## Known limits
 - Real MIDI keyboard, audio and touch not tested on hardware.
 - Results bar strip uses hatched patterns plus numbers; colours are tokens with transparency.

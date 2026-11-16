@@ -170,6 +170,7 @@
       item('Library', () => W.library.open()),
       item('Correct notes', () => W.editor.start()),
       item('Export MIDI', () => W.app.exportCurrentMidi()),
+      item('Export video', () => P.exportVideo()),
       h('div', { class: 'menu-sep' }),
       h('div', { class: 'pop-title menu-title', text: 'Appearance' }),
       h('div', { role: 'group', 'aria-label': 'Appearance' }, apps.map(([v, t]) => h('button', { class: 'menu-item', role: 'menuitemradio', 'aria-checked': String(v === cur), type: 'button', onclick: () => { W.app.setAppearance(v); UI.closePopover(false); } }, h('span', { class: 'menu-check' }, v === cur ? UI.icon('check') : null), t))),
@@ -184,8 +185,18 @@
     return el;
   };
 
+  P.exportVideo = function () {
+    const pick = W.exporter.pickType();
+    if (!pick) { UI.toast('This browser cannot record video. Use the Windows app, or a current Chrome or Edge.', 'error'); return; }
+    const g = E.get(), secs = Math.round((E.qToSec(g.endQ) - E.qToSec(-E.lead)) / E.opts.speed), len = Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
+    const body = h('div', { class: 'about' },
+      h('p', { class: 'ds-reading', text: 'Saves "' + E.song.title + '" as a video of the waterfall and the keys, with sound. Send it to someone who does not read sheet music.' }),
+      h('p', { class: 'ds-caption', text: 'The song plays once from the start while the video is made, so it takes ' + len + ' at the current speed (' + Math.round(E.opts.speed * 100) + ' %). Keep the window open and visible until it is done. File type: ' + pick.ext.toUpperCase() + '.' }));
+    UI.openDialog('Export video', body, [{ label: 'Cancel' }, { label: 'Export', primary: true, run: () => { W.exporter.start(); } }]);
+  };
+
   P.shortcuts = function () {
-    const rows = [['Space', 'Play or pause'], ['Home', 'Back to the start'], ['Left, Right', 'Previous or next bar'], ['L', 'Loop on or off'], ['W', 'Wait for me on or off'],
+    const rows = [['Space', 'Play or pause'], ['Home', 'Back to the start'], ['Left, Right', 'Previous or next bar'], ['L', 'Loop on or off'], ['F', 'Freeplay on or off'], ['W', 'Wait for me on or off'],
       ['P', 'Play along on or off'], ['H', 'Change hands (both, right, left)'], ['V', 'Next view'], ['M', 'Metronome on or off'], ['Shift + wheel', 'Scroll the keyboard sideways'], ['+, -', 'Faster or slower'], ['Shift', 'Sustain pedal (hold)'], ['?', 'This list'], ['Esc', 'Close'],
       ['Ctrl+Z, Ctrl+Y', 'Undo or redo (Correct notes)'], ['Delete', 'Delete the selected note (Correct notes)'], ['Arrows', 'Move the selected note (Correct notes)'], ['R, L', 'Set the hand of the selected note (Correct notes)']];
     const body = h('dl', { class: 'kbd-list' }, rows.map(([k, t]) => [h('dt', null, k.split(', ').map((x) => h('kbd', { class: 'ds-kbd', text: x }))), h('dd', { text: t })]));

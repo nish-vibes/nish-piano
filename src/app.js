@@ -5,7 +5,7 @@
   const App = (W.app = {});
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  App.sourceLabel = (s) => (s.source === 'builtin' ? 'Built-in excerpt' : s.source === 'v1' ? 'From version 1' : s.source === 'pdf' ? (s.exactNotation ? 'From PDF' : 'From PDF, edited') : s.source === 'scan' ? (s.exactNotation ? 'From scan' : 'From scan, edited') : s.source === 'midi' ? 'MIDI' : s.exactNotation ? 'MusicXML' : 'MusicXML, edited');
+  App.sourceLabel = (s) => (s.source === 'builtin' ? 'Built-in excerpt' : s.source === 'v1' ? 'From version 1' : s.source === 'pdf' ? (s.exactNotation ? 'From PDF' : 'From PDF, edited') : s.source === 'scan' ? (s.exactNotation ? 'From scan' : 'From scan, edited') : s.source === 'midi' ? 'MIDI' : s.source === 'recording' ? 'Recorded here' : s.exactNotation ? 'MusicXML' : 'MusicXML, edited');
 
   // ---------------------------------------------------------------- appearance
   const mqDark = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
@@ -30,7 +30,7 @@
     S.settings.view = v; S.saveSettings(); Sh.applyView();
   };
   App.relayoutKeyboard = () => Sh.relayoutKeyboard();
-  App.togglePlay = function () { E.toggle(); };
+  App.togglePlay = function () { if (W.free.active || W.exporter.active) return; E.toggle(); }; // Freeplay has nothing to play; an export runs by itself
   App.toggleLoop = function () {
     if (E.opts.loop) E.setOptions({ loop: null });
     else { const cur = E.curMeasure(), last = E.get().measures.length; E.setOptions({ loop: { from: cur, to: Math.min(last, cur + 3) } }); }
@@ -166,6 +166,7 @@
     W.library.bindDrop(document.getElementById('app'));
     W.results.hint(Sh.el.stage);
     W.input.init();
+    Sh.bindFree();
     const last = S.settings.lastSong && S.find(S.settings.lastSong);
     App.openSong(last ? last.id : S.records.slice().sort((a, b) => a.order - b.order)[0].id);
     Sh.start();
@@ -180,6 +181,7 @@
   // ---------------------------------------------------------------- test hooks (same code paths as the UI)
   App.reset = async function () {
     if (W.editor) W.editor.stop();
+    if (W.free.active) W.free.leave();
     E.stop(); E.pause(true); E.lastResult = null;
     UI.closePopover(false); UI.closeDialog();
     await S.clearAll();
@@ -212,6 +214,9 @@
     deleteSong: (id) => App.deleteSong(id),
     setView: (v) => App.setView(v),
     setAppearance: (a) => App.setAppearance(a),
+    freeplay: (on) => (on ? W.free.enter() : W.free.leave()),
+    record: (on) => (on ? W.free.startRecording() : W.free.stopRecording()),
+    exportVideo: async (o) => { const r = await W.exporter.start(Object.assign({ noDownload: true }, o || {})); delete r.blob; return r; },
   });
 
   const go = () => start().catch((e) => { UI.toast('The app could not start: ' + e.message, 'error'); });

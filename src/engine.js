@@ -183,6 +183,7 @@
   // ---------------------------------------------------------------- transport
   function begin(listenFlag) {
     if (!E.song || E.playing) return;
+    if (W.free && W.free.active) return; // Freeplay: the song is hidden and silent
     if (A.ensure) A.ensure();
     E.runMode = listenFlag ? 'listen' : E.opts.mode;
     buildPractised();
@@ -407,7 +408,7 @@
     E.activeKeys.add(midi);
     if (W.storage.settings.userSound !== false && A.noteOn) A.noteOn(midi, vel || 90);
     emit('key', { midi, down: true });
-    if (!E.song || !E.playing || E.phase !== 'run' || !practising()) return;
+    if (!E.song || !E.playing || E.phase !== 'run' || !practising()) { emit('free', { midi, down: true }); return; } // not being scored: free playing
     const hitNote = (i) => { status[i] = 1; E.stats.hit++; emit('hit', { i, midi, hand: nh[i] ? 'L' : 'R' }); };
     if (E.opts.wait) {
       advanceOPtr();
@@ -446,6 +447,7 @@
     E.activeKeys.delete(midi);
     if (A.noteOff) A.noteOff(midi);
     emit('key', { midi, down: false });
+    emit('free', { midi, down: false });
   };
   E.pedal = function (down) { if (A.setPedal) A.setPedal(down); };
 

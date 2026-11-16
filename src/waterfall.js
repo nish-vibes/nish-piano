@@ -85,10 +85,10 @@
   }
 
   // ---------------------------------------------------------------- effects
-  const FX = { bursts: [], parts: [], beams: [], beamTimes: [], shakes: new Map(), ignite: new Map(), lastSpark: new Map(), last: 0, drift: 0, lastQ: null };
+  const FX = { bursts: [], parts: [], beams: [], beamTimes: [], shakes: new Map(), ignite: new Map(), lastSpark: new Map(), rays: new Map(), trails: [], last: 0, drift: 0, lastQ: null };
   const MAX_PARTS = 260;
-  WF.fxAlive = () => FX.bursts.length + FX.parts.length + FX.beams.length + FX.shakes.size + FX.ignite.size > 0;
-  WF.clearFx = function () { FX.bursts.length = FX.parts.length = FX.beams.length = 0; FX.shakes.clear(); FX.ignite.clear(); FX.lastSpark.clear(); FX.lastQ = null; WF.dirty = true; };
+  WF.fxAlive = () => WF.free || FX.bursts.length + FX.parts.length + FX.beams.length + FX.shakes.size + FX.ignite.size + FX.rays.size + FX.trails.length > 0;
+  WF.clearFx = function () { FX.bursts.length = FX.parts.length = FX.beams.length = 0; FX.shakes.clear(); FX.ignite.clear(); FX.lastSpark.clear(); FX.rays.clear(); FX.trails.length = 0; FX.lastQ = null; WF.dirty = true; };
   const R = Math.random;
   /** Star dust thrown up from the strike line above a key. */
   function dust(midi, hand, count, power) {
@@ -98,7 +98,7 @@
       FX.parts.push({ kind: 0, x: kr.x + kr.w * (0.2 + 0.6 * R()), y: WF.h - 2, vx: (R() - 0.5) * 150 * power, vy: -(110 + R() * 250) * power, life: 0.55 + R() * 0.55, age: 0, size: big ? 1.6 + R() * 0.9 : 0.7 + R() * 0.8, c: H.spark[R() < 0.45 ? 0 : 1], tw: R() * 6.283 });
     }
   }
-  const hidden = () => W.storage.settings.view === 'sheet'; // nothing is drawn then, so nothing is queued
+  const hidden = () => (W.storage.viewOverride || W.storage.settings.view) === 'sheet'; // nothing is drawn then, so nothing is queued
   E.on('hit', (e) => {
     if (hidden() || !G.inRange(e.midi)) return;
     const t = performance.now();
@@ -128,14 +128,31 @@
     WF.dirty = true;
   });
   E.on('miss', (e) => { if (!hidden() && !still()) { FX.shakes.set(e.i, performance.now()); WF.dirty = true; } });
+  /** Free playing (no scored run): the hand is taken from the pitch, split at middle C (c1). */
+  WF.SPLIT = 60;
+  WF.handOf = (midi) => (midi < WF.SPLIT ? 'L' : 'R');
+  E.on('free', (e) => {
+    if (hidden() || !G.inRange(e.midi)) return;
+    const t = performance.now(), hand = WF.handOf(e.midi);
+    if (e.down) {
+      FX.rays.set(e.midi, { hand, t0: t, t1: null });
+      if (WF.free) FX.trails.push({ midi: e.midi, hand, t0: t, t1: null });
+      if (!still()) dust(e.midi, hand, 7, 0.85);
+    } else {
+      const r = FX.rays.get(e.midi); if (r && r.t1 == null) r.t1 = t;
+      for (let k = FX.trails.length - 1; k >= 0; k--) if (FX.trails[k].midi === e.midi && FX.trails[k].t1 == null) { FX.trails[k].t1 = t; break; }
+    }
+    WF.dirty = true;
+  });
   E.on('seek', WF.clearFx); E.on('song', WF.clearFx);
   E.on('wrap', () => { FX.shakes.clear(); FX.ignite.clear(); });
 
   const easeOut = (t) => 1 - Math.pow(1 - t, 3);
   /** The red beam as a soft sprite: a flat-topped core as wide as the key, a wide faint halo, fading with height. */
-  function beamSprite() {
-    if (sprites.beam) return sprites.beam;
-    const B = palette().beam, SW = 120, SH = 160, c = document.createElement('canvas'); c.width = SW; c.height = SH;
+  function beamSprite(key) {
+    key = key || 'beam';
+    if (sprites['bs_' + key]) return sprites['bs_' + key];
+    const B = palette()[key], SW = 120, SH = 160, c = document.createElement('canvas'); c.width = SW; c.height = SH;
     const x = c.getContext('2d'), im = x.createImageData(SW, SH), d = im.data;
     for (let j = 0; j < SH; j++) {
       const up = 1 - j / (SH - 1), fall = 1 - up;
@@ -151,15 +168,16 @@
       }
     }
     x.putImageData(im, 0, 0);
-    return (sprites.beam = c);
+    return (sprites['bs_' + key] = c);
   }
   /** The beam sprite at its drawn size, so each frame is a plain copy. A few sizes are kept (white and black keys). */
-  function beamAt(bw, h, dpr) {
-    const cw = Math.max(1, Math.round(bw * dpr)), ch = Math.max(1, Math.round(h * dpr)), id = 'beam' + cw + 'x' + ch;
+  function beamAt(bw, h, dpr, key) {
+    key = key || 'beam';
+    const cw = Math.max(1, Math.round(bw * dpr)), ch = Math.max(1, Math.round(h * dpr)), id = 'beam' + key + cw + 'x' + ch;
     if (sprites[id]) return sprites[id];
     const c = document.createElement('canvas'); c.width = cw; c.height = ch;
-    const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(beamSprite(), 0, 0, cw, ch);
-    const ids = (sprites.beamIds = sprites.beamIds || []); ids.push(id); if (ids.length > 4) delete sprites[ids.shift()];
+    const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(beamSprite(key), 0, 0, cw, ch);
+    const ids = (sprites.beamIds = sprites.beamIds || []); ids.push(id); if (ids.length > 10) delete sprites[ids.shift()];
     return (sprites[id] = c);
   }
   /** A soft light sitting on the strike line: pale centre, hand colour, nothing. Flattened to a low dome. */
@@ -191,6 +209,34 @@
       else { const c = beamAt(bw, h, dpr); ctx.drawImage(c, Math.round(bx * dpr) / dpr, 0, c.width / dpr, c.height / dpr); }
       ctx.globalAlpha = 1;
       lineGlow(ctx, kr.x + kr.w / 2, h, kr.w * (1.6 + 1.5 * I), 0.3, P.beam, 0.85 * I);
+    }
+  }
+  /** Free playing: a ray in the hand's colour stands on the key while it is held, then fades. */
+  function drawRays(ctx, P, now, h) {
+    if (!FX.rays.size) return;
+    const dpr = window.devicePixelRatio || 1, calm = still();
+    for (const [midi, r] of FX.rays) {
+      const held = r.t1 == null, t = now - r.t0;
+      if (!held && now - r.t1 > 900) { FX.rays.delete(midi); continue; }
+      const I = Math.min(1, t / 60) * (held ? (calm ? 0.8 : 0.78 + 0.08 * Math.sin(now * 0.012 + midi)) : 0.8 * Math.exp(-(now - r.t1) / 240));
+      const grow = calm ? 1 : easeOut(Math.min(1, t / 170));
+      const kr = G.keyRect(midi), bw = kr.w * 5, bx = kr.x + kr.w / 2 - bw / 2, bh = h * grow;
+      ctx.globalAlpha = Math.min(1, I * (P.dark ? 1 : 0.8));
+      if (grow < 1) ctx.drawImage(beamSprite(r.hand), bx, h - bh, bw, bh);
+      else { const c = beamAt(bw, h, dpr, r.hand); ctx.drawImage(c, Math.round(bx * dpr) / dpr, 0, c.width / dpr, c.height / dpr); }
+      ctx.globalAlpha = 1;
+      lineGlow(ctx, kr.x + kr.w / 2, h, kr.w * (1.5 + 1.2 * I), 0.4, P[r.hand], 0.8 * I);
+    }
+  }
+  /** Freeplay: each note leaves a glass bar that rises from its key, so the player sees what was played. */
+  function drawTrails(ctx, P, now, h) {
+    const speed = h / 4000; // px per ms: a bar takes four seconds to leave the top
+    for (let k = FX.trails.length - 1; k >= 0; k--) {
+      const tr = FX.trails[k], bot = tr.t1 == null ? h : h - (now - tr.t1) * speed, top = h - (now - tr.t0) * speed;
+      if (bot < -4) { FX.trails.splice(k, 1); continue; }
+      const kr = G.keyRect(tr.midi), x = Math.round(kr.x + 1) + 0.5, w = Math.max(3, Math.round(kr.w - 2) - 1);
+      const y = Math.round(Math.min(top, bot - 6)) + 0.5;
+      glassBar(ctx, P, P[tr.hand], tr.hand, x, y, w, Math.max(5, Math.round(bot - y)), tr.t1 == null ? 1 : 0, false, null);
     }
   }
   function drawBursts(ctx, P, now, h) {
@@ -330,7 +376,23 @@
     for (const [i, t] of FX.ignite) if (now - t >= 420) FX.ignite.delete(i);
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
     ctx.drawImage(layers.bg, 0, 0, w, h);
-    if (!song) { ctx.save(); ctx.translate(-Math.round(G.scrollX || 0), 0); lanes(ctx, h); ctx.restore(); return; }
+    if (!song || WF.free) {
+      // Freeplay (or nothing loaded): the sky, the lanes, and only what the player plays
+      if (layers.stars) {
+        ctx.drawImage(layers.stars, 0, 0, w, h);
+        for (const st of layers.tw) { const a = calm ? 0.55 : 0.5 + 0.45 * Math.sin(st.ph + now * 0.001 * st.sp * 2.2); ctx.fillStyle = css(st.c, a); ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, 6.2832); ctx.fill(); }
+      }
+      ctx.save(); ctx.translate(-Math.round(G.scrollX || 0), 0);
+      lanes(ctx, h);
+      drawTrails(ctx, P, now, h);
+      ctx.globalCompositeOperation = P.dark ? 'lighter' : 'source-over';
+      drawRays(ctx, P, now, h); drawParts(ctx, dt);
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+      ctx.restore();
+      if (P.space) { const g = ctx.createLinearGradient(0, h - 40, 0, h); g.addColorStop(0, css(P.R.c, 0)); g.addColorStop(1, css(P.R.c, 0.13)); ctx.fillStyle = g; ctx.fillRect(0, h - 40, w, 40); }
+      ctx.fillStyle = cssVar('--primary'); ctx.fillRect(0, h - 2, w, 2);
+      return;
+    }
     const { measures, n, nq, nd, nm, nh, endQ } = E.get();
     const mi0 = E.measureIndexAt(q);
     const barLen = q < 0 ? E.lead / 2 : measures[mi0] ? measures[mi0].lenQ : 4;
@@ -426,6 +488,7 @@
       lineGlow(ctx, kr.x + kr.w / 2, h, kr.w * 1.5, 0.6, P[key], 0.62 * k * flick);
       if (sparks && !calm && now - (FX.lastSpark.get(m) || 0) > 85) { FX.lastSpark.set(m, now); dust(m, key, 1, 0.62); }
     }
+    drawRays(ctx, P, now, h);
     drawBeams(ctx, P, now, h);
     drawBursts(ctx, P, now, h);
     drawParts(ctx, dt);

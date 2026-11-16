@@ -114,11 +114,12 @@
   /** Update key highlights; only keys whose state changed touch the DOM. */
   K.update = function () {
     const down = E.activeKeys, wait = new Set(E.waitingFor().map((n) => n.midi));
-    const next = new Set(E.nextExpected());
+    const next = new Set(E.nextExpected()), free = !!(W.free && W.free.active);
     for (const [m, el] of K.keys) {
-      const s = (down.has(m) ? 1 : 0) | (wait.has(m) ? 2 : 0) | (!wait.size && next.has(m) ? 4 : 0);
+      const s = (down.has(m) ? 1 : 0) | (wait.has(m) ? 2 : 0) | (!wait.size && next.has(m) ? 4 : 0) | (free && m < 60 ? 8 : 0);
       if (K.last.get(m) === s) continue;
       K.last.set(m, s);
+el.classList.toggle('is-left', (s & 9) === 9); // Freeplay: keys below middle C light in the left hand's colour
       el.classList.toggle('is-down', !!(s & 1)); el.classList.toggle('is-wait', !!(s & 2)); el.classList.toggle('is-next', !!(s & 4));
     }
   };

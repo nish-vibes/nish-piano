@@ -10,7 +10,7 @@ JS = [
     'src/audio.js', 'src/engine.js', 'src/input.js',
     'src/keyboard.js', 'src/waterfall.js',
     'src/sheet-layout.js', 'src/sheet-render.js',
-    'src/ui-base.js', 'src/ui-timeline.js', 'src/ui-popovers.js', 'src/scan.js', 'src/ui-library.js', 'src/ui-results.js', 'src/ui-editor.js', 'src/ui-shell.js',
+    'src/ui-base.js', 'src/ui-timeline.js', 'src/ui-popovers.js', 'src/scan.js', 'src/ui-library.js', 'src/ui-results.js', 'src/ui-editor.js', 'src/ui-shell.js', 'src/freeplay.js',
     'src/app.js',
 ]
 OUT = 'dist/marksteady_waterfall_piano_roll_v2_0_0.html'

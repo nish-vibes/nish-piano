@@ -30,6 +30,9 @@
     if (A.ctx.state === 'suspended') A.ctx.resume().catch(() => {});
     return true;
   };
+  /** A media stream of what the app plays (without the metronome), for video export. */
+  let tap = null;
+  A.tap = function () { if (!A.ensure()) return null; if (!tap) { tap = A.ctx.createMediaStreamDestination(); comp.connect(tap); } return tap.stream; };
   A.applyVolumes = function () {
     if (!A.ctx) return;
     const t = A.ctx.currentTime;

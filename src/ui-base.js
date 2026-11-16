@@ -39,6 +39,7 @@
     check: '<path d="M4 10.5l4 4 8-9"/>',
     alert: '<path d="M10 3l8 14H2z"/><path d="M10 8v4"/><path d="M10 14.5v.5"/>',
     minus: '<path d="M4 10h12"/>',
+    sparkle: '<path d="M9 3l1.6 4.4L15 9l-4.4 1.6L9 15l-1.6-4.4L3 9l4.4-1.6z"/><path d="M15.5 13v4"/><path d="M13.5 15h4"/>',
     widthArrows: '<path d="M2 10h16"/><path d="M5 7l-3 3 3 3"/><path d="M15 7l3 3-3 3"/>',
     plus: '<path d="M4 10h12"/><path d="M10 4v12"/>',
     chevron: '<path d="M6 8l4 4 4-4"/>',

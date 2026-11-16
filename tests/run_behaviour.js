@@ -138,6 +138,28 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   check('waterfall effects start on hit, wrong and miss, and end by themselves', fx.fxRunning && fx.fxAtRest && fx.ev.miss >= 1, JSON.stringify(fx));
   await T('closeResults');
 
+  // Freeplay hides the song and shows the waterfall alone; Record saves what is played as a song; Export makes a video file.
+  const fp = await page.evaluate(async () => {
+    const T = window.WapiroTest, W = window.Wapiro, E = W.engine, sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const out = {}, before = (await T.listSongs()).length, song = E.song.id, root = document.getElementById('app');
+    await T.setView('split');
+    await T.freeplay(true); out.view = root.dataset.view; out.hidden = W.waterfall.free === true; await T.play(); out.noPlay = !E.playing;
+    await T.freeplay(false); out.back = root.dataset.view === 'split' && E.song.id === song && !W.waterfall.free;
+    await T.record(true); out.recView = root.dataset.view;
+    E.noteOn(48, 90); E.noteOn(64, 90); await sleep(260); E.noteOff(48); E.noteOff(64); await sleep(120); E.noteOn(67, 90); await sleep(200); E.noteOff(67);
+    const id = await T.record(false);
+    out.saved = (await T.listSongs()).length === before + 1 && E.song.id === id;
+    out.notes = E.song.notes.map((n) => n.midi + n.hand).join(' '); out.first = E.song.notes[0].q;
+    const v = await T.exportVideo({ maxSeconds: 2 });
+    out.video = { ok: v.ok, type: v.type, big: v.size > 20000, frames: v.frames > 20 };
+    out.restored = root.dataset.view === 'split' && !E.playing;
+    await T.deleteSong(id);
+    return out;
+  });
+  check('Freeplay shows the waterfall alone, hides the song, and brings both back', fp.view === 'waterfall' && fp.hidden && fp.noPlay && fp.back, JSON.stringify(fp));
+  check('Record saves what was played as a song, hands split at middle C', fp.recView === 'waterfall' && fp.saved && fp.notes === '48L 64R 67R' && fp.first === 0, JSON.stringify(fp));
+  check('Export video makes a video file and restores the view', fp.video.ok && fp.video.big && fp.video.frames && fp.restored, JSON.stringify(fp));
+
   // v1 bug: edits were lost unless Save was pressed; there was no undo.
   await T('openSong', r1.id);
   const n0 = (await T('songInfo', r1.id)).notes;
