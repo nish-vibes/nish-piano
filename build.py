@@ -25,7 +25,7 @@ def esc_script(s):
 tpl = read('src/index.template.html')
 css = '\n'.join(read(p) for p in CSS if os.path.exists(os.path.join(HERE, p)))
 js = '\n'.join('/* ---- %s ---- */\n%s' % (p, read(p)) for p in JS if os.path.exists(os.path.join(HERE, p)))
-PDFJS = os.environ.get('PDFJS_BUILD', '/opt/npm-tools/node_modules/pdfjs-dist/build/')
+PDFJS = os.path.join(os.environ.get('PDFJS_BUILD', '/opt/npm-tools/node_modules/pdfjs-dist/build'), '')
 def block(id_, path):
     src = open(path, encoding='utf-8').read()
     assert '</script' not in src.lower() and '<!--' not in src
