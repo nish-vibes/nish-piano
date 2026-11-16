@@ -130,7 +130,7 @@ body { font-family: var(--font-sans); }
 .toast.is-error > svg { color: var(--destructive); }
 .toast-text { flex: 1; }
 .dialog-back { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--neutral-950) 45%, transparent); }
-.dialog { width: min(480px, calc(100vw - 24px)); max-height: calc(100vh - 48px); overflow: auto; padding: var(--space-4) var(--space-6); display: flex; flex-direction: column; gap: var(--space-3); }
+.dialog { width: min(480px, calc(100vw - 24px)); max-height: calc(100vh - 48px); overflow: hidden; padding: var(--space-4) var(--space-6); display: flex; flex-direction: column; gap: var(--space-3); }
 .dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
 .kbd-list { display: grid; grid-template-columns: auto 1fr; gap: var(--space-2) var(--space-4); margin: 0; align-items: center; }
 .kbd-list dt { display: flex; gap: var(--space-1); }
@@ -385,3 +385,11 @@ body { font-family: var(--font-sans); }
 .wheel-warn span { flex: 1 1 0; min-width: 0; }
 .wheel-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .hex-in { width: 96px; height: 32px; padding: 0 8px; box-sizing: border-box; border: 1px solid var(--input); border-radius: var(--radius-md); background: transparent; color: var(--foreground); font: 500 13px/18px var(--font-mono); }
+
+/* dialogs: the body scrolls, the buttons always stay in view */
+.dialog-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.dialog-head, .dialog-actions { flex: none; }
+/* first-run hint sits at the top of the stage, clear of the keyboard handles */
+.hint { bottom: auto; top: var(--space-4); }
+.dev-row .dev-mute { margin-left: auto; border-style: dashed; }
+.dev-row { display: flex; align-items: center; gap: 8px; }

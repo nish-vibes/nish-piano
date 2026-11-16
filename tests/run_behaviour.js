@@ -179,6 +179,17 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   check('colours near red, green or the other hand are warned about', hc.warn.every(Boolean), JSON.stringify(hc));
   check('a correct key is green while it is held', hc.green && hc.greenOff, JSON.stringify(hc));
 
+  // Mute: keys from a MIDI piano with its own speakers make no sound in the app; other keys still do.
+  const mm = await page.evaluate(() => {
+    const W = window.Wapiro, A = W.audio, E = W.engine, real = A.noteOn; let n = 0; A.noteOn = () => { n++; };
+    const out = {}; W.storage.settings.midiMute = true;
+    E.noteOn(60, 90, true); out.midiSilent = n === 0; E.noteOff(60);
+    E.noteOn(60, 90); out.screenSounds = n === 1; E.noteOff(60);
+    W.storage.settings.midiMute = false; E.noteOn(60, 90, true); out.unmuted = n === 2; E.noteOff(60);
+    A.noteOn = real; return out;
+  });
+  check('Mute silences keys from the MIDI piano only', mm.midiSilent && mm.screenSounds && mm.unmuted, JSON.stringify(mm));
+
   // v1 bug: edits were lost unless Save was pressed; there was no undo.
   await T('openSong', r1.id);
   const n0 = (await T('songInfo', r1.id)).notes;

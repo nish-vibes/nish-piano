@@ -402,11 +402,12 @@
 
   // ---------------------------------------------------------------- input
   /** A key went down (MIDI keyboard, screen keys, computer keys or a test hook). */
-  E.noteOn = function (midi, vel) {
+  E.noteOn = function (midi, vel, fromMidi) {
     midi = Math.round(midi);
     if (midi < 21 || midi > 108) return;
     E.activeKeys.add(midi);
-    if (W.storage.settings.userSound !== false && A.noteOn) A.noteOn(midi, vel || 90);
+    // a MIDI piano with its own speakers already sounds: with 'Mute' on, the app stays silent for keys that come from it
+    if (W.storage.settings.userSound !== false && !(fromMidi && W.storage.settings.midiMute) && A.noteOn) A.noteOn(midi, vel || 90);
     emit('key', { midi, down: true });
     if (!E.song || !E.playing || E.phase !== 'run' || !practising()) { emit('free', { midi, down: true }); return; } // not being scored: free playing
     const hitNote = (i) => { status[i] = 1; E.stats.hit++; emit('hit', { i, midi, hand: nh[i] ? 'L' : 'R' }); };

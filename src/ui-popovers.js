@@ -97,6 +97,7 @@
       else if (I.error) devs.append(h('div', { class: 'ds-help is-error' }, UI.icon('alert'), I.error));
       else if (!I.devices.length) devs.append(h('div', { class: 'ds-help', text: 'No MIDI keyboard found. Connect one by USB.' }));
       for (const d of I.devices) devs.append(h('div', { class: 'dev-row' }, h('span', { class: 'dev-ok' + (d.state === 'connected' ? '' : ' is-off') }, UI.icon(d.state === 'connected' ? 'check' : 'minus')), h('span', { class: 'ds-control-text dev-name', text: d.name + (d.state === 'connected' ? ' connected' : ' not connected') })));
+      if (I.devices.length) { const mute = UI.toggleBtn('speakerOff', 'Mute', !!st.midiMute, (v) => { st.midiMute = v; mute.setValue(v); S.saveSettings(); }); mute.classList.add('dev-mute'); mute.title = 'For a piano with its own speakers: the app makes no sound for keys you play on it. Play along and the metronome still sound.'; devs.firstChild.append(mute); }
     };
     drawDevs();
     I.onChange(drawDevs);
