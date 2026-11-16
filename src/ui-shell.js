@@ -16,11 +16,14 @@
     const iconBtn = (name, label, fn, extra) => h('button', Object.assign({ class: 'ds-btn ds-btn--icon ds-btn--ghost tip', type: 'button', 'aria-label': label, 'data-tip': label, onclick: fn }, extra || {}), UI.icon(name));
     el.restart = iconBtn('restart', 'Restart', () => E.restart());
     el.prev = iconBtn('prev', 'Previous bar', () => E.prevBar());
+    el.bLoop = iconBtn('loop', 'Loop (L)', () => W.app.toggleLoop(), { 'aria-pressed': 'false' });
+    el.bLoop.classList.add('tb-toggle', 'loop-flip');
     el.next = iconBtn('next', 'Next bar', () => E.nextBar());
     el.play = h('button', { class: 'ds-btn ds-btn--primary play-btn', type: 'button', 'aria-label': 'Play', onclick: () => W.app.togglePlay() }, UI.icon('play'));
     el.views = h('div', { class: 'ds-tabs view-switch', role: 'group', 'aria-label': 'View' }, VIEWS.map(([v, t]) => h('button', { class: 'ds-tab', type: 'button', 'aria-pressed': 'false', 'data-view': v, onclick: () => W.app.setView(v) }, t)));
     const toggle = (name, label, fn) => h('button', { class: 'ds-btn ds-btn--icon ds-btn--ghost tip tb-toggle', type: 'button', 'aria-label': label, 'data-tip': label, 'aria-pressed': 'false', onclick: fn }, UI.icon(name));
     el.bWait = toggle('wait', 'Wait for me (W)', () => E.setOptions({ wait: !E.opts.wait, countIn: null }));
+    el.bWait.classList.add('tb-wait');
     el.bAlong = toggle('speaker', 'Play along (P)', () => E.setOptions({ playAlong: !E.opts.playAlong }));
     el.bMetro = toggle('metronome', 'Metronome (M)', () => E.setOptions({ metronome: !E.opts.metronome }));
     el.bPractice = iconBtn('sliders', 'Practice options', () => W.popovers.practice(el.bPractice), { 'aria-haspopup': 'dialog', 'aria-expanded': 'false' });
@@ -28,7 +31,7 @@
     el.bMore = iconBtn('more', 'More', () => W.popovers.more(el.bMore), { 'aria-haspopup': 'menu', 'aria-expanded': 'false' });
     el.topbar = h('header', { class: 'topbar' },
       h('div', { class: 'tb-left chrome' }, el.titleBtn),
-      h('div', { class: 'tb-center' }, h('span', { class: 'chrome tb-group' }, el.restart, el.prev), el.play, h('span', { class: 'chrome tb-group' }, el.next)),
+      h('div', { class: 'tb-center' }, h('span', { class: 'chrome tb-group' }, el.restart, el.prev, el.bLoop), el.play, h('span', { class: 'chrome tb-group' }, el.next)),
       h('div', { class: 'tb-right chrome' }, h('span', { class: 'tb-group tb-toggles', role: 'group', 'aria-label': 'Practice' }, el.bWait), h('span', { class: 'tb-group tb-toggles', role: 'group', 'aria-label': 'Sound' }, el.bAlong, el.bMetro), el.views, el.bPractice, el.bSound, el.bMore));
     el.timeline = h('div', { class: 'timeline chrome' });
     // stage
@@ -46,16 +49,21 @@
     el.stage = h('main', { class: 'stage' }, el.sheetPane, el.handle, el.wfPane);
     el.keys = h('div', { class: 'keys', role: 'group', 'aria-label': 'Piano keyboard' });
     el.keysScroll = h('div', { class: 'keys-scroll' }, el.keys);
-    el.kWidth = UI.miniSlider('Key width', 10, 60, 1, S.settings.keyW || 24, (v) => Sh.setKeyWidth(v));
-    el.kHeight = UI.miniSlider('Keyboard height', 70, 260, 5, S.settings.keysH || 120, (v) => Sh.setKeysHeight(v));
-    el.kFit = h('button', { class: 'ds-btn ds-btn--ghost', type: 'button', onclick: () => Sh.setKeyWidth(null) }, 'Fit to song');
-    el.kTools = h('div', { class: 'keys-tools ds-reveal ds-popover', role: 'group', 'aria-label': 'Keyboard size' }, el.kWidth, el.kHeight, el.kFit);
-    el.keysWrap = h('footer', { class: 'keys-wrap ds-row' }, el.kTools, el.keysScroll);
+    // Keyboard size: a grip on the border above the keys sets the height; a small button opens the width panel
+    el.kHeight = h('div', { class: 'keys-hgrip ds-reveal', role: 'separator', 'aria-orientation': 'horizontal', 'aria-label': 'Keyboard height: drag to change', title: 'Drag to change the keyboard height', tabindex: '0' }, h('span', { class: 'hgrip-knob', 'aria-hidden': 'true' }, h('span')), h('span', { class: 'hgrip-val' }));
+    el.kWidth = UI.miniSlider('Keyboard width', 10, 60, 1, S.settings.keyW || 24, (v) => Sh.setKeyWidth(v));
+    el.kWidth.querySelector('span').remove(); el.kWidth.classList.add('grow');
+    el.kWidthVal = h('span', { class: 'kw-val' });
+    el.kFit = h('button', { class: 'ds-btn ds-btn--outline', type: 'button', onclick: () => Sh.setKeyWidth(null) }, 'Auto');
+    el.kPanel = h('div', { class: 'keys-panel ds-popover', role: 'group', 'aria-label': 'Keyboard width', hidden: '' }, h('span', { class: 'kw-head' }, h('span', { class: 'kw-title', text: 'Width' }), el.kWidthVal), h('div', { class: 'row-gap' }, el.kWidth, el.kFit));
+    el.kBtn = h('button', { class: 'ds-btn ds-btn--icon ds-btn--ghost ds-reveal tip keys-wbtn', type: 'button', 'aria-label': 'Keyboard width', 'data-tip': 'Keyboard width', 'aria-expanded': 'false', onclick: () => Sh.toggleWidthPanel() }, UI.icon('widthArrows'));
+    el.kTools = h('div', { class: 'keys-tools' }, el.kPanel, el.kBtn);
+    el.keysWrap = h('footer', { class: 'keys-wrap ds-row' }, el.kHeight, el.kTools, el.keysScroll);
     root.append(el.topbar, el.timeline, el.stage, el.keysWrap);
     UI.mountToasts(root);
 
     K.mount(el.keys); WF.mount(el.wfCanvas); W.editor.bind(el.wfCanvas); SH.mount(el.sheetScroll); T.mount(el.timeline);
-    Sh.bindResize(); Sh.bindSplit(); Sh.bindIdle(); Sh.bindKeys(); Sh.bindKeyScroll();
+    Sh.bindResize(); Sh.bindSplit(); Sh.bindKeysHeight(); Sh.bindIdle(); Sh.bindKeys(); Sh.bindKeyScroll();
     el.root.style.setProperty('--kbd-h', (S.settings.keysH || 120) + 'px');
     E.on('change', onChange); E.on('seek', mark); E.on('song', onSong); E.on('wrap', mark); E.on('result', mark); E.on('finish', mark);
     E.on('key', () => { Sh.dirty.wf = true; });
@@ -73,6 +81,7 @@
     el.bAlong.setAttribute('aria-pressed', String(!!E.opts.playAlong));
     el.bAlong.textContent = ''; el.bAlong.append(UI.icon(E.opts.playAlong ? 'speaker' : 'speakerOff'));
     el.bMetro.setAttribute('aria-pressed', String(!!E.opts.metronome));
+    el.bLoop.setAttribute('aria-pressed', String(!!E.opts.loop));
     if (!p) Sh.wake();
     else Sh.wake();
     mark();
@@ -130,11 +139,29 @@
     if (keepCenter) el.keysScroll.scrollLeft = prevCenter * G.width - view / 2;
     else el.keysScroll.scrollLeft = Math.max(0, G.keyRect(lo).x - (S.settings.keyW ? 0 : (view - (G.keyRect(hi).x + G.keyRect(hi).w - G.keyRect(lo).x)) / 2));
     G.scrollX = el.keysScroll.scrollLeft;
-    el.kWidth.setValue(Math.round(G.whiteWFixed));
+    el.kWidth.setValue(Math.round(G.whiteWFixed)); el.kWidthVal.textContent = Math.round(G.whiteWFixed) + ' px per key';
     WF.dirty = true; mark();
   };
   Sh.setKeyWidth = function (v) { S.settings.keyW = v == null ? null : Math.max(10, Math.min(60, v)); S.saveSettings(); Sh.relayoutKeyboard(v != null); };
-  Sh.setKeysHeight = function (v) { S.settings.keysH = Math.max(70, Math.min(260, v)); el.root.style.setProperty('--kbd-h', S.settings.keysH + 'px'); el.kHeight.setValue(S.settings.keysH); S.saveSettings(); };
+  Sh.setKeysHeight = function (v) { S.settings.keysH = Math.max(70, Math.min(260, v)); el.root.style.setProperty('--kbd-h', S.settings.keysH + 'px'); el.kHeight.querySelector('.hgrip-val').textContent = S.settings.keysH + ' px'; el.kHeight.setAttribute('aria-valuenow', String(S.settings.keysH)); S.saveSettings(); };
+  Sh.toggleWidthPanel = function (force) {
+    const open = force == null ? el.kPanel.hidden : force;
+    el.kPanel.hidden = !open; el.kBtn.setAttribute('aria-expanded', String(open)); el.keysWrap.classList.toggle('is-revealed', open);
+  };
+  Sh.bindKeysHeight = function () {
+    const g = el.kHeight; let drag = null;
+    g.setAttribute('aria-valuemin', '70'); g.setAttribute('aria-valuemax', '260');
+    g.addEventListener('pointerdown', (e) => { drag = { y: e.clientY, h: S.settings.keysH || 120 }; g.setPointerCapture(e.pointerId); el.keysWrap.classList.add('is-revealed'); e.preventDefault(); });
+    g.addEventListener('pointermove', (e) => { if (drag) Sh.setKeysHeight(drag.h + (drag.y - e.clientY)); });
+    const up = () => { if (drag) { drag = null; if (el.kPanel.hidden) el.keysWrap.classList.remove('is-revealed'); } };
+    g.addEventListener('pointerup', up); g.addEventListener('pointercancel', up);
+    g.addEventListener('keydown', (e) => {
+      const d = e.key === 'ArrowUp' ? 10 : e.key === 'ArrowDown' ? -10 : 0;
+      if (d) { Sh.setKeysHeight((S.settings.keysH || 120) + d); e.preventDefault(); e.stopPropagation(); }
+    });
+    document.addEventListener('pointerdown', (e) => { if (!el.kPanel.hidden && !el.kTools.contains(e.target)) Sh.toggleWidthPanel(false); });
+    Sh.setKeysHeight(S.settings.keysH || 120);
+  };
   Sh.bindKeyScroll = function () {
     const G = W.geom;
     el.keysScroll.addEventListener('scroll', () => { G.scrollX = el.keysScroll.scrollLeft; WF.dirty = true; mark(); }, { passive: true });

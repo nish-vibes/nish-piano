@@ -12,19 +12,51 @@
     const o = E.opts;
     const speed = UI.slider('Speed', 25, 150, 5, Math.round(o.speed * 100), (v) => E.setOptions({ speed: v / 100 }), (v) => v + ' %');
     const reset = h('button', { class: 'ds-btn ds-btn--ghost pop-dashed', type: 'button', onclick: () => { E.setOptions({ speed: 1 }); speed.setValue(100); } }, 'Reset');
-    const loopTxt = h('span', { class: 'loop-text' });
-    const loopBtn = h('button', { class: 'ds-btn ds-btn--ghost pop-dashed', type: 'button', onclick: () => {
-      if (E.opts.loop) E.setOptions({ loop: null });
-      else { const cur = E.curMeasure(), last = E.get().measures.length; E.setOptions({ loop: { from: cur, to: Math.min(last, cur + 3) } }); }
-    } }, 'Set');
-    const loopRow = h('div', { class: 'row-gap loop-row' }, UI.icon('loop'), loopTxt, loopBtn);
-    const box = h('div', { class: 'pop-body' }, section(null, h('div', { class: 'row-gap' }, h('div', { style: 'flex:1 1 0;min-width:0' }, speed), reset)), section('Loop', loopRow));
+    // Loop: a toggle, two bar steppers and a range track with two grip handles. All three edit the same loop.
+    const nBars = () => Math.max(1, E.get().measures.length);
+    const setLoop = (from, to) => { const n = nBars(); from = Math.max(1, Math.min(n, from)); to = Math.max(from, Math.min(n, to)); E.setOptions({ loop: { from, to } }); };
+    const range = () => { const l = E.loopRange(); const c = E.curMeasure(); return l ? { from: l.from, to: l.to, on: true } : { from: c, to: Math.min(nBars(), c + 3), on: false }; };
+    const loopBtn = h('button', { class: 'ds-btn ds-btn--ghost loop-toggle', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Loop', onclick: (e) => { W.app.toggleLoop(); if (e.detail > 0) loopBtn.blur(); } }, UI.icon('loop'), h('span', { text: 'Loop' }));
+    const loopSum = h('span', { class: 'loop-sum' });
+    const stepper = (label, aria, which) => {
+      const val = h('span', { class: 'step-val' });
+      const bump = (d) => { const r = range(); if (which === 'from') setLoop(r.from + d, r.to); else setLoop(r.from, r.to + d); };
+      const dec = h('button', { type: 'button', class: 'step-btn', 'aria-label': aria + ', one earlier', onclick: () => bump(-1) }, UI.icon('minus'));
+      const inc = h('button', { type: 'button', class: 'step-btn', 'aria-label': aria + ', one later', onclick: () => bump(1) }, UI.icon('plus'));
+      const box = h('div', { class: 'loop-field', role: 'group', 'aria-label': aria }, h('span', { class: 'ds-caption', text: label }), h('div', { class: 'stepper' }, dec, val, inc));
+      box.paint = (r) => { val.textContent = String(r[which]); dec.disabled = inc.disabled = !r.on; };
+      return box;
+    };
+    const fromF = stepper('From bar', 'Start bar', 'from'), toF = stepper('To bar', 'End bar', 'to');
+    const track = h('div', { class: 'loop-track' });
+    const band = h('div', { class: 'loop-band', 'aria-hidden': 'true' });
+    const grip = (which, aria) => {
+      const g = h('div', { class: 'loop-grip', role: 'slider', tabindex: '0', 'aria-label': aria }, h('span', { 'aria-hidden': 'true' }));
+      const at = (e) => { const r = track.getBoundingClientRect(), n = nBars(); return Math.round(1 + Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * (n - 1)); };
+      const put = (v) => { const r = range(); if (which === 'from') setLoop(Math.min(v, r.to), r.to); else setLoop(r.from, Math.max(v, r.from)); };
+      let drag = false;
+      g.addEventListener('pointerdown', (e) => { drag = true; g.setPointerCapture(e.pointerId); e.preventDefault(); g.focus(); });
+      g.addEventListener('pointermove', (e) => { if (drag) put(at(e)); });
+      g.addEventListener('pointerup', () => { drag = false; }); g.addEventListener('pointercancel', () => { drag = false; });
+      g.addEventListener('keydown', (e) => { const d = e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : 0; if (!d) return; const r = range(); put(r[which] + d); e.preventDefault(); e.stopPropagation(); });
+      return g;
+    };
+    const gFrom = grip('from', 'Loop start bar'), gTo = grip('to', 'Loop end bar');
+    track.append(band, gFrom, gTo);
+    const ends = h('div', { class: 'loop-ends' }, h('span', { text: '1' }), h('span', { class: 'loop-last' }));
+    const loopSec = h('div', { class: 'pop-section loop-sec' }, h('div', { class: 'loop-head' }, loopBtn, loopSum), h('div', { class: 'loop-fields' }, fromF, toF), h('div', { class: 'loop-range' }, track, ends));
+    const box = h('div', { class: 'pop-body' }, section(null, h('div', { class: 'row-gap' }, h('div', { style: 'flex:1 1 0;min-width:0' }, speed), reset)), loopSec);
     live = () => {
-      const q = E.opts;
+      const q = E.opts, r = range(), n = nBars(), pct = (b) => (n > 1 ? ((b - 1) / (n - 1)) * 100 : 0);
       speed.setValue(Math.round(q.speed * 100));
-      const l = E.loopRange();
-      loopTxt.textContent = l ? (l.from === l.to ? 'Bar ' + l.from : 'Bars ' + l.from + ' to ' + l.to) : 'Off. Set a loop from this bar.';
-      loopBtn.textContent = l ? 'Clear' : 'Set';
+      loopBtn.setAttribute('aria-pressed', String(r.on));
+      loopSum.textContent = r.on ? (r.to - r.from + 1) + (r.to === r.from ? ' bar' : ' bars') : 'Off';
+      fromF.paint(r); toF.paint(r);
+      loopSec.classList.toggle('is-off', !r.on);
+      band.style.left = pct(r.from) + '%'; band.style.width = (pct(r.to) - pct(r.from)) + '%';
+      gFrom.style.left = pct(r.from) + '%'; gTo.style.left = pct(r.to) + '%';
+      [[gFrom, r.from], [gTo, r.to]].forEach(([g, v]) => { g.setAttribute('aria-valuemin', '1'); g.setAttribute('aria-valuemax', String(n)); g.setAttribute('aria-valuenow', String(v)); g.setAttribute('aria-disabled', String(!r.on)); });
+      ends.lastChild.textContent = String(n);
     };
     live();
     return UI.openPopover(anchor, box, { label: 'Practice options', onClose: () => { live = null; } });
