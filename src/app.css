@@ -279,3 +279,6 @@ body { font-family: var(--font-sans); }
 .kcap.wht { background: #F2F1EE; color: #121214; border: 1px solid var(--border); }
 .kcap.oct { background: transparent; color: var(--foreground); border: 1px dashed var(--input); }
 .pop-toggle.self-start { width: auto; }
+.kcap.gap { border: 0; visibility: hidden; }
+.kcap.oct { width: 44px; }
+.kcap.oct small { color: var(--muted-foreground); white-space: nowrap; }

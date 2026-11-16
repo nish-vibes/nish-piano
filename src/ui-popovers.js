@@ -71,9 +71,9 @@
     // the keystroke layout, drawn like a computer keyboard: white-key letters light, black-key letters dark, octave keys dashed
     const layout = () => {
       const b = I.binds(), n = b.notes, kc = (code, cls, sub) => h('kbd', { class: 'kcap ' + cls }, I.keyLabel(code), sub ? h('small', { text: sub }) : null);
-      const top = [kc(b.octDown[1], 'oct', '−1'), kc(n[1], 'blk'), kc(n[3], 'blk'), kc(b.octUp[1], 'oct', '+1'), kc(n[6], 'blk'), kc(n[8], 'blk'), kc(n[10], 'blk'), kc(b.octDown[0], 'oct', '−1'), kc(b.octUp[0], 'oct', '+1')];
-      const bot = [0, 2, 4, 5, 7, 9, 11, 12, 13].map((i) => kc(n[i], 'wht'));
-      const lab = 'Keystroke layout: ' + [0, 2, 4, 5, 7, 9, 11, 12, 13].map((i) => I.keyLabel(n[i])).join(' ') + ' play the white keys, ' + [1, 3, 6, 8, 10].map((i) => I.keyLabel(n[i])).join(' ') + ' the black keys. ' + b.octDown.map(I.keyLabel).join(' or ') + ' go one octave down, ' + b.octUp.map(I.keyLabel).join(' or ') + ' one octave up.';
+      const top = [h('span', { class: 'kcap gap' }), kc(n[1], 'blk'), kc(n[3], 'blk'), h('span', { class: 'kcap gap' }), kc(n[6], 'blk'), kc(n[8], 'blk'), kc(n[10], 'blk'), kc(b.octDown[0], 'oct', '−1 oct'), kc(b.octUp[0], 'oct', '+1 oct')];
+      const bot = [0, 2, 4, 5, 7, 9, 11, 12].map((i) => kc(n[i], 'wht'));
+      const lab = 'Keystroke layout: ' + [0, 2, 4, 5, 7, 9, 11, 12].map((i) => I.keyLabel(n[i])).join(' ') + ' play the white keys, ' + [1, 3, 6, 8, 10].map((i) => I.keyLabel(n[i])).join(' ') + ' the black keys. ' + b.octDown.map(I.keyLabel).join(' or ') + ' go one octave down, ' + b.octUp.map(I.keyLabel).join(' or ') + ' one octave up.';
       return h('div', { class: 'kb-layout', role: 'img', 'aria-label': lab }, h('div', { class: 'kb-row' }, ...top), h('div', { class: 'kb-row kb-row2' }, ...bot));
     };
     const rebind = h('button', { class: 'ds-btn ds-btn--outline self-start', type: 'button', onclick: () => { UI.closePopover(false); P.bindings(); } }, UI.icon('keyboard'), 'Change bindings');

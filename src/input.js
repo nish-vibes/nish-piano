@@ -35,17 +35,16 @@
   };
 
   // ---------------------------------------------------------------- computer-keyboard notes (off by default)
-  // A W S E D F T G Y H U J K L play C to D (like a piano row); I or Q shifts an octave down, O or R an octave up. Rebindable.
+  // A W S E D F T G Y H U J K L play C to C (like a piano row); I shifts an octave down, O an octave up. Rebindable.
   I.DEFAULT_BINDS = {
-    notes: ['KeyA', 'KeyW', 'KeyS', 'KeyE', 'KeyD', 'KeyF', 'KeyT', 'KeyG', 'KeyY', 'KeyH', 'KeyU', 'KeyJ', 'KeyK', 'KeyL'],
-    octDown: ['KeyI', 'KeyQ'], octUp: ['KeyO', 'KeyR'],
+    notes: ['KeyA', 'KeyW', 'KeyS', 'KeyE', 'KeyD', 'KeyF', 'KeyT', 'KeyG', 'KeyY', 'KeyH', 'KeyU', 'KeyJ', 'KeyK'],
+    octDown: ['KeyI'], octUp: ['KeyO'],
   };
-  I.NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C (octave up)', 'D (octave up)'];
+  I.NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C (octave up)'];
   I.binds = () => {
     const b = W.storage.settings.kbdBinds;
-    if (!b || !Array.isArray(b.notes)) return I.DEFAULT_BINDS;
-    if (b.notes.length === 13) return Object.assign({}, b, { notes: b.notes.concat(I.DEFAULT_BINDS.notes[13]) }); // saved before the extra D key
-    return b.notes.length === 14 ? b : I.DEFAULT_BINDS;
+    if (!b || !Array.isArray(b.notes) || b.notes.length < 13) return I.DEFAULT_BINDS;
+    return { notes: b.notes.slice(0, 13), octDown: (b.octDown || []).slice(0, 1).length ? b.octDown.slice(0, 1) : I.DEFAULT_BINDS.octDown, octUp: (b.octUp || []).slice(0, 1).length ? b.octUp.slice(0, 1) : I.DEFAULT_BINDS.octUp };
   };
   I.keyLabel = (code) => (code || '').replace(/^Key/, '').replace(/^Digit/, '').replace(/^Numpad/, 'Num ').replace('Semicolon', ';').replace('Comma', ',').replace('Period', '.').replace('Slash', '/').replace('BracketLeft', '[').replace('BracketRight', ']').replace('Quote', "'").replace('Backquote', '`').replace('Minus', '-').replace('Equal', '=');
   I.octave = 0; // shift in octaves from C4
