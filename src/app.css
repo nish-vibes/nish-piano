@@ -274,11 +274,11 @@ body { font-family: var(--font-sans); }
 .kb-layout { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-md, 8px); background: var(--muted); }
 .kb-row { display: flex; gap: 4px; } .kb-row2 { margin-left: 16px; }
 .kcap { box-sizing: border-box; width: 28px; height: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 6px; font: 500 12px/14px var(--font-mono); }
-.kcap small { font: 400 10px/12px var(--font-sans); }
+.kcap small { font: 400 6pt/10px var(--font-sans); }
 .kcap.blk { background: #2A2A2E; color: #F2F1EE; border: 1px solid var(--border); }
 .kcap.wht { background: #F2F1EE; color: #121214; border: 1px solid var(--border); }
 .kcap.oct { background: transparent; color: var(--foreground); border: 1px dashed var(--input); }
 .pop-toggle.self-start { width: auto; }
 .kcap.gap { border: 0; visibility: hidden; }
-.kcap.oct { width: 44px; }
+.kcap.oct small { font-size: 6pt; }
 .kcap.oct small { color: var(--muted-foreground); white-space: nowrap; }
