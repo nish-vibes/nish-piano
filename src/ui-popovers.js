@@ -83,7 +83,11 @@
       sec('Volume', row(along, vol), row(metro, mvol)), sep(),
       sec('Playback instruments', h('div', { class: 'pop-section' }, h('span', { class: 'ds-label', text: 'Main' }), main), h('div', { class: 'pop-section' }, h('span', { class: 'ds-label', text: 'Layer' }), layer)), sep(),
       sec('Devices', devs, kb, layout(), rebind));
-    live = () => { along.setValue(E.opts.playAlong); metro.setValue(E.opts.metronome); };
+    const sync = () => {
+      along.setValue(E.opts.playAlong); metro.setValue(E.opts.metronome);
+      vol.querySelector('input').disabled = !E.opts.playAlong; mvol.querySelector('input').disabled = !E.opts.metronome;
+    };
+    sync(); live = sync;
     return UI.openPopover(anchor, box, { label: 'Sound and devices', onClose: () => { live = null; } });
   };
 

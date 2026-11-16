@@ -282,3 +282,4 @@ body { font-family: var(--font-sans); }
 .kcap.gap { border: 0; visibility: hidden; }
 .kcap.oct small { font-size: 6pt; }
 .kcap.oct small { color: var(--muted-foreground); white-space: nowrap; }
+.pop-sound .range:disabled { opacity: .4; cursor: not-allowed; }
