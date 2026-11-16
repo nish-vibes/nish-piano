@@ -30,6 +30,15 @@ backup and restore with validation and merge summary, version 1 library conversi
 - Notation from MIDI and built-in pieces now uses up to two voices per hand.
 - Sheet visuals were reviewed only roughly; the owner will judge them.
 
+## Waterfall look and effects (`src/waterfall.js`)
+- Note bars are drawn as coloured glass (clear body, lit edge, gloss, rim). Dark appearance adds a nebula and a slow star field behind them; high-contrast appearances keep plain solid bars and no backdrop.
+- The engine emits `hit`, `wrong` and `miss`. The waterfall answers with a burst and star dust (hit), a red beam up the lane of the wrong key (wrong) and a short shake (miss).
+- In-tempo mode (Wait for me off): a note may be played late until 30 % of its length has passed, never less than the old timing window. After that it is missed. Wait for me on: notes cannot be missed.
+- Every colour is derived from the tokens (no literal colours). The beam on dark uses the hue of `--destructive` at full saturation, because the dark token is a soft salmon made for text.
+- `prefers-reduced-motion`: no particles, shake, star drift or sweep; hit and wrong fade in place.
+- More than three wrong keys a second: later beams rise slowly and stay dim, so a run of wrong keys never strobes (WCAG 2.3.1).
+- Effects keep the canvas drawing only until they end (`WF.fxAlive()`); nothing is queued in Sheet view.
+
 ## Known limits
 - Real MIDI keyboard, audio and touch not tested on hardware.
 - Results bar strip uses hatched patterns plus numbers; colours are tokens with transparency.

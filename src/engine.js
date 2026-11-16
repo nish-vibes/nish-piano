@@ -283,13 +283,21 @@
     schedule();
   };
 
+  /** How late a practised note may still be played, in song seconds: 30 % of its length, never less than the timing window. */
+  const lateWin = (i) => Math.max(winSec(nq[i]), qToSec(nq[i] + 0.3 * nd[i]) - qToSec(nq[i]));
   function expireMissed() {
-    while (expI < pidx.length) {
-      const i = pidx[expI];
-      if (status[i] !== 0) { expI++; continue; }
-      if (E.sec > ptime[expI] + winSec(nq[i])) { status[i] = 2; E.stats.missed++; expI++; barMistake(E.measureIndexAt(nq[i])); if (!E.playing) return; }
-      else break;
+    // late windows differ per note, so a long note must not hold back the short ones after it
+    while (expI < pidx.length && status[pidx[expI]] !== 0) expI++;
+    for (let k = expI; k < pidx.length && ptime[k] < E.sec; k++) {
+      const i = pidx[k];
+      if (status[i] !== 0 || E.sec <= ptime[k] + lateWin(i)) continue;
+      status[i] = 2; E.stats.missed++;
+      emit('miss', { i, midi: nm[i], hand: nh[i] ? 'L' : 'R' });
+      const sec0 = E.sec;
+      barMistake(E.measureIndexAt(nq[i]));
+      if (!E.playing || E.sec !== sec0) return; // the bar was restarted
     }
+    while (expI < pidx.length && status[pidx[expI]] !== 0) expI++;
   }
 
   function barMistake(mi) {
@@ -400,6 +408,7 @@
     if (W.storage.settings.userSound !== false && A.noteOn) A.noteOn(midi, vel || 90);
     emit('key', { midi, down: true });
     if (!E.song || !E.playing || E.phase !== 'run' || !practising()) return;
+    const hitNote = (i) => { status[i] = 1; E.stats.hit++; emit('hit', { i, midi, hand: nh[i] ? 'L' : 'R' }); };
     if (E.opts.wait) {
       advanceOPtr();
       const o = oPtr < onsets.length ? onsets[oPtr] : null;
@@ -409,23 +418,25 @@
         if (E.holding || dtReal <= EARLY) {
           for (let k = o.a; k < o.b; k++) {
             const i = pidx[k];
-            if (status[i] === 0 && nm[i] === midi) { status[i] = 1; E.stats.hit++; ok = true; break; }
+            if (status[i] === 0 && nm[i] === midi) { hitNote(i); ok = true; break; }
           }
         }
       }
       if (ok) { advanceOPtr(); return; }
     } else {
+      // early by the timing window at most; late until the note is missed (see lateWin)
       const wmax = winSec(E.q) * 1.0;
-      let k = lowerBound(ptime, E.sec - wmax - 0.05, ptime.length), bestK = -1, bestD = Infinity;
+      let k = Math.min(expI, lowerBound(ptime, E.sec - wmax - 0.05, ptime.length)), bestK = -1, bestD = Infinity;
       for (; k < ptime.length && ptime[k] <= E.sec + wmax + 0.05; k++) {
         const i = pidx[k];
         if (status[i] !== 0 || nm[i] !== midi) continue;
-        const d = Math.abs(ptime[k] - E.sec);
-        if (d <= winSec(nq[i]) && d < bestD) { bestD = d; bestK = k; }
+        const d = ptime[k] - E.sec; // > 0: the note is still ahead
+        if ((d >= 0 ? d <= winSec(nq[i]) : -d <= lateWin(i)) && Math.abs(d) < bestD) { bestD = Math.abs(d); bestK = k; }
       }
-      if (bestK >= 0) { status[pidx[bestK]] = 1; E.stats.hit++; return; }
+      if (bestK >= 0) { hitNote(pidx[bestK]); return; }
     }
     E.stats.wrong++;
+    emit('wrong', { midi });
     const mi = E.measureIndexAt(E.q);
     barWrong[mi]++;
     barMistake(mi);

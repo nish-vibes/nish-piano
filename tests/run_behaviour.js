@@ -111,6 +111,33 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   check('a complete correct run records best = 100', played === 4 && !!fin && (await best(r6.id)) === 100, JSON.stringify({ played, fin: fin && fin.stats, best: await best(r6.id) }));
   await T('closeResults');
 
+  // In-tempo mode: a note may be played late until 30 % of its length has passed (never less than the timing window);
+  // after that it is missed and its bar shakes. Correct, wrong and missed notes each start a waterfall effect that ends by itself.
+  const fx = await page.evaluate(async () => {
+    const T = window.WapiroTest, W = window.Wapiro, E = W.engine;
+    const song = (await T.listSongs()).find((x) => /Prelude in C/.test(x.title)); await T.openSong(song.id); await T.setView('split');
+    await T.setOptions({ wait: false, hands: 'both', playAlong: false, speed: 1, loop: null, restartAfter: 0, metronome: false, countIn: false }); await T.seekMeasure(2);
+    const g = E.get(), m2 = g.measures[1].q, out = { ev: { hit: 0, miss: 0, wrong: 0 }, missAt: null };
+    const longs = []; for (let i = 0; i < g.n; i++) if (g.nh[i] === 1 && g.nq[i] >= m2 - 1e-6 && g.nd[i] >= 1.5) longs.push(i);
+    const a = longs[0], c = longs[1];
+    E.on('hit', () => out.ev.hit++); E.on('wrong', () => out.ev.wrong++);
+    E.on('miss', (e) => { out.ev.miss++; if (e.i === c) out.missAt = (E.q - g.nq[c]) / g.nd[c]; });
+    const until = (fn) => new Promise((r) => { const t = setInterval(() => { if (fn()) { clearInterval(t); r(); } }, 4); });
+    await T.play();
+    await until(() => E.q >= g.nq[a] + 0.2 * g.nd[a]);
+    E.noteOn(g.nm[a], 90); out.lateHit = E.noteStatus(a); E.noteOff(g.nm[a]);
+    await until(() => E.q >= g.nq[c] + 0.4 * g.nd[c]);
+    out.missed = E.noteStatus(c); E.noteOn(g.nm[c], 90); E.noteOff(g.nm[c]);
+    out.fxRunning = W.waterfall.fxAlive();
+    await T.pause(); await new Promise((r) => setTimeout(r, 1800));
+    out.fxAtRest = !W.waterfall.fxAlive();
+    return out;
+  });
+  check('in-tempo mode: a long note played 20 % late still counts', fx.lateHit === 1 && fx.ev.hit === 1, JSON.stringify(fx));
+  check('in-tempo mode: a long note is missed once 30 % of its length has passed', fx.missed === 2 && fx.missAt != null && fx.missAt >= 0.3 && fx.missAt < 0.4 && fx.ev.wrong === 1, JSON.stringify(fx));
+  check('waterfall effects start on hit, wrong and miss, and end by themselves', fx.fxRunning && fx.fxAtRest && fx.ev.miss >= 1, JSON.stringify(fx));
+  await T('closeResults');
+
   // v1 bug: edits were lost unless Save was pressed; there was no undo.
   await T('openSong', r1.id);
   const n0 = (await T('songInfo', r1.id)).notes;

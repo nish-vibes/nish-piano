@@ -108,6 +108,9 @@
     if (!still) E.noteOff(old);
   }
 
+  // a wrong key shows the wrong-note red for a moment: the beam in the waterfall rises from it
+  E.on('wrong', (e) => { const el = K.keys.get(e.midi); if (!el) return; el.classList.add('is-wrong'); clearTimeout(el._wrongT); el._wrongT = setTimeout(() => el.classList.remove('is-wrong'), 420); });
+
   /** Update key highlights; only keys whose state changed touch the DOM. */
   K.update = function () {
     const down = E.activeKeys, wait = new Set(E.waitingFor().map((n) => n.midi));

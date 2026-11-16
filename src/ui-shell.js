@@ -273,7 +273,7 @@
     const q = playing ? E.liveQ() : E.q;
     const view = S.settings.view;
     const moved = q !== lastQ; lastQ = q;
-    if (view !== 'sheet' && (Sh.dirty.wf || WF.dirty || playing)) { WF.draw(q); Sh.dirty.wf = false; WF.dirty = false; }
+    if (view !== 'sheet' && (Sh.dirty.wf || WF.dirty || playing)) { WF.draw(q); Sh.dirty.wf = false; WF.dirty = WF.fxAlive(); } // effects keep the canvas drawing until they end
     if (view !== 'waterfall' && SH.lay && (Sh.dirty.sheet || moved)) { SH.update(q); Sh.dirty.sheet = false; }
     if (view !== 'waterfall' && SH.lay && E.stats.missed !== lastMissed) { lastMissed = E.stats.missed; SH.updateMisses(); }
     if (Sh.dirty.tl || T.dirty || moved) { T.draw(q); Sh.dirty.tl = false; T.dirty = false; }
