@@ -151,7 +151,7 @@
         const canvas = document.createElement('canvas'); canvas.width = even(WF.w * k); canvas.height = even((WF.h + kH) * (canvas.width / WF.w));
         const fontVar = cssVar('--font-sans') || 'sans-serif';
         job = { canvas, ctx: canvas.getContext('2d'), frames: 0, t0: performance.now(), chunks: [], cancelled: false, done: false,
-          col: { white: cssVar('--neutral-50'), edge: cssVar('--neutral-400'), black: cssVar('--neutral-900'), blackEdge: cssVar('--neutral-950'), R: cssVar('--primary'), L: cssVar('--hand-left'), primary: cssVar('--primary'), label: cssVar('--neutral-500') || '#777', label2: cssVar('--muted-foreground'), fg: cssVar('--foreground'), font: fontVar } };
+          col: { white: cssVar('--neutral-50'), edge: cssVar('--neutral-400'), black: cssVar('--neutral-900'), blackEdge: cssVar('--neutral-950'), R: cssVar('--hand-right'), L: cssVar('--hand-left'), primary: cssVar('--primary'), label: cssVar('--neutral-500') || '#777', label2: cssVar('--muted-foreground'), fg: cssVar('--foreground'), font: fontVar } };
         let stream;
         try {
           stream = canvas.captureStream(30);

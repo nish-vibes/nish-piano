@@ -45,10 +45,12 @@
     track.append(band, gFrom, gTo);
     const ends = h('div', { class: 'loop-ends' }, h('span', { text: '1' }), h('span', { class: 'loop-last' }));
     const loopSec = h('div', { class: 'pop-section loop-sec' }, h('div', { class: 'loop-head' }, loopBtn, loopSum), h('div', { class: 'loop-fields' }, fromF, toF), h('div', { class: 'loop-range' }, track, ends));
-    const box = h('div', { class: 'pop-body' }, section(null, h('div', { class: 'row-gap' }, h('div', { style: 'flex:1 1 0;min-width:0' }, speed), reset)), loopSec);
+    const hands = UI.seg('Active hands', [['R', 'Right only'], ['both', 'Both'], ['L', 'Left only']], E.opts.hands, (v) => E.setOptions({ hands: v }));
+    hands.classList.add('seg-fill');
+    const box = h('div', { class: 'pop-body' }, section(null, h('div', { class: 'row-gap' }, h('div', { style: 'flex:1 1 0;min-width:0' }, speed), reset)), loopSec, section('Active hands', hands), P.handColours());
     live = () => {
       const q = E.opts, r = range(), n = nBars(), pct = (b) => (n > 1 ? ((b - 1) / (n - 1)) * 100 : 0);
-      speed.setValue(Math.round(q.speed * 100));
+      speed.setValue(Math.round(q.speed * 100)); hands.setValue(q.hands);
       loopBtn.setAttribute('aria-pressed', String(r.on));
       loopSum.textContent = r.on ? (r.to - r.from + 1) + (r.to === r.from ? ' bar' : ' bars') : 'Off';
       fromF.paint(r); toF.paint(r);
@@ -183,6 +185,106 @@
     const el = UI.openPopover(anchor, box, { role: 'menu', label: 'More' });
     const first = el && el.querySelector('button'); if (first) first.focus();
     return el;
+  };
+
+  // ---------------------------------------------------------------- hand colours
+  const PRESETS = [['Blue', null, 'L'], ['Orange', null, 'R'], ['Teal', '#2EC4B6'], ['Violet', '#A78BFA'], ['Pink', '#F472B6']];
+  const hex2rgb = (x) => [1, 3, 5].map((i) => parseInt(x.slice(i, i + 2), 16));
+  const rgb2hex = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('').toUpperCase();
+  function hsl2rgb(hh, sat, li) { sat /= 100; li /= 100; const k = (n) => (n + hh / 30) % 12, a = sat * Math.min(li, 1 - li), f = (n) => li - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)); return [f(0) * 255, f(8) * 255, f(4) * 255]; }
+  function rgb2hsl(c) { const r = c[0] / 255, g = c[1] / 255, b = c[2] / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, li = (mx + mn) / 2; let hh = 0; if (d) { hh = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; hh *= 60; if (hh < 0) hh += 360; } return [hh, d ? (d / (1 - Math.abs(2 * li - 1))) * 100 : 0, li * 100]; }
+  /** The colour a hand shows now, as #RRGGBB (resolves the appearance's own colour when none is set). */
+  function handHex(hand) {
+    const c = document.createElement('canvas'); c.width = c.height = 1; const x = c.getContext('2d', { willReadFrequently: true });
+    x.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(hand === 'L' ? '--hand-left' : '--hand-right').trim(); x.fillRect(0, 0, 1, 1);
+    const d = x.getImageData(0, 0, 1, 1).data; return rgb2hex([d[0], d[1], d[2]]);
+  }
+  /** Why a colour may be a poor choice for a hand, or null. Red marks wrong and missed notes, green a correct key. */
+  P.colourWarning = function (hex, otherHex) {
+    const [hh, sat] = rgb2hsl(hex2rgb(hex)), a = hex2rgb(hex), b = hex2rgb(otherHex);
+    if (Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) < 70) return 'Too close to the other hand\'s colour. The two hands will be hard to tell apart.';
+    if (sat > 35 && (hh < 18 || hh > 342)) return 'Close to red, which marks wrong and missed notes. Notes in this colour may look like mistakes.';
+    if (sat > 35 && hh > 100 && hh < 145) return 'Close to green, which lights a correct key. Notes in this colour may be hard to tell apart.';
+    return null;
+  };
+  P.handColours = function () {
+    const st = S.settings; let hand = 'L';
+    const key = (hd) => (hd === 'L' ? 'handL' : 'handR');
+    const chip = { L: h('span', { class: 'glass-sw glass-chip', 'aria-hidden': 'true' }), R: h('span', { class: 'glass-sw glass-chip', 'aria-hidden': 'true' }) };
+    const tabs = { L: h('button', { type: 'button', class: 'seg-btn', 'aria-pressed': 'true', onclick: () => { hand = 'L'; paint(); } }, chip.L, 'Left hand'), R: h('button', { type: 'button', class: 'seg-btn', 'aria-pressed': 'false', onclick: () => { hand = 'R'; paint(); } }, chip.R, 'Right hand') };
+    const row = h('div', { class: 'sw-row', role: 'group' });
+    const paint = () => {
+      const cur = { L: handHex('L'), R: handHex('R') }, other = hand === 'L' ? 'R' : 'L', mine = st[key(hand)];
+      chip.L.style.setProperty('--c', cur.L); chip.R.style.setProperty('--c', cur.R);
+      tabs.L.setAttribute('aria-pressed', String(hand === 'L')); tabs.R.setAttribute('aria-pressed', String(hand === 'R'));
+      row.setAttribute('aria-label', 'Colour for the ' + (hand === 'L' ? 'left' : 'right') + ' hand');
+      row.textContent = '';
+      let matched = false;
+      // the two default colours first: each hand's own default clears its setting
+      const defaults = { L: (() => { const keep = st.handL; document.documentElement.style.removeProperty('--hand-left'); const v = handHex('L'); if (keep) document.documentElement.style.setProperty('--hand-left', keep); return v; })(),
+        R: (() => { const keep = st.handR; document.documentElement.style.removeProperty('--hand-right'); const v = handHex('R'); if (keep) document.documentElement.style.setProperty('--hand-right', keep); return v; })() };
+      for (const [name, hx, def] of PRESETS) {
+        const val = def ? defaults[def] : hx, sel = cur[hand].toUpperCase() === val.toUpperCase(), used = !sel && cur[other].toUpperCase() === val.toUpperCase();
+        if (sel) matched = true;
+        row.appendChild(h('button', { type: 'button', class: 'glass-sw sw-btn', style: '--c:' + val, 'aria-pressed': String(sel), 'aria-label': name + (used ? ', used by the ' + (other === 'L' ? 'left' : 'right') + ' hand' : ''), title: name,
+          onclick: () => { W.app.setHandColour(hand, def === hand ? null : val); paint(); } }, used ? h('span', { class: 'sw-mark', text: other }) : null));
+      }
+      const custom = !matched;
+      row.appendChild(h('button', { type: 'button', class: 'sw-btn sw-custom' + (custom ? ' is-set' : ''), 'aria-pressed': String(custom), 'aria-haspopup': 'dialog', 'aria-label': 'Custom colour' + (custom ? ', ' + cur[hand] : '') + '. Opens the colour wheel', title: 'Custom colour',
+        onclick: () => P.colourWheel(hand, cur[hand], cur[other], paint) }, custom ? h('span', { class: 'glass-sw', style: '--c:' + cur[hand], 'aria-hidden': 'true' }) : null));
+    };
+    paint();
+    return h('div', { class: 'pop-section' }, h('div', { class: 'pop-title', text: 'Hand colours' }), h('div', { class: 'seg seg-fill', role: 'group', 'aria-label': 'Hand to colour' }, tabs.L, tabs.R), row);
+  };
+  /** Colour wheel: hue around, strength outward, a brightness slider that stops before the dark shades, and a hex field for the keyboard. */
+  P.colourWheel = function (hand, startHex, otherHex, done) {
+    UI.closePopover(false);
+    let [hue, sat, li] = rgb2hsl(hex2rgb(startHex)); li = Math.max(40, Math.min(80, li)); sat = Math.max(0, Math.min(100, sat));
+    const SZ = 176, cv = h('canvas', { class: 'wheel', width: String(SZ * 2), height: String(SZ * 2), role: 'slider', tabindex: '0', 'aria-label': 'Colour wheel: left and right change the hue, up and down the strength', 'aria-valuemin': '0', 'aria-valuemax': '360' });
+    const knob = h('span', { class: 'wheel-knob', 'aria-hidden': 'true' }), wrap = h('div', { class: 'wheel-wrap' }, cv, knob);
+    const pvL = h('span', { class: 'glass-sw pv-bar' }), pvR = h('span', { class: 'glass-sw pv-bar' });
+    const preview = h('div', { class: 'wheel-preview', role: 'img', 'aria-label': 'Preview of both hands' }, h('div', { class: 'pv-col' }, pvL, h('span', { class: 'ds-caption', text: 'L' })), h('div', { class: 'pv-col' }, pvR, h('span', { class: 'ds-caption', text: 'R' })));
+    const warn = h('div', { class: 'wheel-warn', role: 'status', hidden: '' }, UI.icon('alert'), h('span'));
+    const bright = h('input', { type: 'range', class: 'range', min: '40', max: '80', step: '1', 'aria-label': 'Brightness' }), bval = h('span', { class: 'ds-caption' });
+    const hexIn = h('input', { type: 'text', class: 'ds-input hex-in', spellcheck: 'false', maxlength: '7', 'aria-label': 'Hex colour' });
+    const cur = () => rgb2hex(hsl2rgb(hue, sat, li));
+    const drawWheel = () => {
+      const x = cv.getContext('2d'), n = SZ * 2, im = x.createImageData(n, n), d = im.data, r0 = n / 2;
+      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+        const dx = i - r0 + 0.5, dy = j - r0 + 0.5, rr = Math.hypot(dx, dy) / r0; if (rr > 1) continue;
+        let a = (Math.atan2(dy, dx) * 180) / Math.PI + 90; if (a < 0) a += 360;
+        const sv = rr * 100, c = hsl2rgb(a, sv, li), reserved = sv > 35 && (a < 18 || a > 342 || (a > 100 && a < 145)), k = reserved ? 0.3 : 1, o = (j * n + i) * 4;
+        d[o] = c[0] * k; d[o + 1] = c[1] * k; d[o + 2] = c[2] * k; d[o + 3] = Math.min(1, (1 - rr) * r0) * 255;
+      }
+      x.putImageData(im, 0, 0);
+    };
+    const paint = (fromHex) => {
+      const hx = cur(), rad = ((hue - 90) * Math.PI) / 180, rr = (sat / 100) * (SZ / 2);
+      knob.style.left = SZ / 2 + Math.cos(rad) * rr + 'px'; knob.style.top = SZ / 2 + Math.sin(rad) * rr + 'px'; knob.style.background = hx;
+      (hand === 'L' ? pvL : pvR).style.setProperty('--c', hx); (hand === 'L' ? pvR : pvL).style.setProperty('--c', otherHex);
+      bright.value = String(Math.round(li)); bval.textContent = Math.round(li) + ' %'; bright.style.accentColor = hx;
+      if (!fromHex) hexIn.value = hx;
+      cv.setAttribute('aria-valuenow', String(Math.round(hue))); cv.setAttribute('aria-valuetext', hx);
+      const wmsg = P.colourWarning(hx, otherHex); warn.hidden = !wmsg; warn.lastChild.textContent = wmsg || '';
+    };
+    const pick = (e) => { const r = cv.getBoundingClientRect(), dx = e.clientX - r.left - r.width / 2, dy = e.clientY - r.top - r.height / 2; hue = ((Math.atan2(dy, dx) * 180) / Math.PI + 90 + 360) % 360; sat = Math.min(100, (Math.hypot(dx, dy) / (r.width / 2)) * 100); paint(); };
+    let drag = false;
+    cv.addEventListener('pointerdown', (e) => { drag = true; cv.setPointerCapture(e.pointerId); pick(e); });
+    cv.addEventListener('pointermove', (e) => { if (drag) pick(e); });
+    cv.addEventListener('pointerup', () => { drag = false; }); cv.addEventListener('pointercancel', () => { drag = false; });
+    cv.addEventListener('keydown', (e) => {
+      const k = e.key; if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(k)) return;
+      if (k === 'ArrowLeft') hue = (hue + 355) % 360; else if (k === 'ArrowRight') hue = (hue + 5) % 360; else sat = Math.max(0, Math.min(100, sat + (k === 'ArrowUp' ? 5 : -5)));
+      paint(); e.preventDefault(); e.stopPropagation();
+    });
+    bright.addEventListener('input', () => { li = Number(bright.value); drawWheel(); paint(); });
+    hexIn.addEventListener('input', () => { let v = hexIn.value.trim(); if (v && v[0] !== '#') v = '#' + v; if (/^#[0-9a-f]{6}$/i.test(v)) { const c = rgb2hsl(hex2rgb(v)); hue = c[0]; sat = c[1]; li = Math.max(40, Math.min(80, c[2])); drawWheel(); paint(true); } });
+    hexIn.addEventListener('blur', () => { hexIn.value = cur(); });
+    drawWheel(); paint();
+    const body = h('div', { class: 'wheel-body' }, h('div', { class: 'wheel-top' }, wrap, preview), warn,
+      h('div', { class: 'pop-section' }, h('div', { class: 'wheel-row' }, h('span', { class: 'pop-title', text: 'Brightness' }), bval), bright, h('span', { class: 'ds-caption', text: 'The darkest shades are left out, so notes stay visible against the night sky.' })),
+      h('label', { class: 'wheel-row hex-row' }, h('span', { class: 'pop-title', text: 'Hex' }), hexIn, h('span', { class: 'ds-caption grow', style: 'text-align:right', text: 'Red and green are dimmed' })));
+    UI.openDialog('Custom colour, ' + (hand === 'L' ? 'left hand' : 'right hand'), body, [{ label: 'Cancel' }, { label: 'Use colour', primary: true, run: () => { W.app.setHandColour(hand, cur()); if (done) done(); } }]);
   };
 
   P.exportVideo = function () {

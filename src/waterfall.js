@@ -49,7 +49,7 @@
     const tint = (token) => { const c = rgb(token); return ink({ c, light: mix(c, n0, 0.5), pale: mix(c, n0, 0.82), deep: mix(c, n950, 0.4) }); };
     // The wrong-note light: on dark the token is a soft salmon (made for text), so the beam uses the same hue at full strength.
     const bad = tint('--destructive'), red = dark && !hc ? vivid(bad.c, 0.55) : bad.c;
-    pal = { dark, hc, space: dark && !hc, bg, n0, n950, R: tint('--primary'), L: tint('--hand-left'), bad, beam: ink({ c: red, light: mix(red, n0, 0.45), pale: mix(red, n0, 0.8), deep: mix(red, n950, 0.4) }) };
+    pal = { dark, hc, space: dark && !hc, bg, n0, n950, R: tint('--hand-right'), L: tint('--hand-left'), bad, beam: ink({ c: red, light: mix(red, n0, 0.45), pale: mix(red, n0, 0.8), deep: mix(red, n950, 0.4) }) };
     return pal;
   }
   const mqMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;

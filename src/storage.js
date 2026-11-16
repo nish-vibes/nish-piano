@@ -110,7 +110,7 @@
   S.defaults = {
     v: 3, appearance: 'auto', view: 'split', split: 0.5, volume: 0.7, accVolume: 0.7, metroVolume: 0.7, mute: false, userSound: true, instrument: 'piano', layer: null,
     kbdNotes: false, kbdBinds: null, wait: true, hands: 'both', mode: 'practice', playAlong: true, metronome: false, countIn: null, restartAfter: 0,
-    lookBars: 4, staffSize: 12, showAll: false, keyW: null, keysH: 120, lastSong: null,
+    handL: null, handR: null, lookBars: 4, staffSize: 12, showAll: false, keyW: null, keysH: 120, lastSong: null,
   };
   S.settings = Object.assign({}, S.defaults);
   S.loadSettings = function () {

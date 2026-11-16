@@ -160,6 +160,25 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   check('Record saves what was played as a song, hands split at middle C', fp.recView === 'waterfall' && fp.saved && fp.notes === '48L 64R 67R' && fp.first === 0, JSON.stringify(fp));
   check('Export video makes a video file and restores the view', fp.video.ok && fp.video.big && fp.video.frames && fp.restored, JSON.stringify(fp));
 
+  // Hand colours are set per hand and reach the waterfall; a correct key turns green while held; risky colours are warned about.
+  const hc = await page.evaluate(async () => {
+    const T = window.WapiroTest, W = window.Wapiro, E = W.engine, P = W.popovers, cs = () => getComputedStyle(document.documentElement), out = {};
+    await T.setHandColour('L', '#2EC4B6');
+    out.left = cs().getPropertyValue('--hand-left').trim(); out.rightKept = cs().getPropertyValue('--hand-right').trim() === cs().getPropertyValue('--primary').trim();
+    await T.setHandColour('R', '#A78BFA'); out.right = cs().getPropertyValue('--hand-right').trim(); out.accentKept = cs().getPropertyValue('--primary').trim() !== '#A78BFA';
+    await T.setHandColour('L', null); await T.setHandColour('R', null); out.cleared = cs().getPropertyValue('--hand-left').trim() !== '#2EC4B6';
+    out.warn = [!!P.colourWarning('#E02020', '#5B7BFA'), !!P.colourWarning('#30C040', '#5B7BFA'), !!P.colourWarning('#5B7BFA', '#5F80F8'), P.colourWarning('#2EC4B6', '#FE8B48') === null];
+    await T.setView('split'); await T.setOptions({ wait: true, hands: 'both', playAlong: false, loop: null }); await T.seekMeasure(1); await T.play();
+    let w = []; for (let k = 0; k < 300 && !w.length; k++) { w = E.waitingFor(); if (!w.length) await new Promise((r) => setTimeout(r, 20)); }
+    E.noteOn(w[0].midi, 90); out.green = !!document.querySelector('.key.is-ok[data-midi="' + w[0].midi + '"]');
+    E.noteOff(w[0].midi); out.greenOff = !document.querySelector('.key.is-ok');
+    await T.pause();
+    return out;
+  });
+  check('hand colours are set independently and leave the accent colour alone', hc.left === '#2EC4B6' && hc.rightKept && hc.right === '#A78BFA' && hc.accentKept && hc.cleared, JSON.stringify(hc));
+  check('colours near red, green or the other hand are warned about', hc.warn.every(Boolean), JSON.stringify(hc));
+  check('a correct key is green while it is held', hc.green && hc.greenOff, JSON.stringify(hc));
+
   // v1 bug: edits were lost unless Save was pressed; there was no undo.
   await T('openSong', r1.id);
   const n0 = (await T('songInfo', r1.id)).notes;

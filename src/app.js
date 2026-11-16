@@ -25,6 +25,14 @@
   if (mqDark) mqDark.addEventListener('change', () => { if (S.settings.appearance === 'auto') App.setAppearance('auto'); });
   if (mqContrast) mqContrast.addEventListener('change', () => { if (S.settings.appearance === 'auto') App.setAppearance('auto'); });
 
+  /** Hand colours: null keeps the appearance's own colour; a hex value replaces it in every appearance. */
+  App.applyHandColours = function () {
+    const st = S.settings, rs = document.documentElement.style, ok = (v) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
+    if (ok(st.handL)) rs.setProperty('--hand-left', st.handL); else rs.removeProperty('--hand-left');
+    if (ok(st.handR)) rs.setProperty('--hand-right', st.handR); else rs.removeProperty('--hand-right');
+    if (Sh && Sh.themeChanged && Sh.el.root) Sh.themeChanged();
+  };
+  App.setHandColour = function (hand, hex) { S.settings[hand === 'L' ? 'handL' : 'handR'] = hex || null; S.saveSettings(); App.applyHandColours(); };
   App.setView = function (v) {
     if (!['waterfall', 'sheet', 'split'].includes(v)) return;
     S.settings.view = v; S.saveSettings(); Sh.applyView();
@@ -149,6 +157,7 @@
     const st = S.settings;
     A.volume = st.volume; A.accVolume = st.accVolume; A.metroVolume = st.metroVolume == null ? 0.7 : st.metroVolume; A.mute = st.mute; A.instrument = st.instrument; A.layer = st.layer || null;
     document.documentElement.setAttribute('data-theme', App.resolveTheme(st.appearance));
+    App.applyHandColours();
     W.waterfall.setLookBars(st.lookBars);
     Sh.el.zoom.setValue(st.lookBars);
     Sh.applyView();
@@ -214,6 +223,7 @@
     deleteSong: (id) => App.deleteSong(id),
     setView: (v) => App.setView(v),
     setAppearance: (a) => App.setAppearance(a),
+    setHandColour: (hand, hex) => App.setHandColour(hand, hex),
     freeplay: (on) => (on ? W.free.enter() : W.free.leave()),
     record: (on) => (on ? W.free.startRecording() : W.free.stopRecording()),
     exportVideo: async (o) => { const r = await W.exporter.start(Object.assign({ noDownload: true }, o || {})); delete r.blob; return r; },

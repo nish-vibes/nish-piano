@@ -45,6 +45,12 @@ backup and restore with validation and merge summary, version 1 library conversi
 - Record (header button): enters Freeplay, keeps key presses, and on stop saves a song (120 bpm, 1/32 grid, starts at the first note, `source: 'recording'`) and opens it. The sustain pedal is not recorded.
 - Export video (More menu): plays the song once in listen mode and records a composite canvas (waterfall + painted keys + title) with the app's sound through `MediaRecorder`. Real time, at the current speed. MP4 (H.264 with AAC, else Opus) when the browser can, else WebM. The window must stay visible.
 
+## Hand colours and the green key
+- Practice menu: Active hands (Right only, Both, Left only) and Hand colours (pick the hand, then one of five glass swatches or Custom).
+- `settings.handL` / `handR`: null keeps the appearance's colour, a hex value sets `--hand-left` / `--hand-right` on the root. `--hand-right` defaults to `--primary`; the accent colour itself never changes.
+- Custom opens a colour wheel (hue around, strength outward, brightness 40 to 80 %, hex field, arrow keys). Red and green are dimmed; `popovers.colourWarning` warns near red, green or the other hand's colour but does not block.
+- A correct key is soft green (`.is-ok`) while it is held.
+
 ## Known limits
 - Real MIDI keyboard, audio and touch not tested on hardware.
 - Results bar strip uses hatched patterns plus numbers; colours are tokens with transparency.
