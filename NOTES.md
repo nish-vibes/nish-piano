@@ -94,3 +94,22 @@ Electron shell around the built HTML (`desktop/app/index.html`), Web MIDI allowe
   sharps or flats to the notes read as natural (and can be changed again).
 - **Tests.** `run_fix_ui.js` drives the review through the real UI; with an Audiveris path it stands in for the desktop
   bridge and runs the real reader. `run_scan_pipeline.js` runs prepare + Audiveris + parse on any scan.
+
+## Round 1 after user testing (Loop, sharpness, latency, recording capture, layout)
+
+- **Loop in Wait mode.** The clock held at the next onset even when it lay at or after the loop's end, so it waited for
+  the first note after the loop and then ran on. `waitOnset()` in the engine never returns an onset past the loop end;
+  hold, key hints, hit testing and scheduling all use it. Seeking outside an active loop moves the loop there (same
+  length) instead of leaving it behind (playing past it silently ignored it).
+- **Sharp rendering.** Canvas bitmaps were sized from rounded-down CSS sizes, so the browser stretched them (415 px drawn
+  into a 415.5 px slot, worse at 125 % scaling). `U.watchPixels`/`U.pixelSize` size each canvas to the device pixels it
+  covers (ResizeObserver device-pixel-content-box). Centring with translateX(-50%) put text on half pixels; replaced
+  by margin-inline: auto. Muted text is one neutral step stronger in both themes.
+- **Low latency** (Sound and devices). Rebuilds the AudioContext with latencyHint 0 and renderSizeHint 32 (Chromium 153+,
+  so the desktop shell is on Electron 45); your own notes bypass the compressor (look-ahead) through a soft clipper.
+  The menu shows the delay the browser reports. Both settings are requests: the system driver sets the real floor.
+- **Recording capture.** Uses the MIDI event's own timestamp, keeps velocity (now also used for playback) and the
+  sustain pedal; stopping a take keeps you in Freeplay. (Tempo, MIDI files and projects come in round 2.)
+- **Layout.** Timeline 60 px: bar numbers over an overview of the whole song's notes, with progress, loop band and
+  playhead. Record is right of Play (shortcut R). Active hands reads Left only · Both · Right only. No pixel values:
+  the width panel counts keys in view; the height handle has no number. A keyboard narrower than the window is centred.

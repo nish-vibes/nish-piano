@@ -15,6 +15,24 @@
 
   U.midiOf = (letter, alter, oct) => (oct + 1) * 12 + STEP_SEMI[letter] + alter;
   const ACC_TXT = { '-2': 'bb', '-1': 'b', '0': '', '1': '#', '2': 'x' };
+  /** The exact device-pixel size a canvas is shown at. Chromium snaps a canvas to whole device pixels and reports that size
+   * through ResizeObserver's device-pixel-content-box; a bitmap of exactly that size is shown 1:1, never stretched (a
+   * bitmap even half a pixel off was resampled and looked soft, at 100 % scale as well). */
+  U.watchPixels = function (canvas, onChange) {
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) { const d = e.devicePixelContentBoxSize && e.devicePixelContentBoxSize[0]; if (d) canvas._dp = { w: d.inlineSize, h: d.blockSize }; }
+      if (onChange) onChange();
+    });
+    try { ro.observe(canvas, { box: 'device-pixel-content-box' }); } catch (e) { ro.observe(canvas); }
+  };
+  U.pixelSize = function (canvas, rect) {
+    const dpr = window.devicePixelRatio || 1;
+    const fallback = { w: Math.max(1, Math.round(rect.width * dpr)), h: Math.max(1, Math.round(rect.height * dpr)) };
+    const dp = canvas._dp;
+    // use the observed size only while it still matches the layout (it arrives a frame after a resize)
+    return dp && Math.abs(dp.w - fallback.w) <= 1 && Math.abs(dp.h - fallback.h) <= 1 ? dp : fallback;
+  };
   U.spell = (letter, alter, oct) => letter + (ACC_TXT[alter] || '') + oct;
   U.parseSpelled = (s) => {
     const m = /^([A-G])(bb|b|#|x)?(-?\d+)$/.exec(s);

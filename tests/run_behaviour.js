@@ -146,10 +146,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     await T.freeplay(true); out.view = root.dataset.view; out.hidden = W.waterfall.free === true; await T.play(); out.noPlay = !E.playing;
     await T.freeplay(false); out.back = root.dataset.view === 'split' && E.song.id === song && !W.waterfall.free;
     await T.record(true); out.recView = root.dataset.view;
-    E.noteOn(48, 90); E.noteOn(64, 90); await sleep(260); E.noteOff(48); E.noteOff(64); await sleep(120); E.noteOn(67, 90); await sleep(200); E.noteOff(67);
+    E.noteOn(48, 40); E.noteOn(64, 110); E.pedal(true); await sleep(260); E.noteOff(48); E.noteOff(64); await sleep(120); E.noteOn(67, 90); await sleep(200); E.noteOff(67); E.pedal(false);
     const id = await T.record(false);
-    out.saved = (await T.listSongs()).length === before + 1 && E.song.id === id;
+    out.stillFree = W.free.active === true && root.dataset.view === 'waterfall';
+    out.saved = (await T.listSongs()).length === before + 1;
+    await T.freeplay(false); await T.openSong(id);
     out.notes = E.song.notes.map((n) => n.midi + n.hand).join(' '); out.first = E.song.notes[0].q;
+    out.vel = E.song.notes.map((n) => n.vel).join(' '); out.pedal = (E.song.pedal || []).map((p) => (p.down ? 'down' : 'up')).join(' ');
     const v = await T.exportVideo({ maxSeconds: 2 });
     out.video = { ok: v.ok, type: v.type, big: v.size > 20000, frames: v.frames > 20 };
     out.restored = root.dataset.view === 'split' && !E.playing;
@@ -157,8 +160,30 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     return out;
   });
   check('Freeplay shows the waterfall alone, hides the song, and brings both back', fp.view === 'waterfall' && fp.hidden && fp.noPlay && fp.back, JSON.stringify(fp));
-  check('Record saves what was played as a song, hands split at middle C', fp.recView === 'waterfall' && fp.saved && fp.notes === '48L 64R 67R' && fp.first === 0, JSON.stringify(fp));
+  check('Record saves what was played as a song, hands split at middle C, and keeps you in Freeplay', fp.recView === 'waterfall' && fp.saved && fp.stillFree && fp.notes === '48L 64R 67R' && fp.first === 0, JSON.stringify(fp));
+  check('Record keeps how hard each key was struck and the sustain pedal', fp.vel === '40 110 90' && fp.pedal === 'down up', JSON.stringify({ vel: fp.vel, pedal: fp.pedal }));
   check('Export video makes a video file and restores the view', fp.video.ok && fp.video.big && fp.video.frames && fp.restored, JSON.stringify(fp));
+
+  // Loop: in Wait mode the loop wraps at its end (it used to wait for the next bar's first note and run on);
+  // seeking outside an active loop moves the loop there, keeping its length.
+  const lp = await page.evaluate(async () => {
+    const T = window.WapiroTest, E = window.Wapiro.engine, sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const songs = await T.listSongs(); await T.openSong(songs[0].id);
+    await T.setOptions({ wait: true, hands: 'both', playAlong: false, loop: { from: 1, to: 2 } }); await T.seekMeasure(1); await T.play();
+    const bars = [];
+    for (let k = 0; k < 400; k++) {
+      for (const w of E.waitingFor()) { E.noteOn(w.midi, 90); E.noteOff(w.midi); }
+      bars.push(E.curMeasure()); await sleep(25);
+      if (bars.filter((b, i) => i && b === 1 && bars[i - 1] === 2).length >= 1 && k > 40) break;
+    }
+    await T.pause();
+    const out = { max: Math.max(...bars), wrapped: bars.some((b, i) => i && b === 1 && bars[i - 1] === 2) };
+    E.seekQ(E.get().measures[5].q); out.moved = JSON.stringify(E.opts.loop);
+    await T.setOptions({ loop: null });
+    return out;
+  });
+  check('Loop wraps in Wait mode and never runs past its end', lp.wrapped && lp.max === 2, JSON.stringify(lp));
+  check('seeking outside the loop moves the loop there, same length', lp.moved === '{"from":6,"to":7}', JSON.stringify(lp));
 
   // Hand colours are set per hand and reach the waterfall; a correct key turns green while held; risky colours are warned about.
   const hc = await page.evaluate(async () => {

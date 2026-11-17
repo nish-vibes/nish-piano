@@ -37,20 +37,22 @@
     if (F.recording) return;
     F.enter();
     if (!F.active) return;
-    rec = { t0: null, notes: [], open: new Map() };
+    rec = { t0: null, notes: [], open: new Map(), pedal: [] };
     F.recording = true;
     fire();
   };
+  // exact times (the MIDI event's own timestamp), how hard each key was struck, and the sustain pedal
   E.on('key', (e) => {
     if (!F.recording) return;
-    const t = performance.now();
-    if (e.down) { if (rec.t0 == null) rec.t0 = t; rec.open.set(e.midi, t); }
-    else if (rec.open.has(e.midi)) { rec.notes.push({ midi: e.midi, on: rec.open.get(e.midi), off: t }); rec.open.delete(e.midi); }
+    const t = e.t || performance.now();
+    if (e.down) { if (rec.t0 == null) rec.t0 = t; rec.open.set(e.midi, { t, vel: e.vel || 90 }); }
+    else if (rec.open.has(e.midi)) { const o = rec.open.get(e.midi); rec.notes.push({ midi: e.midi, on: o.t, off: t, vel: o.vel }); rec.open.delete(e.midi); }
   });
+  E.on('pedal', (e) => { if (F.recording && rec.t0 != null) rec.pedal.push({ t: e.t, down: e.down }); });
   /** Turn the recorded key presses into a song: 120 beats a minute, times kept to a 1/32 note, hands split at middle C. */
   F.buildSong = function (notes, t0, title) {
     const BPM = 120, grid = 0.125, toQ = (ms) => Math.round(((ms - t0) / 1000) * (BPM / 60) / grid) * grid;
-    const out = notes.map((n) => { const q = Math.max(0, toQ(n.on)); return { q: U.round6(q), durQ: U.round6(Math.max(grid, toQ(n.off) - q)), midi: n.midi, hand: WF.handOf(n.midi) }; });
+    const out = notes.map((n) => { const q = Math.max(0, toQ(n.on)); return { q: U.round6(q), durQ: U.round6(Math.max(grid, toQ(n.off) - q)), midi: n.midi, hand: WF.handOf(n.midi), vel: n.vel || 90 }; });
     const fifths = U.estimateKey(out);
     for (const n of out) { const sp = U.spellInKey(n.midi, fifths); n.spelled = U.spell(sp.letter, sp.alter, sp.oct); }
     U.sortNotes(out);
@@ -62,17 +64,18 @@
   F.stopRecording = async function () {
     if (!F.recording) return null;
     const t = performance.now(), r = rec;
-    for (const [midi, on] of r.open) r.notes.push({ midi, on, off: t });
+    for (const [midi, o] of r.open) r.notes.push({ midi, on: o.t, off: t, vel: o.vel });
     F.recording = false; rec = null;
     if (!r.notes.length) { fire(); UI.toast('Nothing was recorded. Press Record and play some notes.'); return null; }
     const d = new Date(), p2 = (x) => String(x).padStart(2, '0');
     const title = 'Recording ' + d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + '.' + p2(d.getMinutes());
     let song;
     try { song = F.buildSong(r.notes, r.t0, title); } catch (e) { fire(); UI.toast('Could not save the recording: ' + e.message, 'error'); return null; }
+    song.pedal = r.pedal.map((p) => ({ sec: Math.max(0, (p.t - r.t0) / 1000), down: p.down }));
     const row = await S.add(song);
-    F.leave();
-    W.app.openSong(row.id);
-    UI.toast('Saved "' + title + '" to your library. Rename it there, or export it as a video from the More menu.');
+    // keep playing: stopping a take no longer leaves Freeplay
+    fire();
+    UI.toast('Saved "' + title + '". Open it from your library to practise it or export a video.');
     return row.id;
   };
   F.toggleRecording = () => (F.recording ? F.stopRecording() : F.startRecording());

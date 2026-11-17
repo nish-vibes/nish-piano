@@ -45,7 +45,7 @@
     track.append(band, gFrom, gTo);
     const ends = h('div', { class: 'loop-ends' }, h('span', { text: '1' }), h('span', { class: 'loop-last' }));
     const loopSec = h('div', { class: 'pop-section loop-sec' }, h('div', { class: 'loop-head' }, loopBtn, loopSum), h('div', { class: 'loop-fields' }, fromF, toF), h('div', { class: 'loop-range' }, track, ends));
-    const hands = UI.seg('Active hands', [['R', 'Right only'], ['both', 'Both'], ['L', 'Left only']], E.opts.hands, (v) => E.setOptions({ hands: v }));
+    const hands = UI.seg('Active hands', [['L', 'Left only'], ['both', 'Both'], ['R', 'Right only']], E.opts.hands, (v) => E.setOptions({ hands: v }));
     hands.classList.add('seg-fill');
     const box = h('div', { class: 'pop-body' }, section(null, h('div', { class: 'row-gap' }, h('div', { style: 'flex:1 1 0;min-width:0' }, speed), reset)), loopSec, section('Active hands', hands), P.handColours());
     live = () => {
@@ -101,6 +101,16 @@
     };
     drawDevs();
     I.onChange(drawDevs);
+    // Low latency: smallest sound buffer; the delay the browser reports is shown so the effect can be seen
+    const latText = () => { const l = A.latency && A.latency(); return (l ? 'Key to sound: about ' + l.ms + ' ms. ' : '') + 'Uses more processor power: if you hear clicks, turn it off.'; };
+    const low = UI.switchBtn('Low latency', !!st.lowLatency, (v) => {
+      st.lowLatency = v; low.setValue(v); S.saveSettings();
+      if (E.playing) E.pause();
+      A.setLowLatency(v); A.ensure();
+      low.querySelector('.ds-caption').textContent = latText();
+      setTimeout(() => { if (document.contains(low)) low.querySelector('.ds-caption').textContent = latText(); }, 400);
+    }, latText());
+    low.classList.add('low-lat');
     const kb = UI.toggleBtn('keyboard', 'Keystroke input', st.kbdNotes, (v) => { st.kbdNotes = v; kb.setValue(v); if (!v) I.releaseAll(); S.saveSettings(); });
     kb.classList.add('self-start');
     // the keystroke layout, drawn like a computer keyboard: white-key letters light, black-key letters dark, octave keys dashed
@@ -117,7 +127,7 @@
     const box = h('div', { class: 'pop-body pop-sound' },
       sec('Volume', row(along, vol), row(metro, mvol)), sep(),
       sec('Playback instruments', h('div', { class: 'pop-section' }, h('span', { class: 'ds-label', text: 'Main' }), main), h('div', { class: 'pop-section' }, h('span', { class: 'ds-label', text: 'Layer' }), layer)), sep(),
-      sec('Devices', devs, kb, layout(), rebind));
+      sec('Devices', devs, low, kb, layout(), rebind));
     const sync = () => {
       along.setValue(E.opts.playAlong); metro.setValue(E.opts.metronome);
       vol.querySelector('input').disabled = !E.opts.playAlong; mvol.querySelector('input').disabled = !E.opts.metronome;
@@ -299,7 +309,7 @@
   };
 
   P.shortcuts = function () {
-    const rows = [['Space', 'Play or pause'], ['Home', 'Back to the start'], ['Left, Right', 'Previous or next bar'], ['L', 'Loop on or off'], ['F', 'Freeplay on or off'], ['W', 'Wait for me on or off'],
+    const rows = [['Space', 'Play or pause'], ['Home', 'Back to the start'], ['Left, Right', 'Previous or next bar'], ['L', 'Loop on or off'], ['F', 'Freeplay on or off'], ['R', 'Record on or off'], ['W', 'Wait for me on or off'],
       ['P', 'Play along on or off'], ['H', 'Change hands (both, right, left)'], ['V', 'Next view'], ['M', 'Metronome on or off'], ['Shift + wheel', 'Scroll the keyboard sideways'], ['+, -', 'Faster or slower'], ['Shift', 'Sustain pedal (hold)'], ['?', 'This list'], ['Esc', 'Close'],
       ['Ctrl+Z, Ctrl+Y', 'Undo or redo (Correct notes)'], ['Delete', 'Delete the selected note (Correct notes)'], ['Arrows', 'Move the selected note (Correct notes)'], ['R, L', 'Set the hand of the selected note (Correct notes)']];
     const body = h('dl', { class: 'kbd-list' }, rows.map(([k, t]) => [h('dt', null, k.split(', ').map((x) => h('kbd', { class: 'ds-kbd', text: x }))), h('dd', { text: t })]));

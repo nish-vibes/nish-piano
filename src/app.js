@@ -155,7 +155,7 @@
   }
   function applySettings() {
     const st = S.settings;
-    A.volume = st.volume; A.accVolume = st.accVolume; A.metroVolume = st.metroVolume == null ? 0.7 : st.metroVolume; A.mute = st.mute; A.instrument = st.instrument; A.layer = st.layer || null;
+    A.volume = st.volume; A.accVolume = st.accVolume; A.metroVolume = st.metroVolume == null ? 0.7 : st.metroVolume; A.mute = st.mute; A.instrument = st.instrument; A.layer = st.layer || null; if (A.setLowLatency) A.setLowLatency(!!st.lowLatency);
     document.documentElement.setAttribute('data-theme', App.resolveTheme(st.appearance));
     App.applyHandColours();
     W.waterfall.setLookBars(st.lookBars);

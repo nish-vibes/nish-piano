@@ -21,7 +21,7 @@
   E.emit = emit;
 
   // song-derived arrays
-  let n = 0, nq, nd, nm, nh, status, notes, measures, endQ = 0;
+  let n = 0, nq, nd, nm, nh, nv, status, notes, measures, endQ = 0;
   let segQ = [], segSec = [], segBpm = [];
   let pidx = new Int32Array(0), ptime = new Float64Array(0), onsets = [], oPtr = 0, expI = 0;
   let barWrong = new Int32Array(0);
@@ -82,6 +82,14 @@
   }
   function resolvedOnset(o) { for (let k = o.a; k < o.b; k++) if (status[pidx[k]] === 0) return false; return true; }
   function advanceOPtr() { while (oPtr < onsets.length && resolvedOnset(onsets[oPtr])) oPtr++; }
+  /** The next onset Wait mode holds at, or null. With a loop on, notes at or after the loop's end are never waited for:
+   * the loop wraps first (otherwise the clock stopped at the next bar's first note and the loop was skipped). */
+  function waitOnset() {
+    advanceOPtr();
+    if (oPtr >= onsets.length) return null;
+    const l = loopRange();
+    return l && onsets[oPtr].q >= l.q1 - 1e-6 ? null : onsets[oPtr];
+  }
   function resetPointers(q) {
     oPtr = 0;
     let lo = 0, hi = onsets.length;
@@ -119,9 +127,9 @@
     const prevQ = keepPosition ? E.q : 0;
     E.pause(true);
     E.song = song; notes = song.notes; measures = song.measures; n = notes.length;
-    nq = new Float64Array(n); nd = new Float64Array(n); nm = new Uint8Array(n); nh = new Uint8Array(n);
+    nq = new Float64Array(n); nd = new Float64Array(n); nm = new Uint8Array(n); nh = new Uint8Array(n); nv = new Uint8Array(n);
     maxDur = 0;
-    for (let i = 0; i < n; i++) { nq[i] = notes[i].q; nd[i] = notes[i].durQ; nm[i] = notes[i].midi; nh[i] = notes[i].hand === 'L' ? 1 : 0; if (nd[i] > maxDur) maxDur = nd[i]; }
+    for (let i = 0; i < n; i++) { nq[i] = notes[i].q; nd[i] = notes[i].durQ; nm[i] = notes[i].midi; nh[i] = notes[i].hand === 'L' ? 1 : 0; nv[i] = notes[i].vel > 0 ? Math.min(127, notes[i].vel) : 78; if (nd[i] > maxDur) maxDur = nd[i]; }
     status = new Uint8Array(n);
     endQ = measures.length ? measures[measures.length - 1].q + measures[measures.length - 1].lenQ : 0;
     { const ts = song.timeSigs[0] || { num: 4, den: 4 }; E.lead = 2 * ts.num * 4 / ts.den; }
@@ -230,6 +238,13 @@
   E.seekQ = function (q, keepRun) {
     if (!E.song) return;
     q = Math.max(-E.lead, Math.min(endQ, q));
+    const l = loopRange();
+    if (l && (q < l.q0 - 1e-4 || q >= l.q1 - 1e-4) && q >= 0) {
+      // a loop is on and the position goes outside it: move the loop there, keeping its length
+      const len = l.to - l.from, from = Math.max(1, Math.min(measures.length - len, E.measureIndexAt(q) + 1));
+      E.opts.loop = { from, to: from + len };
+      emit('change');
+    }
     const wasPlaying = E.playing;
     if (A.cancelScheduled) A.cancelScheduled();
     startRun(q, true);
@@ -253,7 +268,7 @@
     if (!E.playing || E.phase !== 'run' || E.holding) return E.q;
     const now = performance.now();
     let s = E.sec + Math.min(0.05, (now - lastNow) / 1000) * E.opts.speed;
-    if (practising() && E.opts.wait) { advanceOPtr(); if (oPtr < onsets.length) s = Math.min(s, qToSec(onsets[oPtr].q)); }
+    if (practising() && E.opts.wait) { const o = waitOnset(); if (o) s = Math.min(s, qToSec(o.q)); }
     return Math.min(endQ, secToQ(s));
   };
   const winSec = (q) => Math.max(0.1 * E.opts.speed, 0.12 * 60 / E.bpmAt(q));
@@ -267,10 +282,10 @@
     let ns = E.sec + dt * E.opts.speed;
     const prac = practising();
     if (prac && E.opts.wait) {
-      advanceOPtr();
-      if (oPtr < onsets.length) {
-        const os = qToSec(onsets[oPtr].q);
-        if (ns >= os - 1e-9 && E.sec <= os + 1e-9) { ns = os; E.holding = true; E.holdQ = onsets[oPtr].q; }
+      const o = waitOnset();
+      if (o) {
+        const os = qToSec(o.q);
+        if (ns >= os - 1e-9 && E.sec <= os + 1e-9) { ns = os; E.holding = true; E.holdQ = o.q; }
         else E.holding = false;
       } else E.holding = false;
     } else E.holding = false;
@@ -371,7 +386,7 @@
     const spd = E.opts.speed;
     let horizonSec = E.sec + LOOKAHEAD * spd;
     let horizonQ = secToQ(horizonSec);
-    if (practising() && E.opts.wait) { advanceOPtr(); if (oPtr < onsets.length) horizonQ = Math.min(horizonQ, onsets[oPtr].q - 1e-5); }
+    if (practising() && E.opts.wait) { const o = waitOnset(); if (o) horizonQ = Math.min(horizonQ, o.q - 1e-5); }
     const l = loopRange();
     if (l) horizonQ = Math.min(horizonQ, l.q1 - 1e-5);
     horizonQ = Math.min(horizonQ, endQ);
@@ -382,7 +397,7 @@
       const i = schedI++;
       if (!auto) continue;
       const ts = qToSec(nq[i]);
-      A.schedule(nm[i], 78, t0 + Math.max(0, (ts - E.sec) / spd), (qToSec(nq[i] + nd[i]) - ts) / spd);
+      A.schedule(nm[i], nv[i], t0 + Math.max(0, (ts - E.sec) / spd), (qToSec(nq[i] + nd[i]) - ts) / spd);
     }
     const leadBar = E.lead / 2;
     while (metroQ <= horizonQ && metroQ < endQ) {
@@ -402,18 +417,18 @@
 
   // ---------------------------------------------------------------- input
   /** A key went down (MIDI keyboard, screen keys, computer keys or a test hook). */
-  E.noteOn = function (midi, vel, fromMidi) {
+  E.noteOn = function (midi, vel, fromMidi, t) {
     midi = Math.round(midi);
     if (midi < 21 || midi > 108) return;
     E.activeKeys.add(midi);
     // a MIDI piano with its own speakers already sounds: with 'Mute' on, the app stays silent for keys that come from it
     if (W.storage.settings.userSound !== false && !(fromMidi && W.storage.settings.midiMute) && A.noteOn) A.noteOn(midi, vel || 90);
-    emit('key', { midi, down: true });
+    // t: when the key was struck (a MIDI event's own timestamp, on the performance.now() clock), so recordings keep exact timing
+    emit('key', { midi, down: true, vel: vel || 90, t: t || performance.now() });
     if (!E.song || !E.playing || E.phase !== 'run' || !practising()) { emit('free', { midi, down: true }); return; } // not being scored: free playing
     const hitNote = (i) => { status[i] = 1; E.stats.hit++; emit('hit', { i, midi, hand: nh[i] ? 'L' : 'R' }); };
     if (E.opts.wait) {
-      advanceOPtr();
-      const o = oPtr < onsets.length ? onsets[oPtr] : null;
+      const o = waitOnset();
       let ok = false;
       if (o) {
         const dtReal = (qToSec(o.q) - E.sec) / E.opts.speed;
@@ -443,31 +458,29 @@
     barWrong[mi]++;
     barMistake(mi);
   };
-  E.noteOff = function (midi) {
+  E.noteOff = function (midi, t) {
     midi = Math.round(midi);
     E.activeKeys.delete(midi);
     if (A.noteOff) A.noteOff(midi);
-    emit('key', { midi, down: false });
+    emit('key', { midi, down: false, t: t || performance.now() });
     emit('free', { midi, down: false });
   };
-  E.pedal = function (down) { if (A.setPedal) A.setPedal(down); };
+  E.pedal = function (down, t) { if (A.setPedal) A.setPedal(down); emit('pedal', { down: !!down, t: t || performance.now() }); };
 
   // ---------------------------------------------------------------- queries
   E.noteStatus = (i) => status[i];
   E.waitingFor = function () {
     if (!E.playing || !E.holding || !practising() || !E.opts.wait) return [];
-    advanceOPtr();
-    if (oPtr >= onsets.length) return [];
-    const o = onsets[oPtr], out = [];
+    const o = waitOnset(), out = [];
+    if (!o) return [];
     for (let k = o.a; k < o.b; k++) { const i = pidx[k]; if (status[i] === 0) out.push({ q: nq[i], midi: nm[i], hand: nh[i] ? 'L' : 'R' }); }
     return out;
   };
   /** Upcoming pending notes of the practised hand(s), for key hints. */
   E.nextExpected = function () {
     if (!E.song || !practising()) return [];
-    advanceOPtr();
-    if (oPtr >= onsets.length) return [];
-    const o = onsets[oPtr], out = [];
+    const o = waitOnset(), out = [];
+    if (!o) return [];
     for (let k = o.a; k < o.b; k++) { const i = pidx[k]; if (status[i] === 0) out.push(nm[i]); }
     return out;
   };

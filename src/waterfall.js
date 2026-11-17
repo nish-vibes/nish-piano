@@ -3,7 +3,7 @@
    Canvas, redrawn only when something changed or an effect is running. Every colour comes from the design tokens. */
 (function () {
   'use strict';
-  const W = window.Wapiro, E = W.engine, G = W.geom;
+  const W = window.Wapiro, E = W.engine, G = W.geom, U = W.util;
   const WF = (W.waterfall = { canvas: null, ctx: null, w: 0, h: 0, dirty: true, colors: null, lookBars: 2 });
   const cache = {};
   function cssVar(n) { if (!(n in cache)) cache[n] = getComputedStyle(document.documentElement).getPropertyValue(n).trim(); return cache[n]; }
@@ -11,13 +11,15 @@
   const grads = new Map();
   WF.themeChanged = function () { for (const k in cache) delete cache[k]; pal = null; layers = null; sprites = {}; grads.clear(); WF.dirty = true; };
 
-  WF.mount = function (canvas) { WF.canvas = canvas; WF.ctx = canvas.getContext('2d'); };
+  WF.mount = function (canvas) { WF.canvas = canvas; WF.ctx = canvas.getContext('2d'); U.watchPixels(canvas, () => { const p = U.pixelSize(canvas, canvas.getBoundingClientRect()); if (p.w !== canvas.width || p.h !== canvas.height) WF.resize(); }); };
   WF.resize = function () {
     const c = WF.canvas, r = c.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    WF.w = Math.max(1, Math.floor(r.width)); WF.h = Math.max(1, Math.floor(r.height));
-    c.width = Math.floor(WF.w * dpr); c.height = Math.floor(WF.h * dpr);
-    WF.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // the bitmap matches the device pixels the canvas covers exactly, so it is shown 1:1 (see U.pixelSize)
+    const px = U.pixelSize(c, r);
+    WF.w = Math.max(1, r.width); WF.h = Math.max(1, r.height);
+    if (c.width !== px.w) c.width = px.w;
+    if (c.height !== px.h) c.height = px.h;
+    WF.ctx.setTransform(px.w / WF.w, 0, 0, px.h / WF.h, 0, 0);
     layers = null;
     WF.dirty = true;
   };

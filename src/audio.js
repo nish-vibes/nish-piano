@@ -3,7 +3,8 @@
   'use strict';
   const W = window.Wapiro;
   const A = (W.audio = { available: !!(window.AudioContext || window.webkitAudioContext), instrument: 'piano', layer: null, volume: 0.7, accVolume: 0.7, metroVolume: 0.7, mute: false, ctx: null });
-  let master, userBus, accBus, metroBus, comp, noise;
+  let master, userBus, accBus, metroBus, comp, noise, direct, clip;
+  A.lowLatency = false;
   const active = new Map();   // midi -> voice (user notes)
   const sustained = new Set();
   const scheduled = new Set(); // accompaniment voices
@@ -12,15 +13,24 @@
   A.ensure = function () {
     if (!A.available) return false;
     if (!A.ctx) {
-      try {
-        const C = window.AudioContext || window.webkitAudioContext;
-        A.ctx = new C({ latencyHint: 'interactive' });
-      } catch (e) { A.available = false; return false; }
+      const C = window.AudioContext || window.webkitAudioContext;
+      // Low latency: the smallest output buffer the system allows (latencyHint 0) and, where the browser supports it
+      // (Chromium 153 and later), a 32-frame render quantum instead of 128. Both are requests; the browser may round up.
+      const opts = A.lowLatency ? { latencyHint: 0, renderSizeHint: 32 } : { latencyHint: 'interactive' };
+      try { A.ctx = new C(opts); } catch (e) { try { A.ctx = new C({ latencyHint: 'interactive' }); } catch (e2) { A.available = false; return false; } }
       const c = A.ctx;
       master = c.createGain(); userBus = c.createGain(); accBus = c.createGain(); metroBus = c.createGain(); metroBus.connect(c.destination);
       comp = c.createDynamicsCompressor();
       comp.threshold.value = -14; comp.knee.value = 20; comp.ratio.value = 5; comp.attack.value = 0.004; comp.release.value = 0.2;
-      userBus.connect(master); accBus.connect(master); master.connect(comp); comp.connect(c.destination);
+      accBus.connect(master); master.connect(comp); comp.connect(c.destination);
+      if (A.lowLatency) {
+        // your own notes skip the compressor (it looks ahead and delays the sound by a few milliseconds);
+        // a soft clipper with no look-ahead keeps loud chords from distorting
+        direct = c.createGain(); clip = c.createWaveShaper();
+        const k = new Float32Array(1025); for (let i = 0; i < k.length; i++) { const x = (i / 512) - 1; k[i] = Math.tanh(1.6 * x) / Math.tanh(1.6); }
+        clip.curve = k; clip.oversample = 'none';
+        userBus.connect(direct); direct.connect(clip); clip.connect(c.destination);
+      } else { direct = clip = null; userBus.connect(master); }
       const len = Math.floor(c.sampleRate * 0.05);
       noise = c.createBuffer(1, len, c.sampleRate);
       const d = noise.getChannelData(0);
@@ -32,11 +42,29 @@
   };
   /** A media stream of what the app plays (without the metronome), for video export. */
   let tap = null;
-  A.tap = function () { if (!A.ensure()) return null; if (!tap) { tap = A.ctx.createMediaStreamDestination(); comp.connect(tap); } return tap.stream; };
+  A.tap = function () { if (!A.ensure()) return null; if (!tap) { tap = A.ctx.createMediaStreamDestination(); comp.connect(tap); if (clip) clip.connect(tap); } return tap.stream; };
+  /** Switch low-latency mode. The buffer size is fixed when the audio context is made, so the context is rebuilt. */
+  A.setLowLatency = function (on) {
+    on = !!on;
+    if (on === A.lowLatency && A.ctx) return;
+    A.lowLatency = on;
+    if (!A.ctx) return;
+    const old = A.ctx;
+    A.ctx = null; tap = null; active.clear(); sustained.clear(); scheduled.clear();
+    try { old.close(); } catch (e) { /* already closed */ }
+    A.ensure();
+  };
+  /** Key-to-sound delay the browser reports for the current context, in ms, and the render quantum in use. */
+  A.latency = function () {
+    const c = A.ctx;
+    if (!c) return null;
+    return { ms: Math.round(((c.baseLatency || 0) + (c.outputLatency || 0)) * 1000), quantum: c.renderQuantumSize || 128, rate: c.sampleRate };
+  };
   A.applyVolumes = function () {
     if (!A.ctx) return;
     const t = A.ctx.currentTime;
     master.gain.setTargetAtTime(A.mute ? 0 : A.volume * 0.6, t, 0.01);
+    if (direct) direct.gain.setTargetAtTime(A.mute ? 0 : A.volume * 0.6, t, 0.01);
     accBus.gain.setTargetAtTime(A.accVolume, t, 0.01);
     metroBus.gain.setTargetAtTime(A.mute ? 0 : A.metroVolume, t, 0.01);
   };

@@ -21,8 +21,9 @@
     el.next = iconBtn('next', 'Next bar', () => E.nextBar());
     // Freeplay and Record
     el.bFree = h('button', { class: 'ds-btn ds-btn--ghost tip tb-toggle free-btn', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Freeplay: play without a song (F)', 'data-tip': 'Freeplay: play without a song (F)', onclick: () => W.free.toggle() }, UI.icon('sparkle'), h('span', { text: 'Freeplay' }));
-    el.recTime = h('span', { class: 'rec-time', text: 'Record' });
-    el.bRec = h('button', { class: 'ds-btn ds-btn--ghost tip rec-btn', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Record what you play', 'data-tip': 'Record what you play', onclick: () => W.free.toggleRecording() }, h('span', { class: 'rec-dot', 'aria-hidden': 'true' }), el.recTime);
+    // Record sits right of Play (transport order, as in a DAW); while recording it shows the time taken
+    el.recTime = h('span', { class: 'rec-time', text: '' });
+    el.bRec = h('button', { class: 'ds-btn tip rec-btn', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Record (R)', 'data-tip': 'Record (R)', onclick: () => W.free.toggleRecording() }, h('span', { class: 'rec-dot', 'aria-hidden': 'true' }), el.recTime);
     el.play = h('button', { class: 'ds-btn ds-btn--primary play-btn', type: 'button', 'aria-label': 'Play', onclick: () => W.app.togglePlay() }, UI.icon('play'));
     el.views = h('div', { class: 'ds-tabs view-switch', role: 'group', 'aria-label': 'View' }, VIEWS.map(([v, t]) => h('button', { class: 'ds-tab', type: 'button', 'aria-pressed': 'false', 'data-view': v, onclick: () => W.app.setView(v) }, t)));
     const toggle = (name, label, fn) => h('button', { class: 'ds-btn ds-btn--icon ds-btn--ghost tip tb-toggle', type: 'button', 'aria-label': label, 'data-tip': label, 'aria-pressed': 'false', onclick: fn }, UI.icon(name));
@@ -34,8 +35,8 @@
     el.bSound = iconBtn('piano', 'Sound and devices', () => W.popovers.sound(el.bSound), { 'aria-haspopup': 'dialog', 'aria-expanded': 'false' });
     el.bMore = iconBtn('more', 'More', () => W.popovers.more(el.bMore), { 'aria-haspopup': 'menu', 'aria-expanded': 'false' });
     el.topbar = h('header', { class: 'topbar' },
-      h('div', { class: 'tb-left chrome' }, el.titleBtn, h('span', { class: 'tb-group' }, el.bFree, el.bRec)),
-      h('div', { class: 'tb-center' }, h('span', { class: 'chrome tb-group' }, el.restart, el.prev, el.bLoop), el.play, h('span', { class: 'chrome tb-group' }, el.next)),
+      h('div', { class: 'tb-left chrome' }, el.titleBtn, h('span', { class: 'tb-group' }, el.bFree)),
+      h('div', { class: 'tb-center' }, h('span', { class: 'chrome tb-group' }, el.restart, el.prev, el.next, el.bLoop), el.play, el.bRec),
       h('div', { class: 'tb-right chrome' }, h('span', { class: 'tb-group tb-toggles', role: 'group', 'aria-label': 'Practice' }, el.bWait), h('span', { class: 'tb-group tb-toggles', role: 'group', 'aria-label': 'Sound' }, el.bAlong, el.bMetro), el.views, el.bPractice, el.bSound, el.bMore));
     el.timeline = h('div', { class: 'timeline chrome' });
     // stage
@@ -54,7 +55,7 @@
     el.keys = h('div', { class: 'keys', role: 'group', 'aria-label': 'Piano keyboard' });
     el.keysScroll = h('div', { class: 'keys-scroll' }, el.keys);
     // Keyboard size: a grip on the border above the keys sets the height; a small button opens the width panel
-    el.kHeight = h('div', { class: 'keys-hgrip ds-reveal', role: 'separator', 'aria-orientation': 'horizontal', 'aria-label': 'Keyboard height: drag to change', title: 'Drag to change the keyboard height', tabindex: '0' }, h('span', { class: 'hgrip-knob', 'aria-hidden': 'true' }, h('span')), h('span', { class: 'hgrip-val' }));
+    el.kHeight = h('div', { class: 'keys-hgrip ds-reveal', role: 'separator', 'aria-orientation': 'horizontal', 'aria-label': 'Keyboard height: drag to change', title: 'Drag to change the keyboard height', tabindex: '0' }, h('span', { class: 'hgrip-knob', 'aria-hidden': 'true' }, h('span')));
     el.kWidth = UI.miniSlider('Keyboard width', 10, 60, 1, S.settings.keyW || 24, (v) => Sh.setKeyWidth(v));
     el.kWidth.querySelector('span').remove(); el.kWidth.classList.add('grow');
     el.kWidthVal = h('span', { class: 'kw-val' });
@@ -140,14 +141,23 @@
     const prevCenter = (el.keysScroll.scrollLeft + view / 2) / Math.max(1, G.width);
     G.whiteWFixed = S.settings.keyW ? S.settings.keyW : Math.max(fitW, view / 52);
     K.layout(21, 108);
+    // a keyboard narrower than the window sits in the middle; the waterfall and editor follow through G.scrollX
+    Sh.keyOff = Math.max(0, Math.floor((view - G.width) / 2));
+    el.keys.style.marginLeft = Sh.keyOff ? Sh.keyOff + 'px' : '';
     if (keepCenter) el.keysScroll.scrollLeft = prevCenter * G.width - view / 2;
     else el.keysScroll.scrollLeft = Math.max(0, G.keyRect(lo).x - (S.settings.keyW ? 0 : (view - (G.keyRect(hi).x + G.keyRect(hi).w - G.keyRect(lo).x)) / 2));
-    G.scrollX = el.keysScroll.scrollLeft;
-    el.kWidth.setValue(Math.round(G.whiteWFixed)); el.kWidthVal.textContent = Math.round(G.whiteWFixed) + ' px per key';
+    G.scrollX = el.keysScroll.scrollLeft - Sh.keyOff;
+    el.kWidth.setValue(Math.round(G.whiteWFixed)); Sh.showKeyCount();
     WF.dirty = true; mark();
   };
+  /** The width readout counts the keys in view (pixels mean nothing to a pianist). */
+  Sh.showKeyCount = function () {
+    const G = W.geom, view = el.keysScroll.clientWidth || 800, x0 = G.scrollX, x1 = x0 + view;
+    let n = 0; for (let m = 21; m <= 108; m++) { const r = G.keyRect(m); if (r.x >= x0 - 1 && r.x + r.w <= x1 + 1) n++; }
+    el.kWidthVal.textContent = n >= 88 ? 'All 88 keys' : n + ' keys in view';
+  };
   Sh.setKeyWidth = function (v) { S.settings.keyW = v == null ? null : Math.max(10, Math.min(60, v)); S.saveSettings(); Sh.relayoutKeyboard(v != null); };
-  Sh.setKeysHeight = function (v) { S.settings.keysH = Math.max(70, Math.min(260, v)); el.root.style.setProperty('--kbd-h', S.settings.keysH + 'px'); el.kHeight.querySelector('.hgrip-val').textContent = S.settings.keysH + ' px'; el.kHeight.setAttribute('aria-valuenow', String(S.settings.keysH)); S.saveSettings(); };
+  Sh.setKeysHeight = function (v) { S.settings.keysH = Math.max(70, Math.min(260, v)); el.root.style.setProperty('--kbd-h', S.settings.keysH + 'px'); el.kHeight.setAttribute('aria-valuenow', String(S.settings.keysH)); el.kHeight.setAttribute('aria-valuetext', S.settings.keysH < 100 ? 'Short' : S.settings.keysH < 170 ? 'Medium' : 'Tall'); S.saveSettings(); };
   Sh.toggleWidthPanel = function (force) {
     const open = force == null ? el.kPanel.hidden : force;
     el.kPanel.hidden = !open; el.kBtn.setAttribute('aria-expanded', String(open)); el.keysWrap.classList.toggle('is-revealed', open);
@@ -168,7 +178,7 @@
   };
   Sh.bindKeyScroll = function () {
     const G = W.geom;
-    el.keysScroll.addEventListener('scroll', () => { G.scrollX = el.keysScroll.scrollLeft; WF.dirty = true; mark(); }, { passive: true });
+    el.keysScroll.addEventListener('scroll', () => { G.scrollX = el.keysScroll.scrollLeft - (Sh.keyOff || 0); if (!el.kPanel.hidden) Sh.showKeyCount(); WF.dirty = true; mark(); }, { passive: true });
     // horizontal scroll from the waterfall or keys: trackpad sideways, or Shift + wheel
     const wheel = (e) => {
       if (W.editor && W.editor.active && !e.shiftKey && Math.abs(e.deltaX) < Math.abs(e.deltaY)) return;
@@ -253,6 +263,7 @@
       else if (e.key === '-' || e.key === '_') E.setOptions({ speed: Math.max(0.25, E.opts.speed - 0.05) });
       else if (lettersOn && kl === 'l') W.app.toggleLoop();
       else if (lettersOn && kl === 'f') W.free.toggle();
+      else if (lettersOn && kl === 'r') W.free.toggleRecording();
       else if (lettersOn && kl === 'w') E.setOptions({ wait: !E.opts.wait, countIn: null });
       else if (lettersOn && kl === 'h') E.setOptions({ hands: { both: 'R', R: 'L', L: 'both' }[E.opts.hands] });
       else if (lettersOn && kl === 'v') W.app.setView({ split: 'waterfall', waterfall: 'sheet', sheet: 'split' }[S.settings.view]);
@@ -298,7 +309,7 @@
       [el.play, el.restart, el.prev, el.next, el.bLoop].forEach((b) => { b.disabled = F.active; });
       el.title.textContent = F.active ? 'Freeplay' : E.song ? E.song.title : '';
       clearInterval(timer);
-      if (F.recording) { const tick = () => { el.recTime.textContent = fmt(F.elapsed()); }; tick(); timer = setInterval(tick, 250); } else el.recTime.textContent = 'Record';
+      if (F.recording) { const tick = () => { el.recTime.textContent = fmt(F.elapsed()); }; tick(); timer = setInterval(tick, 250); } else el.recTime.textContent = '';
       mark();
     });
   };
