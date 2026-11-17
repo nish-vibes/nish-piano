@@ -38,7 +38,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
 
-      - name: Fetch pdf.js (legacy build: runs on older Chromium too)
+      - name: Fetch pdf.js (legacy build, which also runs on older Chromium)
         shell: pwsh
         working-directory: ${{ runner.temp }}
         run: |
