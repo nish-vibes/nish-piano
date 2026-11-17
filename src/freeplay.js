@@ -18,26 +18,70 @@
     F.active = true; WF.free = true; WF.clearFx();
     S.viewOverride = 'waterfall';
     W.shell.applyView();
+    if (wantMetro()) metro.start();
     fire();
   };
   F.leave = function () {
     if (!F.active) return;
     if (F.recording) F.stopRecording();
-    F.active = false; WF.free = false; WF.clearFx();
+    F.active = false; WF.free = false; WF.clearFx(); metro.stop(); metro.forced = 0;
     S.viewOverride = null;
     W.shell.applyView();
     fire();
   };
   F.toggle = () => (F.active ? F.leave() : F.enter());
 
+  // ---------------------------------------------------------------- tempo and metronome (no song needed)
+  // A small look-ahead scheduler on the audio clock. Downbeats are also kept on the performance.now() clock, so the
+  // waterfall can draw bar lines and a recording can start exactly on a bar.
+  F.bpm = () => Math.max(30, Math.min(240, Math.round(S.settings.freeBpm || 120)));
+  F.setBpm = (v) => { S.settings.freeBpm = Math.max(30, Math.min(240, Math.round(v))); S.saveSettings(); metro.restart(); fire(); };
+  F.countIn = () => S.settings.freeCountIn !== false;
+  F.setCountIn = (v) => { S.settings.freeCountIn = !!v; S.saveSettings(); fire(); };
+  const metro = { timer: null, next: 0, beat: 0, forced: 0, downbeats: [] };
+  F.downbeats = () => metro.downbeats;
+  F.metroRunning = () => !!metro.timer;
+  const wantMetro = () => F.active && (E.opts.metronome || metro.forced > 0);
+  metro.start = function () {
+    if (metro.timer || !W.audio.ensure()) return;
+    metro.next = W.audio.now() + 0.08; metro.beat = 0; metro.downbeats = [];
+    metro.timer = setInterval(metro.tick, 25); metro.tick();
+  };
+  metro.stop = function () { clearInterval(metro.timer); metro.timer = null; metro.downbeats = []; WF.dirty = true; };
+  metro.restart = function () { if (metro.timer) { metro.stop(); metro.start(); } };
+  metro.tick = function () {
+    if (!wantMetro()) { metro.stop(); return; }
+    const A = W.audio, spb = 60 / F.bpm();
+    while (metro.next < A.now() + 0.12) {
+      const accent = metro.beat % 4 === 0;
+      A.click(accent, metro.next);
+      if (accent) { metro.downbeats.push(performance.now() + (metro.next - A.now()) * 1000); if (metro.downbeats.length > 24) metro.downbeats.shift(); }
+      if (metro.forced > 0) metro.forced--;
+      metro.next += spb; metro.beat++;
+    }
+    WF.dirty = true;
+  };
+  E.on('change', () => { if (wantMetro()) metro.start(); else if (metro.timer) metro.stop(); });
+
   // ---------------------------------------------------------------- recording
   let rec = null;
   F.elapsed = () => (rec && rec.t0 != null ? (performance.now() - rec.t0) / 1000 : 0);
+  F.inCountIn = () => !!(rec && rec.fixed && performance.now() < rec.t0);
   F.startRecording = function () {
     if (F.recording) return;
     F.enter();
     if (!F.active) return;
-    rec = { t0: null, notes: [], open: new Map(), pedal: [] };
+    rec = { t0: null, notes: [], open: new Map(), pedal: [], bpm: F.bpm() };
+    // with a count-in: one bar of clicks, and the take starts on the next downbeat; with the metronome on: on the
+    // last downbeat; otherwise on the first note
+    if (F.countIn()) {
+      metro.stop(); metro.forced = 4; metro.start();
+      const first = metro.downbeats[0] || performance.now() + 80;
+      rec.t0 = first + 4 * 60000 / rec.bpm; rec.fixed = true;
+    } else if (E.opts.metronome && metro.downbeats.length) {
+      const now = performance.now(), past = metro.downbeats.filter((t) => t <= now);
+      rec.t0 = past.length ? past[past.length - 1] : metro.downbeats[0]; rec.fixed = true;
+    }
     F.recording = true;
     fire();
   };
@@ -45,13 +89,13 @@
   E.on('key', (e) => {
     if (!F.recording) return;
     const t = e.t || performance.now();
-    if (e.down) { if (rec.t0 == null) rec.t0 = t; rec.open.set(e.midi, { t, vel: e.vel || 90 }); }
+    if (e.down) { if (rec.t0 == null) rec.t0 = t; if (rec.fixed && t < rec.t0 - 150) return; rec.open.set(e.midi, { t, vel: e.vel || 90 }); }
     else if (rec.open.has(e.midi)) { const o = rec.open.get(e.midi); rec.notes.push({ midi: e.midi, on: o.t, off: t, vel: o.vel }); rec.open.delete(e.midi); }
   });
   E.on('pedal', (e) => { if (F.recording && rec.t0 != null) rec.pedal.push({ t: e.t, down: e.down }); });
   /** Turn the recorded key presses into a song: 120 beats a minute, times kept to a 1/32 note, hands split at middle C. */
-  F.buildSong = function (notes, t0, title) {
-    const BPM = 120, grid = 0.125, toQ = (ms) => Math.round(((ms - t0) / 1000) * (BPM / 60) / grid) * grid;
+  F.buildSong = function (notes, t0, title, bpm) {
+    const BPM = bpm || 120, grid = 0.125, toQ = (ms) => Math.round(((ms - t0) / 1000) * (BPM / 60) / grid) * grid;
     const out = notes.map((n) => { const q = Math.max(0, toQ(n.on)); return { q: U.round6(q), durQ: U.round6(Math.max(grid, toQ(n.off) - q)), midi: n.midi, hand: WF.handOf(n.midi), vel: n.vel || 90 }; });
     const fifths = U.estimateKey(out);
     for (const n of out) { const sp = U.spellInKey(n.midi, fifths); n.spelled = U.spell(sp.letter, sp.alter, sp.oct); }
@@ -70,7 +114,7 @@
     const d = new Date(), p2 = (x) => String(x).padStart(2, '0');
     const title = 'Recording ' + d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + '.' + p2(d.getMinutes());
     let song;
-    try { song = F.buildSong(r.notes, r.t0, title); } catch (e) { fire(); UI.toast('Could not save the recording: ' + e.message, 'error'); return null; }
+    try { song = F.buildSong(r.notes, r.t0, title, r.bpm); } catch (e) { fire(); UI.toast('Could not save the recording: ' + e.message, 'error'); return null; }
     song.pedal = r.pedal.map((p) => ({ sec: Math.max(0, (p.t - r.t0) / 1000), down: p.down }));
     const row = await S.add(song);
     // keep playing: stopping a take no longer leaves Freeplay

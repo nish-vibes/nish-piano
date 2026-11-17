@@ -379,13 +379,21 @@
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
     ctx.drawImage(layers.bg, 0, 0, w, h);
     if (!song || WF.free) {
-      // Freeplay (or nothing loaded): the sky, the lanes, and only what the player plays
+      // Freeplay (or nothing loaded): the sky, the lanes, and only what the player plays. In Freeplay the keyboard is
+      // above the waterfall, so the scene is drawn mirrored: notes grow down from the keys and fall away.
+      const flip = WF.free;
+      if (flip) { ctx.save(); ctx.translate(0, h); ctx.scale(1, -1); }
       if (layers.stars) {
         ctx.drawImage(layers.stars, 0, 0, w, h);
         for (const st of layers.tw) { const a = calm ? 0.55 : 0.5 + 0.45 * Math.sin(st.ph + now * 0.001 * st.sp * 2.2); ctx.fillStyle = css(st.c, a); ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, 6.2832); ctx.fill(); }
       }
       ctx.save(); ctx.translate(-Math.round(G.scrollX || 0), 0);
       lanes(ctx, h);
+      if (flip && W.free && W.free.metroRunning()) {
+        // bar lines, born at the keys on each downbeat and moving away with the notes
+        const speed = h / 4000; ctx.fillStyle = cssVar('--border');
+        for (const t of W.free.downbeats()) { const y = h - (now - t) * speed; if (y >= 0 && y <= h) ctx.fillRect(G.scrollX || 0, Math.round(y), w, 1); }
+      }
       drawTrails(ctx, P, now, h);
       ctx.globalCompositeOperation = P.dark ? 'lighter' : 'source-over';
       drawRays(ctx, P, now, h); drawParts(ctx, dt);
@@ -393,6 +401,7 @@
       ctx.restore();
       if (P.space) { const g = ctx.createLinearGradient(0, h - 40, 0, h); g.addColorStop(0, css(P.R.c, 0)); g.addColorStop(1, css(P.R.c, 0.13)); ctx.fillStyle = g; ctx.fillRect(0, h - 40, w, 40); }
       ctx.fillStyle = cssVar('--primary'); ctx.fillRect(0, h - 2, w, 2);
+      if (flip) ctx.restore();
       return;
     }
     const { measures, n, nq, nd, nm, nh, endQ } = E.get();

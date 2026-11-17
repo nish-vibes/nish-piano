@@ -113,3 +113,16 @@ Electron shell around the built HTML (`desktop/app/index.html`), Web MIDI allowe
 - **Layout.** Timeline 60 px: bar numbers over an overview of the whole song's notes, with progress, loop band and
   playhead. Record is right of Play (shortcut R). Active hands reads Left only · Both · Right only. No pixel values:
   the width panel counts keys in view; the height handle has no number. A keyboard narrower than the window is centred.
+
+## Freeplay layout from the canvas (keyboard on top)
+
+- In Freeplay the keyboard moves above the waterfall (grid order), the timeline is gone, and the waterfall scene is
+  drawn mirrored: a held note grows down from its key and then falls away. With the metronome on, bar lines are born
+  at the keys on each downbeat.
+- The header centre holds Record, a tempo stepper (30 to 240 BPM, saved), the metronome and Count-in 1 bar. Wait,
+  Play along, the transport and the view switch are hidden in Freeplay.
+- The Freeplay metronome runs without a song (`W.free` look-ahead scheduler on the audio clock). A take is saved at the
+  set tempo: with a count-in it starts on the downbeat after one bar of clicks (notes in the count-in are dropped);
+  with the metronome on, on the last downbeat; otherwise on the first note.
+- Timeline colours follow the canvas: bar row on --muted, overview on --roll, loop band at 59 %, cyan playhead,
+  loop handles in --primary-ink. New hourglass icon for Wait for me.

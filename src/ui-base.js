@@ -26,7 +26,7 @@
     restart: '<path d="M5 4v12"/><path d="M15 5l-7 5 7 5z"/>',
     prev: '<path d="M10 5l-7 5 7 5z"/><path d="M17 5l-7 5 7 5z"/>',
     next: '<path d="M10 5l7 5-7 5z"/><path d="M3 5l7 5-7 5z"/>',
-    wait: '<path d="M5 3h10"/><path d="M5 17h10"/><path d="M6 3c0 4 8 4 8 7s-8 3-8 7"/><path d="M14 3c0 4-8 4-8 7s8 3 8 7"/>',
+    wait: '<path d="M5 2.5h10"/><path d="M5 17.5h10"/><path d="M5.83 2.5C5.83 6.67 9.73 8.84 9.73 10.15C9.73 11.25 5.83 13.33 5.83 17.5"/><path d="M14.17 2.5C14.17 6.67 10.27 9.8 10.27 9.8C10.27 9.8 14.17 13.33 14.17 17.5"/>',
     metronome: '<path d="M7 3h6l3 14H4z"/><path d="M4.8 13.5h10.4"/><path d="M10 13.5l4-8"/>',
     speakerOff: '<path d="M3 8h3l4-3.5v11L6 12H3z"/><path d="M13 7.5l5 5"/><path d="M18 7.5l-5 5"/>',
     piano: '<rect x="3" y="4" width="14" height="12" rx="1.5"/><path d="M7 4v12"/><path d="M10 4v12"/><path d="M13 4v12"/><path d="M6 4h2v6H6z" fill="currentColor"/><path d="M12 4h2v6h-2z" fill="currentColor"/>',

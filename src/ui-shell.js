@@ -31,12 +31,20 @@
     el.bWait.classList.add('tb-wait');
     el.bAlong = toggle('speaker', 'Play along (P)', () => E.setOptions({ playAlong: !E.opts.playAlong }));
     el.bMetro = toggle('metronome', 'Metronome (M)', () => E.setOptions({ metronome: !E.opts.metronome }));
+    // Freeplay centre: tempo stepper, a second metronome toggle and count-in, shown next to Record
+    el.bpmVal = h('span', { class: 'bpm-val', text: '' });
+    el.bpm = h('span', { class: 'bpm-step', role: 'group', 'aria-label': 'Tempo' },
+      h('button', { type: 'button', class: 'ds-btn ds-btn--ghost ds-btn--icon', 'aria-label': 'Slower', title: 'Slower', onclick: () => W.free.setBpm(W.free.bpm() - 1) }, UI.icon('minus')), el.bpmVal,
+      h('button', { type: 'button', class: 'ds-btn ds-btn--ghost ds-btn--icon', 'aria-label': 'Faster', title: 'Faster', onclick: () => W.free.setBpm(W.free.bpm() + 1) }, UI.icon('plus')));
+    el.bMetro2 = toggle('metronome', 'Metronome (M)', () => E.setOptions({ metronome: !E.opts.metronome }));
+    el.bCount = h('button', { class: 'ds-btn ds-btn--ghost tb-toggle count-btn', type: 'button', 'aria-pressed': 'true', title: 'Count in one bar before recording', onclick: () => W.free.setCountIn(!W.free.countIn()) }, 'Count-in 1 bar');
+    el.freeCenter = h('span', { class: 'free-center' }, el.bpm, el.bMetro2, el.bCount);
     el.bPractice = iconBtn('sliders', 'Practice options', () => W.popovers.practice(el.bPractice), { 'aria-haspopup': 'dialog', 'aria-expanded': 'false' });
     el.bSound = iconBtn('piano', 'Sound and devices', () => W.popovers.sound(el.bSound), { 'aria-haspopup': 'dialog', 'aria-expanded': 'false' });
     el.bMore = iconBtn('more', 'More', () => W.popovers.more(el.bMore), { 'aria-haspopup': 'menu', 'aria-expanded': 'false' });
     el.topbar = h('header', { class: 'topbar' },
       h('div', { class: 'tb-left chrome' }, el.titleBtn, h('span', { class: 'tb-group' }, el.bFree)),
-      h('div', { class: 'tb-center' }, h('span', { class: 'chrome tb-group' }, el.restart, el.prev, el.next, el.bLoop), el.play, el.bRec),
+      h('div', { class: 'tb-center' }, h('span', { class: 'chrome tb-group tb-transport' }, el.restart, el.prev, el.next, el.bLoop), el.play, el.bRec, el.freeCenter),
       h('div', { class: 'tb-right chrome' }, h('span', { class: 'tb-group tb-toggles', role: 'group', 'aria-label': 'Practice' }, el.bWait), h('span', { class: 'tb-group tb-toggles', role: 'group', 'aria-label': 'Sound' }, el.bAlong, el.bMetro), el.views, el.bPractice, el.bSound, el.bMore));
     el.timeline = h('div', { class: 'timeline chrome' });
     // stage
@@ -85,7 +93,7 @@
     el.bWait.setAttribute('aria-pressed', String(!!E.opts.wait));
     el.bAlong.setAttribute('aria-pressed', String(!!E.opts.playAlong));
     el.bAlong.textContent = ''; el.bAlong.append(UI.icon(E.opts.playAlong ? 'speaker' : 'speakerOff'));
-    el.bMetro.setAttribute('aria-pressed', String(!!E.opts.metronome));
+    el.bMetro.setAttribute('aria-pressed', String(!!E.opts.metronome)); el.bMetro2.setAttribute('aria-pressed', String(!!E.opts.metronome));
     el.bLoop.setAttribute('aria-pressed', String(!!E.opts.loop));
     if (!p) Sh.wake();
     else Sh.wake();
@@ -308,8 +316,11 @@
       el.bRec.setAttribute('aria-label', lab); el.bRec.setAttribute('data-tip', lab);
       [el.play, el.restart, el.prev, el.next, el.bLoop].forEach((b) => { b.disabled = F.active; });
       el.title.textContent = F.active ? 'Freeplay' : E.song ? E.song.title : '';
+      el.bpmVal.textContent = F.bpm() + ' BPM';
+      el.bCount.setAttribute('aria-pressed', String(F.countIn()));
       clearInterval(timer);
-      if (F.recording) { const tick = () => { el.recTime.textContent = fmt(F.elapsed()); }; tick(); timer = setInterval(tick, 250); } else el.recTime.textContent = '';
+      if (F.recording) { const tick = () => { el.recTime.textContent = F.inCountIn() ? 'Count-in' : fmt(Math.max(0, F.elapsed())); }; tick(); timer = setInterval(tick, 250); } else el.recTime.textContent = '';
+      Sh.relayoutAll && requestAnimationFrame(() => Sh.relayoutAll());
       mark();
     });
   };

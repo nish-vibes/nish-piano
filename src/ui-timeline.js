@@ -117,7 +117,8 @@
     const w = T.w, hh = T.h;
     const rowH = 20, y0 = rowH, oh = Math.max(8, hh - rowH - 2); // bar numbers on top, the song overview below
     ctx.clearRect(0, 0, w, hh);
-    ctx.fillStyle = cssVar('--card'); ctx.fillRect(0, 0, w, hh);
+    ctx.fillStyle = cssVar('--muted'); ctx.fillRect(0, 0, w, rowH);
+    ctx.fillStyle = cssVar('--roll') || cssVar('--card'); ctx.fillRect(0, y0, w, hh - y0);
     const xq = (v) => (v / endQ) * w;
     const px = xq(Math.max(0, q));
     // played part
@@ -136,7 +137,7 @@
     const l = E.loopRange();
     if (l) {
       const x0 = xq(l.q0), x1 = xq(l.q1);
-      ctx.fillStyle = cssVar('--primary'); ctx.globalAlpha = 0.16; ctx.fillRect(x0, y0, x1 - x0, oh); ctx.globalAlpha = 1;
+      ctx.fillStyle = cssVar('--primary'); ctx.globalAlpha = 0.59; ctx.fillRect(x0, y0, x1 - x0, oh); ctx.globalAlpha = 1;
       ctx.fillRect(x0, y0, x1 - x0, 2); ctx.fillRect(x0, y0 + oh - 2, x1 - x0, 2);
     }
     // bar numbers
@@ -148,11 +149,11 @@
     { const bx = xq(measures[ci].q), bw = xq(ci + 1 < measures.length ? measures[ci + 1].q : endQ) - bx;
       const lab = String(ci + 1); ctx.font = '600 12px ' + cssVar('--font-sans');
       const lw = ctx.measureText(lab).width;
-      ctx.fillStyle = cssVar('--card'); ctx.fillRect(Math.round(bx) + 1, 1, lw + 6, rowH - 3);
+      ctx.fillStyle = cssVar('--muted'); ctx.fillRect(Math.round(bx) + 1, 1, lw + 6, rowH - 3);
       ctx.fillStyle = cssVar('--primary-ink'); ctx.fillText(lab, Math.round(bx) + 3, rowH / 2 + 1);
       ctx.fillRect(Math.round(bx), rowH - 2, Math.max(2, Math.round(bw)), 2); }
     // position marker
-    ctx.fillStyle = cssVar('--foreground'); ctx.fillRect(Math.round(px) - 1, y0, 2, oh);
+    ctx.fillStyle = 'rgba(0, 255, 251, 0.45)'; ctx.fillRect(Math.round(px) - 1, y0, 2, oh);
     ctx.beginPath(); ctx.moveTo(px - 5, y0); ctx.lineTo(px + 5, y0); ctx.lineTo(px, y0 + 6); ctx.closePath(); ctx.fill();
     // handles and slider values
     const place = (hd, x, val, text) => { hd.style.left = x + 'px'; hd.style.display = l ? '' : 'none'; hd.setAttribute('aria-valuenow', String(val)); hd.setAttribute('aria-valuetext', text); };

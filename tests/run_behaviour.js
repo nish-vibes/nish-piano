@@ -145,6 +145,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     await T.setView('split');
     await T.freeplay(true); out.view = root.dataset.view; out.hidden = W.waterfall.free === true; await T.play(); out.noPlay = !E.playing;
     await T.freeplay(false); out.back = root.dataset.view === 'split' && E.song.id === song && !W.waterfall.free;
+    W.free.setCountIn(false); await T.setOptions({ metronome: false });
     await T.record(true); out.recView = root.dataset.view;
     E.noteOn(48, 40); E.noteOn(64, 110); E.pedal(true); await sleep(260); E.noteOff(48); E.noteOff(64); await sleep(120); E.noteOn(67, 90); await sleep(200); E.noteOff(67); E.pedal(false);
     const id = await T.record(false);
@@ -161,6 +162,23 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   });
   check('Freeplay shows the waterfall alone, hides the song, and brings both back', fp.view === 'waterfall' && fp.hidden && fp.noPlay && fp.back, JSON.stringify(fp));
   check('Record saves what was played as a song, hands split at middle C, and keeps you in Freeplay', fp.recView === 'waterfall' && fp.saved && fp.stillFree && fp.notes === '48L 64R 67R' && fp.first === 0, JSON.stringify(fp));
+  // Freeplay: keyboard on top, tempo and count-in; a take recorded after the count-in starts on its downbeat at that tempo
+  const ci = await page.evaluate(async () => {
+    const T = window.WapiroTest, W = window.Wapiro, E = W.engine, F = W.free, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), root = document.getElementById('app');
+    await T.freeplay(true);
+    const keysTop = document.querySelector('.keys-wrap').getBoundingClientRect().top < document.querySelector('.stage').getBoundingClientRect().top;
+    F.setBpm(120); F.setCountIn(true);
+    await F.startRecording(); const counting = F.inCountIn();
+    E.noteOn(70, 90); await sleep(100); E.noteOff(70); // played during the count-in: not recorded
+    await sleep(2100);
+    E.noteOn(60, 90); await sleep(300); E.noteOff(60);
+    const id = await F.stopRecording(); const s = W.storage.find(id).song;
+    const out = { keysTop, counting, bpm: s.tempos[0].bpm, notes: s.notes.map((n) => n.midi).join(' '), first: s.notes[0].q, centre: getComputedStyle(document.querySelector('.free-center')).display };
+    await T.deleteSong(id); F.setCountIn(true); await T.freeplay(false);
+    return out;
+  });
+  check('Freeplay puts the keyboard on top and shows tempo, metronome and count-in', ci.keysTop && ci.centre !== 'none', JSON.stringify(ci));
+  check('a take after the count-in is at the set tempo and starts on the downbeat', ci.counting && ci.bpm === 120 && ci.notes === '60' && ci.first < 0.5, JSON.stringify(ci));
   check('Record keeps how hard each key was struck and the sustain pedal', fp.vel === '40 110 90' && fp.pedal === 'down up', JSON.stringify({ vel: fp.vel, pedal: fp.pedal }));
   check('Export video makes a video file and restores the view', fp.video.ok && fp.video.big && fp.video.frames && fp.restored, JSON.stringify(fp));
 
