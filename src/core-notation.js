@@ -190,7 +190,7 @@
           const mEnd = m.q + m.lenQ;
           const e = Math.min(end, mEnd);
           const cont = end > mEnd + 1e-4 && k + 1 < measures.length;
-          segs[k].push({ s: start, e: cont ? mEnd : Math.min(end, mEnd), midi: n.midi, spelled: n.spelled, from: start > n.q + EPS, to: cont });
+          segs[k].push({ s: start, e: cont ? mEnd : Math.min(end, mEnd), midi: n.midi, spelled: n.spelled, from: start > n.q + EPS, to: cont, src: n });
           if (!cont) break;
           start = mEnd; k++;
         }
@@ -271,7 +271,7 @@
                 .slice().sort((a, b) => a.midi - b.midi)
                 .map((sg) => {
                   const sp = U.parseSpelled(sg.spelled) || U.spellInKey(sg.midi, keyAtMeasure[i]);
-                  return { m: sg.midi, s: sp.letter, a: sp.alter, o: sp.oct, acc: null, ts: !lastChunk || (sg.to && Math.abs(endT - len) < 1e-4), te: ci > 0 || sg.from };
+                  return { m: sg.midi, s: sp.letter, a: sp.alter, o: sp.oct, acc: null, ts: !lastChunk || (sg.to && Math.abs(endT - len) < 1e-4), te: ci > 0 || sg.from, src: sg.src };
                 });
               out.push({ t: c.off, d: c.dur, ty: ty.ty, dots: ty.dots, n: notes, _tu: ty.tu, v: vi + 1 });
             });
@@ -302,7 +302,22 @@
         N.assignAccidentals(voiceOut, keyAtMeasure[i], new Map());
       });
     });
-    return { approximate: true, nstaves: 2, clefs: ['G', 'F'], written, playMap: measures.map((_, i) => i) };
+    // clefs follow the music: a hand that plays high (or low) for a bar gets the other clef, with some hysteresis
+    const clefs = ['G', 'F'], cur = ['G', 'F'], sum = measures.map(() => [[0, 0], [0, 0]]);
+    let mi = 0;
+    for (const n of song.notes.slice().sort((a, b) => a.q - b.q)) {
+      while (mi + 1 < measures.length && measures[mi + 1].q <= n.q + 1e-6) mi++;
+      const k = n.hand === 'L' ? 1 : 0; sum[mi][k][0] += n.midi; sum[mi][k][1]++;
+    }
+    measures.forEach((_, i) => [0, 1].forEach((k) => {
+      const [tot, cnt] = sum[i][k]; if (!cnt) return;
+      const avg = tot / cnt;
+      const want = cur[k] === 'F' && avg >= 64 ? 'G' : cur[k] === 'G' && avg < 55 ? 'F' : cur[k];
+      if (want === cur[k]) return;
+      cur[k] = want;
+      if (i === 0) clefs[k] = want; else written[i].clefs[k] = want;
+    }));
+    return { approximate: true, nstaves: 2, clefs, written, playMap: measures.map((_, i) => i) };
   };
 
   /** Build notation for a song (used after an import, a built-in piece or an edit). */

@@ -671,7 +671,7 @@
     measures.forEach((m, i) => {
       if (m.ending) { const prev = measures[i - 1]; if (!prev || prev.ending !== m.ending) m.endingStart = m.ending; const next = measures[i + 1]; if (!next || next.ending !== m.ending) { m.endingStop = m.ending; m.endingOpen = !m.repEnd; } }
     });
-    if (badBars.length) warnings.push('In ' + (badBars.length === 1 ? 'bar ' + badBars[0] : badBars.length + ' bars (' + badBars.slice(0, 8).join(', ') + (badBars.length > 8 ? ', ...' : '') + ')') + ' the rhythm did not add up to the time signature. Please check ' + (badBars.length === 1 ? 'it' : 'them') + ' with Correct notes.');
+    if (badBars.length) warnings.push('In ' + (badBars.length === 1 ? 'bar ' + badBars[0] : badBars.length + ' bars (' + badBars.slice(0, 8).join(', ') + (badBars.length > 8 ? ', ...' : '') + ')') + ' the rhythm did not add up to the time signature. Please check ' + (badBars.length === 1 ? 'it' : 'them') + '.');
     if (tempo == null) { tempo = 100; warnings.push('No tempo mark was found. 100 BPM is used; change it in the review if needed.'); }
     warnings.push('Read from a PDF. Slurs, dynamics, grace notes and ornaments are not read. Check the notes before you practise.');
     title = (title || U.cleanTitle(fileName)).normalize('NFKC');

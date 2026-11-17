@@ -10,7 +10,7 @@ JS = [
     'src/audio.js', 'src/engine.js', 'src/input.js',
     'src/keyboard.js', 'src/waterfall.js',
     'src/sheet-layout.js', 'src/sheet-render.js',
-    'src/ui-base.js', 'src/ui-timeline.js', 'src/ui-popovers.js', 'src/scan.js', 'src/ui-library.js', 'src/ui-results.js', 'src/ui-editor.js', 'src/ui-shell.js', 'src/freeplay.js',
+    'src/ui-base.js', 'src/ui-timeline.js', 'src/ui-popovers.js', 'src/scan.js', 'src/ui-fix.js', 'src/ui-library.js', 'src/ui-results.js', 'src/ui-editor.js', 'src/ui-shell.js', 'src/freeplay.js',
     'src/app.js',
 ]
 OUT = 'dist/marksteady_waterfall_piano_roll_v2_0_0.html'
@@ -25,7 +25,7 @@ def esc_script(s):
 tpl = read('src/index.template.html')
 css = '\n'.join(read(p) for p in CSS if os.path.exists(os.path.join(HERE, p)))
 js = '\n'.join('/* ---- %s ---- */\n%s' % (p, read(p)) for p in JS if os.path.exists(os.path.join(HERE, p)))
-PDFJS = os.path.join(os.environ.get('PDFJS_BUILD', '/opt/npm-tools/node_modules/pdfjs-dist/build'), '')
+PDFJS = os.path.join(os.environ.get('PDFJS_BUILD', '/opt/npm-tools/node_modules/pdfjs-dist/legacy/build'), '')
 def block(id_, path):
     src = open(path, encoding='utf-8').read()
     assert '</script' not in src.lower() and '<!--' not in src

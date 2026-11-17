@@ -196,6 +196,7 @@
       if (rec.ty === 'whole') glyph(g, headName, xx + hw / 2 - ((hb[2] - hb[0]) * sc) / 2, y, hb[0], 90, sc);
       else glyph(g, headName, xx, y, hb[0], 91, sc);
       nt.x = xx; nt.y = y;
+      if (hits && nt.n.src) hits.push({ x: xx + hw / 2, y, r: 0.9 * S, n: nt.n.src, sys: g });
       // accidental
       if (nt.n.acc) {
         const gname = ACC_GLYPH[nt.n.acc];
@@ -370,6 +371,22 @@
     const cx = (x1 + x2) / 2;
     el('path', { d: 'M' + f(x1) + ' ' + f(y) + 'Q' + f(cx) + ' ' + f(y + h * 1.9) + ' ' + f(x2) + ' ' + f(y) + 'Q' + f(cx) + ' ' + f(y + h2 * 1.9) + ' ' + f(x1) + ' ' + f(y) + 'Z', class: 'sh-ink' }, g);
   }
+
+  /** Every system of a song in one standalone SVG, with a list of the drawn noteheads and the song notes they show
+   * (used by the import review to tap a note and fix it). Notation is rebuilt from the notes so each head links back. */
+  let hits = null;
+  SH.fixView = function (song, width, S) {
+    const svg = el('svg', { class: 'sheet-svg fix-svg', role: 'img', 'aria-label': 'The music as read. Tap a note to fix it.' });
+    const nota = W.notation.fromNotes(song);
+    const lay = L.compute(nota, width, S);
+    hits = [];
+    try { lay.systems.forEach((_, si) => drawSystem(lay, si, el('g', { class: 'sh-sys', 'data-sys': si }, svg))); }
+    finally { svg.hits = hits; hits = null; }
+    svg.setAttribute('width', f(lay.width)); svg.setAttribute('height', f(lay.height));
+    svg.setAttribute('viewBox', '0 0 ' + f(lay.width) + ' ' + f(lay.height));
+    svg.lay = lay;
+    return svg;
+  };
 
   /** Draw the first system of a song into a standalone SVG (used by the import review). */
   SH.preview = function (song, width, S) {

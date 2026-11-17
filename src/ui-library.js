@@ -152,6 +152,8 @@
       const msg = (err && err.message) || String(err);
       if (busy) UI.closeDialog();
       if (pdf && !auto && err && err.code === 'NO_VECTOR') return W.scan.open(name, buffer);
+      // the desktop app reads any PDF it cannot read directly as pictures, with the bundled music reader
+      if (pdf && !auto && W.scan.engine()) return W.scan.open(name, buffer, { reason: 'This PDF could not be read directly (' + msg.replace(/\.$/, '') + '), so the app reads it as a picture instead.' });
       if (pdf && !auto) Lib.pdfHelp(name, msg);
       else if (!auto) UI.openDialog('Could not import "' + U.cleanTitle(name) + '"', h('div', { class: 'ds-alert ds-alert--danger', role: 'alert' }, UI.icon('alert'), h('div', null, h('strong', { text: 'The file was not added.' }), h('span', { text: msg }))));
       else UI.toast(msg, 'error');
@@ -182,7 +184,10 @@
     const tsOpts = ['2/4', '3/4', '4/4', '5/4', '6/8', '9/8', '12/8', '2/2', '3/8'];
     if (!tsOpts.includes(ts0.num + '/' + ts0.den)) tsOpts.unshift(ts0.num + '/' + ts0.den);
     const tsSel = h('select', { class: 'ds-input', 'aria-label': 'Time signature' }, tsOpts.map((t) => h('option', { value: t, selected: t === ts0.num + '/' + ts0.den ? true : null }, t)));
-    if (!isMidi) { keySel.disabled = true; tsSel.disabled = true; }
+    const keyMissing = song.source === 'scan' && !song.keySigs.length;
+    if (!isMidi) { keySel.disabled = !keyMissing; tsSel.disabled = true; }
+    const canFix = song.source === 'scan' || song.source === 'pdf';
+    let fixer = null;
     const fromWhere = song.source === 'pdf' ? 'Read from the PDF' : 'From the file';
     const facts = h('dl', { class: 'facts' });
     const handsInfo = h('div', { class: 'review-hands' });
@@ -200,7 +205,8 @@
       if (song.timeSigs.length > 1) add('Time signature changes', String(song.timeSigs.length - 1));
       if (song.scanPages) add('Read from a scan', song.scanPages.length + (song.scanPages.length === 1 ? ' page' : ' pages'));
       if (song.pdfReport) add('Read from the PDF', song.pdfReport.pages + (song.pdfReport.pages === 1 ? ' page, ' : ' pages, ') + song.pdfReport.systems + (song.pdfReport.systems === 1 ? ' system' : ' systems'));
-      add('Notation', song.source === 'pdf' ? 'Rebuilt from the PDF' : song.exactNotation ? 'From the MusicXML file' : 'Approximate (worked out from the notes)');
+      add('Notation', song.fixes ? 'Worked out from the fixed notes' : song.source === 'pdf' ? 'Rebuilt from the PDF' : song.exactNotation ? 'From the MusicXML file' : 'Approximate (worked out from the notes)');
+      if (song.fixes) add('Fixes', String(song.fixes));
     };
     const drawHands = () => {
       handsInfo.textContent = '';
@@ -220,6 +226,8 @@
       }
     };
     const drawPreview = () => {
+      if (fixer) { fixer.redraw(); return; }
+      if (canFix) return;
       preview.textContent = '';
       const w = Math.max(320, (preview.clientWidth || 640) - 2);
       preview.append(W.sheet.preview(song, w, 9));
@@ -228,6 +236,25 @@
       warnBox.textContent = '';
       for (const m of song.warnings || []) warnBox.append(h('div', { class: 'ds-help is-warn' }, UI.icon('alert'), m));
     };
+    if (keyMissing) {
+      // the reader found no key signature, so the notes it read as natural may need the key's sharps or flats
+      const SHARPS = 'FCGDAEB', FLATS = 'BEADGCF';
+      keySel.value = '0';
+      keySel.addEventListener('change', () => {
+        const f = +keySel.value, altered = f > 0 ? SHARPS.slice(0, f) : FLATS.slice(0, -f), d = f > 0 ? 1 : -1;
+        for (const n of song.notes) if (n._keyShift) { n.midi -= n._keyShift; n.spelled = n._keySpelled; delete n._keyShift; delete n._keySpelled; }
+        for (const n of song.notes) {
+          const sp = U.parseSpelled(n.spelled);
+          if (!sp || sp.alter !== 0 || !altered.includes(sp.letter)) continue;
+          n._keySpelled = n.spelled; n._keyShift = d; n.midi += d;
+        }
+        song.keySigs = f ? [{ q: 0, fifths: f }] : [];
+        song.estKey = f;
+        song.notes.forEach((n) => { const sp = U.spellInKey(n.midi, f); n.spelled = U.spell(sp.letter, sp.alter, sp.oct); });
+        song.exactNotation = false; song.notation = W.notation.fromNotes(song);
+        if (fixer) fixer.redraw(); else drawPreview();
+      });
+    }
     if (isMidi) {
       keySel.addEventListener('change', () => {
         const f = +keySel.value;
@@ -247,15 +274,22 @@
     const body = h('div', { class: 'review' },
       h('div', { class: 'review-grid' },
         field('Title', title), field('Composer', composer),
-        field('Key', keySel, isMidi ? null : fromWhere), field('Time signature', tsSel, isMidi ? (song.timeSigs.length > 1 ? 'Changes later in the piece are kept.' : null) : fromWhere),
+        field('Key', keySel, isMidi ? null : keyMissing ? 'The reader found no key signature. Pick the key and its sharps or flats are added to the notes.' : fromWhere), field('Time signature', tsSel, isMidi ? (song.timeSigs.length > 1 ? 'Changes later in the piece are kept.' : null) : fromWhere),
         field('Tempo (BPM)', tempo)),
       facts, song.scanXml ? h('div', null, h('button', { class: 'ds-btn ds-btn--outline', type: 'button', onclick: () => download(fileSafe(title.value || song.title) + '.musicxml', song.scanXml, 'application/vnd.recordare.musicxml+xml') }, UI.icon('download'), 'Download MusicXML')) : null,
       song.pdfXml ? h('div', null, h('button', { class: 'ds-btn ds-btn--outline', type: 'button', onclick: () => download(fileSafe(title.value || song.title) + '.musicxml', song.pdfXml, 'application/vnd.recordare.musicxml+xml') }, UI.icon('download'), 'Download MusicXML')) : null,
       handsInfo, warnBox,
-      song.scanPages ? h('div', { class: 'review-compare' },
-        h('div', null, h('div', { class: 'ds-label', text: 'Original' }), h('img', { class: 'review-original', src: song.scanPages[0], alt: 'First page of the original scan' })),
-        h('div', null, h('div', { class: 'ds-label', text: 'Read by the app' }), preview))
-        : h('div', null, h('div', { class: 'ds-label', text: 'First bars' }), preview));
+      canFix ? null : h('div', null, h('div', { class: 'ds-label', text: 'First bars' }), preview));
+    // scans and PDFs: the music to check comes first, right under the title and key
+    if (canFix) body.insertBefore(fixArea(), body.children[1]);
+    function fixArea() {
+      const fixBox = h('div', { class: 'fix' });
+      const read = h('div', { class: 'fix-col' }, h('div', { class: 'row-between' }, h('span', { class: 'ds-label', text: 'Read by the app' }), h('span', { class: 'ds-caption', text: 'Tap a note to fix it' })), fixBox);
+      requestAnimationFrame(() => { fixer = W.fix.mount(fixBox, song, { onChange: () => drawFacts() }); });
+      if (!song.scanPages) return read;
+      const pages = h('div', { class: 'fix-original' }, song.scanPages.map((src, i) => h('img', { class: 'review-original', src, alt: 'Page ' + (i + 1) + ' of the original scan' })));
+      return h('div', { class: 'review-compare' }, h('div', { class: 'fix-col' }, h('div', { class: 'ds-label', text: 'Original' }), pages), read);
+    }
     const add = async () => {
       song.title = title.value.trim() || song.title;
       song.composer = composer.value.trim();
@@ -265,7 +299,8 @@
       UI.toast('Added "' + song.title + '" to your library.');
       finish(r);
     };
-    UI.openDialog('Check the import', body, [{ label: 'Cancel', run: () => finish({ ok: false, error: 'Cancelled' }) }, { label: 'Add to library', primary: true, run: add }], { cls: 'dialog--wide', onClose: () => finish({ ok: false, error: 'Cancelled' }), focus: '.dialog-actions .ds-btn--primary' });
+    let adding = false;
+    UI.openDialog('Check the import', body, [{ label: 'Cancel', run: () => finish({ ok: false, error: 'Cancelled' }) }, { label: 'Add to library', primary: true, keepOpen: true, run: () => { adding = true; UI.closeDialog(); add(); } }], { cls: 'dialog--wide', onClose: () => { if (!adding) finish({ ok: false, error: 'Cancelled' }); }, focus: '.dialog-actions .ds-btn--primary' });
     drawFacts(); drawHands(); drawWarn();
     requestAnimationFrame(drawPreview);
   };
@@ -275,7 +310,7 @@
     const link = (href, text) => h('a', { href, target: '_blank', rel: 'noopener noreferrer', class: 'ds-btn ds-btn--link' }, text);
     UI.openDialog('This PDF could not be read', h('div', { class: 'pdf-help' },
       reason ? h('div', { class: 'ds-alert', role: 'alert' }, UI.icon('alert'), h('span', { text: reason })) : null,
-      h('p', { class: 'ds-reading', text: 'The app reads PDFs exported from notation software such as MuseScore, Dorico or Finale. A scanned PDF is a picture of the music: convert it to MusicXML first, then import that file here.' }),
+      h('p', { class: 'ds-reading', text: 'In the browser the app reads PDFs exported from notation software such as MuseScore, Dorico or Finale. The Windows app also reads scans and other PDFs itself, with its built-in music reader. Here, convert the PDF to MusicXML first, then import that file.' }),
       h('ul', { class: 'pdf-tools' },
         h('li', null, link('https://github.com/Audiveris/audiveris', 'Audiveris'), h('span', { class: 'ds-caption', text: 'Free program for Windows. Works offline.' })),
         h('li', null, link('https://acestudio.ai/pdf-to-musicxml/', 'ACE Studio online converter'), h('span', { class: 'ds-caption', text: 'Free tier. The PDF is uploaded to that company.' }))),

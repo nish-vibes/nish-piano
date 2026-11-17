@@ -38,12 +38,12 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
 
-      - name: Fetch pdf.js (the PDF reader embedded in the app)
+      - name: Fetch pdf.js (legacy build: runs on older Chromium too)
         shell: pwsh
         working-directory: ${{ runner.temp }}
         run: |
           npm install --no-audit --no-fund --prefix pdfjs pdfjs-dist@6.2.108
-          "PDFJS_BUILD=" + (Resolve-Path 'pdfjs/node_modules/pdfjs-dist/build').Path | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "PDFJS_BUILD=" + (Resolve-Path 'pdfjs/node_modules/pdfjs-dist/legacy/build').Path | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Build the web app
         run: python -I build.py

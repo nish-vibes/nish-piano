@@ -70,3 +70,27 @@ Real example: the River Flows In You scan is 510×722 px, staff lines 3 px apart
 ## Windows desktop app (`desktop/`)
 
 Electron shell around the built HTML (`desktop/app/index.html`), Web MIDI allowed for the local page only, sandboxed preload exposing `window.wapiroDesktop` (`omr`, `cancelOmr`, `omrAvailable`, `onOpenFile`). Audiveris (AGPLv3, with its own Java) is unpacked from the official MSI into `resources/audiveris` and runs as a separate process. electron-builder makes a per-user NSIS installer (no admin), a portable exe and a zip. `.github/workflows/build-windows.yml` builds it all on a Windows runner and uploads `MarkSteady-Wapiro-Windows.zip` (draft release on `v*` tags). Builds are unsigned, so SmartScreen warns on first run.
+
+## PDF import, scans and tap to fix
+
+- **PDF reader engine.** pdf.js 6 calls `Uint8Array.prototype.toHex`, which Chrome only has from version 140. Electron 33
+  (Chromium 130) did not, so every PDF failed in the Windows app with "n.toHex is not a function". The app now embeds the
+  pdf.js **legacy** build (it polyfills newer JavaScript), and the desktop shell is on Electron 44 (Chromium 152).
+  `tests/run_old_engine.js` removes the newer functions before the app loads and imports PDFs, so this cannot return.
+- **Scans in the Windows app read themselves.** An image, an image-only PDF, or any PDF the vector reader cannot read
+  (odd music font, broken structure) goes to the scan flow, which starts Audiveris straight away; the page check stays
+  visible above the progress. Closing the window stops the reader. In the browser the help dialog stays.
+- **Low-resolution scans.** The staff-line spacing is measured with a threshold halfway between paper and the staff lines'
+  own grey (`W.scan.inkLevels`), not Otsu: in a small image a 1 px staff line is light grey and Otsu called it paper. The
+  contrast curve uses the same turning point, so faint lines survive enlarging. A PDF page that is one picture is taken
+  pixel for pixel from pdf.js (rendering it resampled the picture and faded the lines). A 510 px wide phone-size page
+  (lines 4 px apart) now reads (16 bars) where it failed before; it is still rough, so the review flags it.
+- **Tap to fix (`src/ui-fix.js`).** The import review of a scan or PDF shows the whole score. Tap a note to hear it and
+  see its name, hand, length, bar and place on a small keyboard; change pitch by a semitone or an octave, length,
+  hand, or delete it. Keys: arrows (Shift = octave), left/right for the next note, [ ] for length, H, Delete, Ctrl+Z.
+  Notation for the fix view is rebuilt from the notes (`fromNotes` now links each drawn note to its song note, and picks
+  treble or bass clef per bar from where each hand plays).
+- **Missing key.** When the reader found no key signature, the review's Key field is enabled: picking a key adds its
+  sharps or flats to the notes read as natural (and can be changed again).
+- **Tests.** `run_fix_ui.js` drives the review through the real UI; with an Audiveris path it stands in for the desktop
+  bridge and runs the real reader. `run_scan_pipeline.js` runs prepare + Audiveris + parse on any scan.

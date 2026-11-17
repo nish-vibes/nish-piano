@@ -20,7 +20,8 @@
   // ---------------------------------------------------------------- measuring
   /** Staff-line spacing and thickness from vertical run lengths (the method Audiveris itself uses). */
   SC.measure = function (gray, w, hgt) {
-    const thr = otsu(gray);
+    const ink = SC.inkLevels(gray, w, hgt);
+    const thr = ink.threshold;
     const combo = new Uint32Array(200), black = new Uint32Array(60);
     const step = Math.max(1, Math.floor(w / 400));
     for (let x = 0; x < w; x += step) {
@@ -35,7 +36,28 @@
     }
     const peak = (arr, lo) => { let best = lo, bv = 0; for (let i = lo; i < arr.length; i++) if (arr[i] > bv) { bv = arr[i]; best = i; } return { at: best, n: bv }; };
     const line = peak(black, 1), inter = peak(combo, 3);
-    return { interline: inter.n > 20 ? inter.at : null, line: line.at, threshold: thr };
+    return { interline: inter.n > 20 ? inter.at : null, line: line.at, threshold: thr, paper: ink.paper, lineGray: ink.line };
+  };
+  /** Paper and staff-line brightness. In a small or soft image a 1 px staff line is only light grey; a threshold
+   * pulled down by the black noteheads (Otsu) would count it as paper. Staff lines are the most common thin dark
+   * feature on a page, so the median of thin vertical dips gives their grey; the threshold sits halfway to the paper. */
+  SC.inkLevels = function (gray, w, hgt) {
+    const hist = new Uint32Array(256); for (let i = 0; i < gray.length; i++) hist[gray[i]]++;
+    let paper = 255, acc = 0; for (; paper > 0; paper--) { acc += hist[paper]; if (acc > gray.length * 0.25) break; }
+    const dips = new Uint32Array(256); let nd = 0;
+    const step = Math.max(1, Math.floor(w / 300));
+    for (let x = 0; x < w; x += step) for (let y = 2; y < hgt - 2; y++) {
+      const v = gray[y * w + x];
+      if (v > paper - 30) continue;
+      const up = gray[(y - 2) * w + x], dn = gray[(y + 2) * w + x];
+      if (up < paper - 30 || dn < paper - 30) continue;              // not thin: part of a notehead, beam or text
+      if (v > gray[(y - 1) * w + x] || v > gray[(y + 1) * w + x]) continue;  // the darkest row of the dip
+      dips[v]++; nd++;
+    }
+    const otsuThr = otsu(gray);
+    if (nd < 50) return { paper, line: null, threshold: otsuThr };
+    let line = 0; acc = 0; for (; line < 255; line++) { acc += dips[line]; if (acc >= nd / 2) break; }
+    return { paper, line, threshold: Math.max(otsuThr, Math.round((paper + line) / 2)) };
   };
   function otsu(g) {
     const hist = new Uint32Array(256);
@@ -60,7 +82,7 @@
   const canvasOf = (w, hgt) => { const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(hgt)); return c; };
 
   /** Enlarge in steps of at most 2x (sharper than one big jump), then grey-scale, stretch contrast and sharpen. */
-  function enlarge(src, factor) {
+  function enlarge(src, factor, threshold) {
     let cur = src, f = factor;
     while (f > 1.001) {
       const s = Math.min(2, f);
@@ -71,10 +93,10 @@
       cur = c; f /= s;
     }
     if (cur === src) { const c = canvasOf(src.width, src.height); c.getContext('2d').drawImage(src, 0, 0); cur = c; }
-    clean(cur);
+    clean(cur, threshold);
     return cur;
   }
-  function clean(c) {
+  function clean(c, threshold) {
     const ctx = c.getContext('2d', { willReadFrequently: true }), w = c.width, hgt = c.height;
     const img = ctx.getImageData(0, 0, w, hgt), d = img.data;
     const g = new Float32Array(w * hgt);
@@ -84,14 +106,16 @@
     let lo = 0, hi = 255, acc = 0; for (; lo < 255; lo++) { acc += hist[lo]; if (acc > g.length * 0.01) break; }
     acc = 0; for (; hi > 0; hi--) { acc += hist[hi]; if (acc > g.length * 0.01) break; }
     const span = Math.max(1, hi - lo);
+    // the dark/light turning point: halfway between paper and staff-line grey when known (keeps faint lines)
+    const mid = threshold != null ? Math.min(0.9, Math.max(0.3, (threshold - lo) / span)) : 0.55;
     // unsharp mask (3x3 box blur), amount 0.8
     const out = new Uint8ClampedArray(g.length);
     for (let y = 0; y < hgt; y++) for (let x = 0; x < w; x++) {
       let s = 0, n = 0;
       for (let dy = -1; dy <= 1; dy++) { const yy = y + dy; if (yy < 0 || yy >= hgt) continue; for (let dx = -1; dx <= 1; dx++) { const xx = x + dx; if (xx < 0 || xx >= w) continue; s += g[yy * w + xx]; n++; } }
       const v = g[y * w + x] + 0.8 * (g[y * w + x] - s / n);
-      const t = (v - lo) / span;
-      out[y * w + x] = 255 / (1 + Math.exp(-(t - 0.55) * 9));
+      const t = (v - lo) / span, u = t < mid ? 0.5 * t / mid : 0.5 + 0.5 * (t - mid) / (1 - mid);
+      out[y * w + x] = 255 / (1 + Math.exp(-(u - 0.5) * 9));
     }
     for (let i = 0, j = 0; j < out.length; i += 4, j++) { d[i] = d[i + 1] = d[i + 2] = out[j]; d[i + 3] = 255; }
     ctx.putImageData(img, 0, 0);
@@ -113,17 +137,24 @@
     for (let p = 1; p <= Math.min(doc.numPages, MAX_PAGES); p++) {
       const page = await doc.getPage(p);
       const vp1 = page.getViewport({ scale: 1 });
-      // render at a scale that keeps the embedded image's own resolution (a 510 px wide image on an A4 page is about 0.86x)
       const ops = await page.getOperatorList();
-      let imgW = 0;
+      const imgs = [];
+      let texts = 0;
       for (let i = 0; i < ops.fnArray.length; i++) {
-        if (ops.fnArray[i] === lib.OPS.paintImageXObject || ops.fnArray[i] === lib.OPS.paintInlineImageXObject) {
+        const fn = ops.fnArray[i];
+        if (fn === lib.OPS.showText || fn === lib.OPS.showSpacedText) texts++;
+        if (fn === lib.OPS.paintImageXObject || fn === lib.OPS.paintInlineImageXObject) {
           const id = ops.argsArray[i][0];
           const obj = typeof id === 'string' ? await new Promise((res) => { try { page.objs.get(id, res); } catch (e) { res(null); } }) : id;
-          if (obj && obj.width) imgW = Math.max(imgW, obj.width);
+          if (obj && obj.width) imgs.push(obj);
         }
       }
-      const scale = imgW ? Math.min(4, Math.max(0.5, imgW / vp1.width)) : 2;
+      // a page that is one picture (a scan or photo saved as PDF): take the picture's own pixels, untouched
+      const native = imgs.length === 1 && !texts ? imageCanvas(imgs[0]) : null;
+      if (native) { out.push({ canvas: native, source: 'pdf-image', imgW: native.width }); continue; }
+      const imgW = imgs.reduce((m, o) => Math.max(m, o.width), 0);
+      // otherwise render the page at twice the largest picture's resolution: drawing at 1:1 resamples and fades thin lines
+      const scale = imgW ? Math.min(MAX_SIDE / Math.max(vp1.width, vp1.height), Math.max(1, 2 * imgW / vp1.width)) : 2;
       const vp = page.getViewport({ scale });
       const c = canvasOf(vp.width, vp.height), ctx = c.getContext('2d');
       ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height);
@@ -132,6 +163,23 @@
     }
     if (doc.numPages > MAX_PAGES) out.truncated = doc.numPages;
     return out;
+  }
+
+  /** A decoded pdf.js image (bitmap, or raw pixels in one of its three layouts) as a canvas at its own size. */
+  function imageCanvas(o) {
+    try {
+      const c = canvasOf(o.width, o.height), x = c.getContext('2d');
+      x.fillStyle = '#ffffff'; x.fillRect(0, 0, c.width, c.height);
+      if (o.bitmap) { x.drawImage(o.bitmap, 0, 0, c.width, c.height); return c; }
+      if (!o.data) return null;
+      const img = x.createImageData(o.width, o.height), d = img.data, src = o.data, n = o.width * o.height;
+      if (o.kind === 3) d.set(src.subarray(0, n * 4));
+      else if (o.kind === 2) for (let i = 0; i < n; i++) { d[i * 4] = src[i * 3]; d[i * 4 + 1] = src[i * 3 + 1]; d[i * 4 + 2] = src[i * 3 + 2]; d[i * 4 + 3] = 255; }
+      else if (o.kind === 1) { const row = (o.width + 7) >> 3; for (let y = 0; y < o.height; y++) for (let xx = 0; xx < o.width; xx++) { const v = (src[y * row + (xx >> 3)] >> (7 - (xx & 7))) & 1 ? 255 : 0, i = (y * o.width + xx) * 4; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; } }
+      else return null;
+      x.putImageData(img, 0, 0);
+      return c;
+    } catch (e) { return null; }
   }
 
   /** Prepare all pages: measure, enlarge, clean. Returns [{ original, prepared, interline, factor, verdict }]. */
@@ -145,7 +193,7 @@
       const m = SC.measure(grayOf(src), src.width, src.height);
       let factor = m.interline ? TARGET / m.interline : 1;
       factor = Math.max(1, Math.min(factor, 8, MAX_SIDE / Math.max(src.width, src.height)));
-      const prepared = enlarge(src, factor);
+      const prepared = enlarge(src, factor, m.threshold);
       const after = m.interline ? m.interline * factor : null;
       const verdict = !m.interline ? 'none' : m.interline >= 14 ? 'good' : m.interline >= 8 ? 'fair' : 'poor';
       out.push({ original: src, prepared, interline: m.interline, line: m.line, factor, after, verdict });
@@ -163,13 +211,16 @@
 
   // ---------------------------------------------------------------- the dialog
   /** Open the scan flow. Resolves with the import result ({ ok, id } or { ok: false, error }). */
-  SC.open = function (name, buffer) {
+  SC.open = function (name, buffer, opts) {
+    opts = opts || {};
     return new Promise(async (resolve) => {
       let settled = false;
       const done = (v) => { if (!settled) { settled = true; resolve(v); } };
+      const engine0 = SC.engine();
       const status = h('div', { class: 'ds-help', role: 'status', text: 'Preparing the pages…' });
       const body = h('div', { class: 'scan' }, status);
-      UI.openDialog('Read a scan', body, null, { cls: 'dialog--wide', onClose: () => done({ ok: false, error: 'Cancelled' }) });
+      let handedOver = false;
+      UI.openDialog('Read a scan', body, null, { cls: 'dialog--wide', onClose: () => { if (!handedOver) { if (engine0 && engine0.cancelOmr) engine0.cancelOmr(); done({ ok: false, error: 'Cancelled' }); } } });
       let pages;
       try { pages = await SC.prepare(name, buffer); }
       catch (e) { status.className = 'ds-help is-error'; status.textContent = (e && e.message) || String(e); return; }
@@ -203,7 +254,11 @@
         body.textContent = '';
         const prog = h('div', { class: 'ds-progress', role: 'progressbar', 'aria-label': 'Reading the music', 'aria-valuemin': '0', 'aria-valuemax': '100' }, h('i', { style: 'width:4%' }));
         const msg = h('div', { class: 'ds-help', role: 'status', text: 'Reading page 1 of ' + pages.length + '…' });
-        body.append(msg, prog, h('p', { class: 'ds-caption', text: 'You can keep this window open or close it; closing stops the reading.' }));
+        grid.classList.add('is-small');
+        body.append(...[
+          opts.reason ? h('div', { class: 'ds-help' }, UI.icon('alert'), opts.reason) : null,
+          msg, prog, grid,
+          h('p', { class: 'ds-caption', text: 'Reading takes about 10 to 60 seconds per page. Then you check the result against the original and tap any wrong note to fix it. Closing this window stops the reading.' })].filter(Boolean));
         try {
           const use = pages.filter((p) => p.verdict !== 'none');
           const pdf = await SC.pagesToPdf(use.map((p) => p.prepared));
@@ -218,14 +273,18 @@
           song.scanXml = res.xml;
           song.warnings = ['Read from a scan by Audiveris. Check every bar against the original before you practise.'].concat(res.warnings || [], song.warnings || []);
           W.core.finish(song);
+          handedOver = true;
           UI.closeDialog();
           W.library.review(song, done);
         } catch (e) {
           body.textContent = '';
           body.append(h('div', { class: 'ds-alert ds-alert--danger', role: 'alert' }, UI.icon('alert'), h('div', null, h('strong', { text: 'The music could not be read.' }), h('span', { text: (e && e.message) || String(e) }))),
-            h('div', { class: 'dialog-actions' }, h('button', { class: 'ds-btn ds-btn--outline', type: 'button', onclick: () => UI.closeDialog() }, 'Close')));
+            h('div', { class: 'dialog-actions' }, h('button', { class: 'ds-btn ds-btn--outline', type: 'button', onclick: () => downloadPages(pages, name) }, UI.icon('download'), 'Download prepared pages'),
+              h('button', { class: 'ds-btn ds-btn--outline', type: 'button', onclick: () => UI.closeDialog() }, 'Close')));
         }
       };
+      // the desktop app starts reading at once; the page check stays visible above the progress
+      if (engine && anyStaff) read();
     });
   };
   function copyCanvas(src, maxW) {
