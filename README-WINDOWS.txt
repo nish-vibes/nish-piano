@@ -1,12 +1,12 @@
-MarkSteady Wapiro for Windows
+NiSH MarkSteady Piano for Windows
 =============================
 
 Two ways to run it, neither needs administrator rights:
 
-1. MarkSteady-Wapiro-2.0.0-x64.exe (installer)
+1. NiSH-MarkSteady-Piano-2.0.0-x64.exe (installer)
    Installs for your user only and adds Start menu and desktop shortcuts.
 
-2. MarkSteady-Wapiro-2.0.0-portable.exe
+2. NiSH-MarkSteady-Piano-2.0.0-portable.exe
    Runs without installing. Keep it in any folder, for example on a USB stick.
 
 Windows may show "Windows protected your PC" because the app is not code-signed yet.

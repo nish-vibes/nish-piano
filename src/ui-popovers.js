@@ -317,7 +317,7 @@
   };
   P.about = function () {
     UI.openDialog('About', h('div', { class: 'about' },
-      h('p', { class: 'ds-reading', text: 'MarkSteady Wapiro 2.0.0' }),
+      h('p', { class: 'ds-reading', text: 'NiSH MarkSteady Piano 2.0.0' }),
       h('p', { class: 'ds-caption', text: 'A piano practice app that runs from this one file, offline. Your songs and settings stay in this browser on this device.' })));
   };
 })();

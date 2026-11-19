@@ -458,7 +458,7 @@
     const L = [];
     L.push('<?xml version="1.0" encoding="UTF-8"?>', '<score-partwise version="4.0">',
       '<work><work-title>' + esc(score.title) + '</work-title></work>',
-      '<identification>' + (score.composer ? '<creator type="composer">' + esc(score.composer) + '</creator>' : '') + '<encoding><software>MarkSteady Wapiro PDF reader ' + U.VERSION + '</software></encoding></identification>',
+      '<identification>' + (score.composer ? '<creator type="composer">' + esc(score.composer) + '</creator>' : '') + '<encoding><software>NiSH MarkSteady Piano PDF reader ' + U.VERSION + '</software></encoding></identification>',
       '<part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>', '<part id="P1">');
     score.measures.forEach((m, mi) => {
       L.push('<measure number="' + (mi + 1) + '"' + (m.implicit ? ' implicit="yes"' : '') + '>');

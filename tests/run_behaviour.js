@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Behaviour tests for MarkSteady Wapiro v2.0. They drive the real app through window.WapiroTest
+/* Behaviour tests for NiSH MarkSteady Piano v2.0. They drive the real app through window.WapiroTest
  * (thin wrappers over the same functions the UI calls) and check the defects found in v1.0.
  *
  * Usage: node tests/run_behaviour.js [path/to/app.html]
@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
 
-const html = path.resolve(process.argv[2] || path.join(__dirname, '..', 'dist', 'marksteady_waterfall_piano_roll_v2_0_0.html'));
+const html = path.resolve(process.argv[2] || path.join(__dirname, '..', 'dist', 'nish_marksteady_piano_v2_0_0.html'));
 const fxDir = path.join(__dirname, '..', 'fixtures');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

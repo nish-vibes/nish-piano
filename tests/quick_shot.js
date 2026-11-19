@@ -6,7 +6,7 @@ const { chromium } = require('/opt/npm-tools/node_modules/playwright');
     const ctx = await b.newContext({ viewport: { width: 1280, height: 800 }, colorScheme: scheme });
     const page = await ctx.newPage();
     const errs = []; page.on('pageerror', (e) => errs.push(String(e)));
-    await page.goto('file://' + path.resolve(__dirname, '..', 'dist', 'marksteady_waterfall_piano_roll_v2_0_0.html'));
+    await page.goto('file://' + path.resolve(__dirname, '..', 'dist', 'nish_marksteady_piano_v2_0_0.html'));
     await page.waitForFunction(() => window.WapiroTest && window.WapiroTest.state);
     await page.evaluate(() => window.WapiroTest.reset()); await page.reload(); await page.waitForFunction(() => window.WapiroTest && window.WapiroTest.state);
     await page.evaluate(async () => { const s = (await window.WapiroTest.listSongs()).find((x) => /Prelude in C/.test(x.title)); await window.WapiroTest.openSong(s.id); });

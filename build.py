@@ -13,7 +13,7 @@ JS = [
     'src/ui-base.js', 'src/ui-timeline.js', 'src/ui-popovers.js', 'src/scan.js', 'src/ui-fix.js', 'src/ui-library.js', 'src/ui-results.js', 'src/ui-editor.js', 'src/ui-shell.js', 'src/freeplay.js',
     'src/app.js',
 ]
-OUT = 'dist/marksteady_waterfall_piano_roll_v2_0_0.html'
+OUT = 'dist/nish_marksteady_piano_v2_0_0.html'
 
 def read(p):
     with open(os.path.join(HERE, p), encoding='utf-8') as f:

@@ -5,7 +5,7 @@
 const fs = require('fs'), path = require('path'), os = require('os');
 const { spawnSync } = require('child_process');
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
-const html = path.resolve(path.join(__dirname, '..', 'dist', 'marksteady_waterfall_piano_roll_v2_0_0.html'));
+const html = path.resolve(path.join(__dirname, '..', 'dist', 'nish_marksteady_piano_v2_0_0.html'));
 const [exe, ...files] = process.argv.slice(2);
 if (!exe || !files.length) { console.log('Usage: node tests/run_scan_pipeline.js <Audiveris> <scan> [...]'); process.exit(2); }
 

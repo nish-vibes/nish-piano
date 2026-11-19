@@ -2,7 +2,7 @@
 /* Zoomed crop of the sheet pane. Usage: node tests/zoom.js <fixture file> <out.png> [x y w h] [staffSize] [bar] */
 const fs = require('fs'), path = require('path');
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
-const html = path.resolve(__dirname, '..', 'dist', 'marksteady_waterfall_piano_roll_v2_0_0.html');
+const html = path.resolve(__dirname, '..', 'dist', 'nish_marksteady_piano_v2_0_0.html');
 (async () => {
   const [file, outp, x = 0, y = 100, w = 720, h = 260, size = 0] = process.argv.slice(2);
   const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });

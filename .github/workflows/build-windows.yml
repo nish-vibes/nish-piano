@@ -52,7 +52,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force desktop/app | Out-Null
-          Copy-Item dist/marksteady_waterfall_piano_roll_v2_0_0.html desktop/app/index.html
+          Copy-Item dist/nish_marksteady_piano_v2_0_0.html desktop/app/index.html
 
       - name: Fetch and unpack Audiveris (console build, with its own Java)
         shell: pwsh
@@ -99,24 +99,24 @@ jobs:
         shell: pwsh
         run: |
           $rel = 'desktop/release'
-          $pkg = Join-Path $env:RUNNER_TEMP 'MarkSteady-Wapiro-Windows'
+          $pkg = Join-Path $env:RUNNER_TEMP 'NiSH-MarkSteady-Piano-Windows'
           New-Item -ItemType Directory -Force $pkg | Out-Null
           Copy-Item "$rel/*.exe" $pkg
           Copy-Item desktop/licenses/* $pkg
           Copy-Item README-WINDOWS.txt $pkg
-          Compress-Archive -Path "$pkg/*" -DestinationPath MarkSteady-Wapiro-Windows.zip -Force
-          "{0:N0} MB zip" -f ((Get-Item MarkSteady-Wapiro-Windows.zip).Length / 1MB)
+          Compress-Archive -Path "$pkg/*" -DestinationPath NiSH-MarkSteady-Piano-Windows.zip -Force
+          "{0:N0} MB zip" -f ((Get-Item NiSH-MarkSteady-Piano-Windows.zip).Length / 1MB)
 
       - uses: actions/upload-artifact@v4
         with:
-          name: MarkSteady-Wapiro-Windows
-          path: MarkSteady-Wapiro-Windows.zip
+          name: NiSH-MarkSteady-Piano-Windows
+          path: NiSH-MarkSteady-Piano-Windows.zip
 
       - name: Attach to the release (tags only)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: MarkSteady-Wapiro-Windows.zip
+          files: NiSH-MarkSteady-Piano-Windows.zip
           draft: true
 
       - name: Tag this commit and make a draft release (manual release only)
@@ -125,6 +125,6 @@ jobs:
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           target_commitish: ${{ github.sha }}
-          name: MarkSteady Wapiro ${{ env.RELEASE_TAG }}
-          files: MarkSteady-Wapiro-Windows.zip
+          name: NiSH MarkSteady Piano ${{ env.RELEASE_TAG }}
+          files: NiSH-MarkSteady-Piano-Windows.zip
           draft: true

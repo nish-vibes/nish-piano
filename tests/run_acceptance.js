@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Acceptance test for the import/export core of MarkSteady Wapiro v2.0.
+/* Acceptance test for the import/export core of NiSH MarkSteady Piano v2.0.
  * Loads the built single-file app in headless Chrome with every network request blocked,
  * imports each stand-in fixture through window.WapiroCore.importFile and compares the
  * result with fixtures/expected.json. Also round-trips each score through exportMidi.
@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
 
-const html = path.resolve(process.argv[2] || path.join(__dirname, '..', 'dist', 'marksteady_waterfall_piano_roll_v2_0_0.html'));
+const html = path.resolve(process.argv[2] || path.join(__dirname, '..', 'dist', 'nish_marksteady_piano_v2_0_0.html'));
 const fxDir = path.join(__dirname, '..', 'fixtures');
 const spec = JSON.parse(fs.readFileSync(path.join(fxDir, 'expected.json'), 'utf8'));
 const TOL_Q = spec.tolerance.q, TOL_BPM = spec.tolerance.bpm;

@@ -5,7 +5,7 @@ const { chromium } = require('/opt/npm-tools/node_modules/playwright');
   const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });
   const page = await b.newPage({ viewport: { width: 1280, height: 860 } });
   const errs = []; page.on('pageerror', (e) => errs.push(String(e)));
-  await page.goto('file://' + path.resolve(__dirname, '..', 'dist', 'marksteady_waterfall_piano_roll_v2_0_0.html'));
+  await page.goto('file://' + path.resolve(__dirname, '..', 'dist', 'nish_marksteady_piano_v2_0_0.html'));
   await page.waitForFunction(() => window.WapiroTest && window.WapiroTest.state);
   const real = path.join(__dirname, '..', 'real', 'river.pdf');
   const file = process.argv[2] || (fs.existsSync(real) ? real : path.join(__dirname, 'scan', 'smoke_page.png'));

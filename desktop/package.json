@@ -1,6 +1,6 @@
 {
-  "name": "marksteady-wapiro",
-  "productName": "MarkSteady Wapiro",
+  "name": "nish-marksteady-piano",
+  "productName": "NiSH MarkSteady Piano",
   "version": "2.0.0",
   "description": "Waterfall piano roll and sheet music practice, with a built-in reader for scanned sheet music.",
   "main": "main.js",
@@ -16,9 +16,9 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "io.github.nishvibes.marksteadywapiro",
-    "productName": "MarkSteady Wapiro",
-    "artifactName": "MarkSteady-Wapiro-${version}-${arch}.${ext}",
+    "appId": "io.github.nishvibes.nishmarksteadypiano",
+    "productName": "NiSH MarkSteady Piano",
+    "artifactName": "NiSH-MarkSteady-Piano-${version}-${arch}.${ext}",
     "directories": { "output": "release", "buildResources": "build" },
     "files": ["main.js", "preload.js", "app/**/*", "package.json"],
     "extraResources": [
@@ -37,9 +37,9 @@
       "allowElevation": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "shortcutName": "MarkSteady Wapiro",
+      "shortcutName": "NiSH MarkSteady Piano",
       "license": "licenses/INSTALLER_NOTICE.txt"
     },
-    "portable": { "artifactName": "MarkSteady-Wapiro-${version}-portable.exe" }
+    "portable": { "artifactName": "NiSH-MarkSteady-Piano-${version}-portable.exe" }
   }
 }

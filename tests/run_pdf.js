@@ -4,7 +4,7 @@
  * Usage: node tests/run_pdf.js [app.html] */
 const fs = require('fs'), path = require('path');
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
-const html = path.resolve(process.argv[2] || path.join(__dirname, '..', 'dist', 'marksteady_waterfall_piano_roll_v2_0_0.html'));
+const html = path.resolve(process.argv[2] || path.join(__dirname, '..', 'dist', 'nish_marksteady_piano_v2_0_0.html'));
 const fx = path.join(__dirname, '..', 'fixtures');
 const spec = JSON.parse(fs.readFileSync(path.join(fx, 'expected.json'), 'utf8'));
 (async () => {

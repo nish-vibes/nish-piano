@@ -323,7 +323,7 @@
   Lib.backup = function () {
     const data = { kind: BACKUP_KIND, version: 2, app: U.VERSION, exported: new Date().toISOString(),
       songs: sorted().map((r) => ({ id: r.id, order: r.order, best: r.best, prefs: r.prefs, original: r.original || null, song: r.song })), settings: S.settings };
-    download('MarkSteady Wapiro backup ' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(data), 'application/json');
+    download('NiSH MarkSteady Piano backup ' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(data), 'application/json');
     UI.toast('Saved a backup of ' + data.songs.length + ' songs.');
   };
   function validSong(s) {
@@ -334,7 +334,7 @@
   Lib.parseBackup = function (text) {
     let o;
     try { o = JSON.parse(text); } catch (e) { throw new Error('This file is not a backup (it is not valid JSON).'); }
-    if (!o || o.kind !== BACKUP_KIND || !Array.isArray(o.songs)) throw new Error('This file is not a MarkSteady Wapiro backup.');
+    if (!o || o.kind !== BACKUP_KIND || !Array.isArray(o.songs)) throw new Error('This file is not a NiSH MarkSteady Piano backup.');
     if (o.version > 2) throw new Error('This backup comes from a newer version of the app.');
     const good = [], bad = [];
     for (const r of o.songs) (r && validSong(r.song) && typeof r.id === 'string' ? good : bad).push(r);

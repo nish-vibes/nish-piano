@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stand-in acceptance fixtures for MarkSteady Wapiro v2.0.
+"""Stand-in acceptance fixtures for NiSH MarkSteady Piano v2.0.
 
 The tester's real PDF/MIDI files are not available, so these files replace them.
 Each fixture is defined ONCE here as plain data; both the file and its expected

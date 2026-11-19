@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
-const html = path.resolve(__dirname, '..', 'dist', 'marksteady_waterfall_piano_roll_v2_0_0.html');
+const html = path.resolve(__dirname, '..', 'dist', 'nish_marksteady_piano_v2_0_0.html');
 const fx = path.join(__dirname, '..', 'fixtures');
 const out = path.join(__dirname, '..', 'shots');
 const only = process.argv[2] || '';

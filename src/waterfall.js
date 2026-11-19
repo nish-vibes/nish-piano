@@ -11,6 +11,8 @@
   const grads = new Map();
   WF.themeChanged = function () { for (const k in cache) delete cache[k]; pal = null; layers = null; sprites = {}; grads.clear(); WF.dirty = true; };
 
+  WF.freeTouched = false;
+  E.on('key', (e) => { if (e && e.down && WF.free && !WF.freeTouched) { WF.freeTouched = true; WF.dirty = true; } });
   WF.mount = function (canvas) { WF.canvas = canvas; WF.ctx = canvas.getContext('2d'); U.watchPixels(canvas, () => { const p = U.pixelSize(canvas, canvas.getBoundingClientRect()); if (p.w !== canvas.width || p.h !== canvas.height) WF.resize(); }); };
   WF.resize = function () {
     const c = WF.canvas, r = c.getBoundingClientRect();
@@ -400,8 +402,14 @@
       ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
       ctx.restore();
       if (P.space) { const g = ctx.createLinearGradient(0, h - 40, 0, h); g.addColorStop(0, css(P.R.c, 0)); g.addColorStop(1, css(P.R.c, 0.13)); ctx.fillStyle = g; ctx.fillRect(0, h - 40, w, 40); }
-      ctx.fillStyle = cssVar('--primary'); ctx.fillRect(0, h - 2, w, 2);
+      ctx.fillStyle = cssVar('--input'); ctx.fillRect(0, h - 1, w, 1);
       if (flip) ctx.restore();
+      if (flip && !WF.freeTouched) {
+        // an empty stage says what to do; it goes away with the first note
+        ctx.fillStyle = cssVar('--muted-foreground'); ctx.font = '500 15px ' + (cssVar('--font-sans') || 'sans-serif');
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('Play any key. Your notes appear here.', w / 2, h * 0.42);
+      }
       return;
     }
     const { measures, n, nq, nd, nm, nh, endQ } = E.get();
@@ -509,7 +517,7 @@
     ctx.restore();
     // strike line at the keyboard's top edge, with a low glow like a horizon
     if (P.space) { const g = ctx.createLinearGradient(0, h - 40, 0, h); g.addColorStop(0, css(P.R.c, 0)); g.addColorStop(1, css(P.R.c, 0.13)); ctx.fillStyle = g; ctx.fillRect(0, h - 40, w, 40); }
-    ctx.fillStyle = cssVar('--primary'); ctx.fillRect(0, h - 2, w, 2);
+    ctx.fillStyle = cssVar('--input'); ctx.fillRect(0, h - 1, w, 1);
   };
 
   /** Lane guides: a line at every C. */

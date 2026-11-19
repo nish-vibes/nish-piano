@@ -3,7 +3,7 @@
  * the way notation software exports. Usage: node tests/make_pdf.js <fixture> <out.pdf> [staffSize] [width] */
 const fs = require('fs'), path = require('path');
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
-const html = path.resolve(__dirname, '..', 'dist', 'marksteady_waterfall_piano_roll_v2_0_0.html');
+const html = path.resolve(__dirname, '..', 'dist', 'nish_marksteady_piano_v2_0_0.html');
 (async () => {
   const [file, outp, size = '10', width = '760'] = process.argv.slice(2);
   const map = JSON.parse(fs.readFileSync(path.join(__dirname, 'smufl_map.json'), 'utf8'));

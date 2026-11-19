@@ -221,7 +221,7 @@ body { font-family: var(--font-sans); }
 
 /* header toggles: pressed = on (accent ink + muted fill, never colour alone: the icon and aria-pressed carry the state) */
 .tb-toggles { padding-right: var(--space-2); margin-right: var(--space-1); border-right: 1px solid var(--border); }
-.tb-toggle[aria-pressed="true"] { background: var(--muted); color: var(--primary-ink); box-shadow: inset 0 -2px 0 var(--primary-ink); }
+.tb-toggle[aria-pressed="true"] { background: var(--muted); color: var(--foreground); box-shadow: inset 0 -2px 0 var(--foreground); }
 .tb-toggle[aria-pressed="false"] { color: var(--muted-foreground); }
 
 /* keyboard: horizontal scroll, adjustable key width and height */
@@ -302,7 +302,7 @@ body { font-family: var(--font-sans); }
 /* header: loop button (icon flipped vertically), grey-filled right-hand buttons, Wait for me in the accent fill when on */
 .loop-flip svg { transform: scaleY(-1); }
 .tb-right > .ds-btn--ghost { background: var(--secondary); }
-.tb-wait[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground, #121214); box-shadow: none; }
+.tb-wait { gap: 6px; padding: 0 10px; }
 
 /* practice menu: loop */
 .loop-sec { gap: var(--space-3); }
@@ -343,6 +343,8 @@ body { font-family: var(--font-sans); }
 .app.is-free .keys-wrap { order: 1; }
 .app.is-free .stage { order: 2; }
 .app.is-free .keys-hgrip { display: none; }
+/* Freeplay has the keyboard at the top: the width control opens downwards over the waterfall, never up over the header */
+.app.is-free .keys-tools { bottom: auto; top: calc(100% + var(--space-3)); }
 .app.is-free .tb-transport, .app.is-free .play-btn { display: none; }
 .free-center { display: none; align-items: center; gap: var(--space-2); margin-left: var(--space-2); }
 .app.is-free .free-center { display: inline-flex; }
@@ -444,3 +446,20 @@ body { font-family: var(--font-sans); }
 :root, [data-theme="light"] { --muted-foreground: var(--neutral-700); }
 .switch-row.low-lat { padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); }
 .switch-row.low-lat .ds-caption { max-width: 260px; }
+
+/* ---- design review, 19 Nov: less orange, labelled modes, quiet notes ---- */
+.tb-title-note { font-size: 12px; color: var(--muted-foreground); font-weight: 400; }
+.tb-title-note:empty { display: none; }
+.title-btn.is-parked .tb-title { color: var(--muted-foreground); font-weight: 500; }
+.metro-pair { display: inline-flex; align-items: stretch; height: 32px; border: 1px solid var(--input); border-radius: var(--radius-md); overflow: hidden; }
+.metro-pair .ds-btn { height: 30px; border-radius: 0; box-shadow: none; background: transparent; }
+.metro-pair .count-btn { border-left: 1px solid var(--border); padding: 0 10px; color: var(--muted-foreground); }
+.metro-pair .tb-toggle[aria-pressed="true"] { background: var(--muted); color: var(--foreground); box-shadow: none; }
+.metro-pair .count-btn[aria-pressed="true"] { color: var(--foreground); }
+.tb-menu { width: auto; gap: 6px; padding: 0 10px; }
+.tb-label { font-size: 13px; }
+@media (max-width: 1279px) { .tb-label, .tb-wait span { display: none; } .tb-menu, .tb-wait { width: 32px; padding: 0; } }
+.sheet-head .ds-badge { background: none; border: 0; padding: 0 var(--space-1); font-size: 12px; font-weight: 400; color: var(--muted-foreground); }
+.sheet-head .ds-badge[hidden] { display: none; }
+/* the next system fades out at the pane edge instead of being cut through */
+.sheet-scroll { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent); }

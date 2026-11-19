@@ -1,9 +1,9 @@
-MarkSteady Wapiro installs for your Windows user only. No administrator rights are needed.
+NiSH MarkSteady Piano installs for your Windows user only. No administrator rights are needed.
 
 Included third-party software:
 
 Audiveris (optical music recognition), licensed under the GNU Affero General Public License v3.
-It runs as a separate program that MarkSteady Wapiro starts to read scanned sheet music.
+It runs as a separate program that NiSH MarkSteady Piano starts to read scanned sheet music.
 Source code: https://github.com/Audiveris/audiveris
 The full licence text is installed in resources\licenses\AUDIVERIS-LICENSE.txt.
 

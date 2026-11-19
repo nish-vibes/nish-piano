@@ -1,7 +1,7 @@
-# MarkSteady Wapiro 2.0.0 prototype: build notes
+# NiSH MarkSteady Piano 2.0.0 prototype: build notes
 
 ## Status
-All three test suites pass on dist/marksteady_waterfall_piano_roll_v2_0_0.html (about 2 MB, one file, offline):
+All three test suites pass on dist/nish_marksteady_piano_v2_0_0.html (about 2 MB, one file, offline):
 - `node tests/run_acceptance.js`: MusicXML, MXL and MIDI import, MIDI export round trip, no network, no page errors.
 - `node tests/run_behaviour.js`: wait/in-tempo/listen modes, seeking and loops, 88 keys, scoring rules, edit + undo, persistence, delete.
 - `node tests/run_pdf.js`: PDF reader on four vector test PDFs (every note, length, bar, key, time signature correct) and refusal of a broken PDF.
@@ -69,7 +69,7 @@ Real example: the River Flows In You scan is 510×722 px, staff lines 3 px apart
 
 ## Windows desktop app (`desktop/`)
 
-Electron shell around the built HTML (`desktop/app/index.html`), Web MIDI allowed for the local page only, sandboxed preload exposing `window.wapiroDesktop` (`omr`, `cancelOmr`, `omrAvailable`, `onOpenFile`). Audiveris (AGPLv3, with its own Java) is unpacked from the official MSI into `resources/audiveris` and runs as a separate process. electron-builder makes a per-user NSIS installer (no admin), a portable exe and a zip. `.github/workflows/build-windows.yml` builds it all on a Windows runner and uploads `MarkSteady-Wapiro-Windows.zip` (draft release on `v*` tags). Builds are unsigned, so SmartScreen warns on first run.
+Electron shell around the built HTML (`desktop/app/index.html`), Web MIDI allowed for the local page only, sandboxed preload exposing `window.wapiroDesktop` (`omr`, `cancelOmr`, `omrAvailable`, `onOpenFile`). Audiveris (AGPLv3, with its own Java) is unpacked from the official MSI into `resources/audiveris` and runs as a separate process. electron-builder makes a per-user NSIS installer (no admin), a portable exe and a zip. `.github/workflows/build-windows.yml` builds it all on a Windows runner and uploads `NiSH-MarkSteady-Piano-Windows.zip` (draft release on `v*` tags). Builds are unsigned, so SmartScreen warns on first run.
 
 ## PDF import, scans and tap to fix
 
@@ -126,3 +126,13 @@ Electron shell around the built HTML (`desktop/app/index.html`), Web MIDI allowe
   with the metronome on, on the last downbeat; otherwise on the first note.
 - Timeline colours follow the canvas: bar row on --muted, overview on --roll, loop band at 59 %, cyan playhead,
   loop handles in --primary-ink. New hourglass icon for Wait for me.
+
+## Renamed to NiSH MarkSteady Piano; design review applied (19 Nov)
+- Product name everywhere a user sees it: window title, installer and shortcut, file names, About, backups, docs. Output file is now `dist/nish_marksteady_piano_v2_0_0.html`; installer `NiSH-MarkSteady-Piano-2.0.0-x64.exe`; appId `io.github.nishvibes.nishmarksteadypiano` (a new appId, so Windows sees a new program next to the old one). Internal code names (`window.Wapiro`, `wapiroDesktop`) and storage keys are unchanged so songs and settings carry over.
+- First-run tip follows the mode (Freeplay: "Play any key. Press R to record.") and closes for good on Play or the first note in Freeplay.
+- Freeplay keeps the song name in the title slot, muted, with "paused"; the empty stage says "Play any key. Your notes appear here." until the first note.
+- Less orange: pressed toggles are neutral (muted fill, dark underline); the key edge line is neutral. Play, Record, Freeplay, right hand and the timeline loop band (user's own canvas choice) keep their colours.
+- Wait has a text label; Practice and Sound menus have text labels from 1280 px up, icons below.
+- Metronome and count-in are one joined control in Freeplay.
+- The notation note only shows when the notation is not the file's own, as quiet text.
+- The sheet pane fades out at its bottom edge instead of cutting the next system in half.

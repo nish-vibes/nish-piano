@@ -70,13 +70,21 @@
   // ---------------------------------------------------------------- first-run hint
   R.hint = function (root) {
     if (S.settings.hintDone) return;
-    const done = () => { S.settings.hintDone = true; S.saveSettings(); card.remove(); };
-    const card = h('div', { class: 'hint ds-popover', role: 'note' },
-      h('div', { class: 'hint-text' }, h('span', { class: 'ds-control-text', text: 'Press Space or the play button. The notes wait for you.' }),
-        h('span', { class: 'ds-caption', text: 'The speaker button plays the music along with you. Drop a scan, PDF, MusicXML or MIDI file anywhere to add a song.' })),
-      h('button', { class: 'ds-btn ds-btn--ghost ds-btn--icon', type: 'button', 'aria-label': 'Dismiss the hint', onclick: done }, UI.icon('close')));
+    const done = () => { if (!card.isConnected) return; S.settings.hintDone = true; S.saveSettings(); card.remove(); };
+    const main = h('span', { class: 'ds-control-text' }), sub = h('span', { class: 'ds-caption' });
+    // the tip follows the mode: Freeplay has no play button and nothing to wait for
+    const paint = () => {
+      const free = W.free && W.free.active;
+      main.textContent = free ? 'Play any key. Press R to record.' : 'Press Space or the play button. The notes wait for you.';
+      sub.textContent = free ? 'Press F to go back to your song.' : 'Drop a scan, PDF, MusicXML or MIDI file anywhere to add a song.';
+    };
+    const card = h('div', { class: 'hint ds-popover', role: 'note' }, h('div', { class: 'hint-text' }, main, sub),
+      h('button', { class: 'ds-btn ds-btn--ghost ds-btn--icon', type: 'button', 'aria-label': 'Dismiss the tip', onclick: done }, UI.icon('close')));
+    paint();
     root.appendChild(card);
-    const off = () => { if (E.playing && card.isConnected) done(); };
-    E.on('change', off);
+    if (W.free) W.free.onChange(paint);
+    // gone for good once the player starts: Play in a song, or the first note in Freeplay
+    E.on('change', () => { if (E.playing) done(); });
+    E.on('key', (e) => { if (e && e.down && W.free && W.free.active) done(); });
   };
 })();

@@ -1,4 +1,4 @@
-# Build brief: MarkSteady Wapiro v2.0
+# Build brief: NiSH MarkSteady Piano v2.0
 
 You are building version 2.0 of a piano practice web app. Version 1.0 is one HTML file
 (`assets/v1_0_0.html`, 3,363 lines). A code review found that its headline feature was faked, its
@@ -11,7 +11,7 @@ at screenshots. Nothing in the UI may claim a capability the code does not have.
 
 ## 1. Deliverable and hard constraints
 
-- **One file:** `dist/marksteady_waterfall_piano_roll_v2_0_0.html`. It must work by double-click
+- **One file:** `dist/nish_marksteady_piano_v2_0_0.html`. It must work by double-click
   (`file://`), fully offline. **No network requests at all**: no CDN, no web fonts, no icon fonts,
   no analytics. The acceptance test blocks the network and fails on any request.
 - **No installs.** This sandbox has no network. Use only what is here: Node 22, Python 3
@@ -39,8 +39,8 @@ at screenshots. Nothing in the UI may claim a capability the code does not have.
    drag handle between the two panes. Waterfall is the default.
 4. **Design system:** Suite Core only (section 7). Appearance switch: Auto, Light, Dark, Light
    increased contrast, Dark increased contrast.
-5. English interface. Version string `2.0.0`. Product name "MarkSteady Wapiro"; document title
-   "MarkSteady Waterfall Piano Roll (MarkSteady Wapiro) v2.0.0".
+5. English interface. Version string `2.0.0`. Product name "NiSH MarkSteady Piano"; document title
+   "NiSH MarkSteady Piano 2.0.0".
 
 Out of scope for 2.0 (do not build, do not hint at in the UI): sampled piano sound, timing-based
 scoring, fingering, progress history charts, score editing on the staff, PDF recognition.

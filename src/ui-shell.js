@@ -12,7 +12,8 @@
     root.classList.add('app');
     // top bar
     el.title = h('span', { class: 'tb-title', text: '' });
-    el.titleBtn = h('button', { class: 'title-btn ds-btn ds-btn--ghost', type: 'button', 'aria-haspopup': 'dialog', 'aria-label': 'Library: open a song', onclick: () => W.library.open() }, UI.icon('music'), el.title);
+    el.titleNote = h('span', { class: 'tb-title-note', text: '' });
+    el.titleBtn = h('button', { class: 'title-btn ds-btn ds-btn--ghost', type: 'button', 'aria-haspopup': 'dialog', 'aria-label': 'Library: open a song', onclick: () => W.library.open() }, UI.icon('music'), el.title, el.titleNote);
     const iconBtn = (name, label, fn, extra) => h('button', Object.assign({ class: 'ds-btn ds-btn--icon ds-btn--ghost tip', type: 'button', 'aria-label': label, 'data-tip': label, onclick: fn }, extra || {}), UI.icon(name));
     el.restart = iconBtn('restart', 'Restart', () => E.restart());
     el.prev = iconBtn('prev', 'Previous bar', () => E.prevBar());
@@ -28,7 +29,8 @@
     el.views = h('div', { class: 'ds-tabs view-switch', role: 'group', 'aria-label': 'View' }, VIEWS.map(([v, t]) => h('button', { class: 'ds-tab', type: 'button', 'aria-pressed': 'false', 'data-view': v, onclick: () => W.app.setView(v) }, t)));
     const toggle = (name, label, fn) => h('button', { class: 'ds-btn ds-btn--icon ds-btn--ghost tip tb-toggle', type: 'button', 'aria-label': label, 'data-tip': label, 'aria-pressed': 'false', onclick: fn }, UI.icon(name));
     el.bWait = toggle('wait', 'Wait for me (W)', () => E.setOptions({ wait: !E.opts.wait, countIn: null }));
-    el.bWait.classList.add('tb-wait');
+    // labelled, so the mode can be read without hovering
+    el.bWait.classList.remove('ds-btn--icon'); el.bWait.classList.add('tb-wait'); el.bWait.append(h('span', { text: 'Wait' }));
     el.bAlong = toggle('speaker', 'Play along (P)', () => E.setOptions({ playAlong: !E.opts.playAlong }));
     el.bMetro = toggle('metronome', 'Metronome (M)', () => E.setOptions({ metronome: !E.opts.metronome }));
     // Freeplay centre: tempo stepper, a second metronome toggle and count-in, shown next to Record
@@ -37,10 +39,15 @@
       h('button', { type: 'button', class: 'ds-btn ds-btn--ghost ds-btn--icon', 'aria-label': 'Slower', title: 'Slower', onclick: () => W.free.setBpm(W.free.bpm() - 1) }, UI.icon('minus')), el.bpmVal,
       h('button', { type: 'button', class: 'ds-btn ds-btn--ghost ds-btn--icon', 'aria-label': 'Faster', title: 'Faster', onclick: () => W.free.setBpm(W.free.bpm() + 1) }, UI.icon('plus')));
     el.bMetro2 = toggle('metronome', 'Metronome (M)', () => E.setOptions({ metronome: !E.opts.metronome }));
-    el.bCount = h('button', { class: 'ds-btn ds-btn--ghost tb-toggle count-btn', type: 'button', 'aria-pressed': 'true', title: 'Count in one bar before recording', onclick: () => W.free.setCountIn(!W.free.countIn()) }, 'Count-in 1 bar');
-    el.freeCenter = h('span', { class: 'free-center' }, el.bpm, el.bMetro2, el.bCount);
+    el.bCount = h('button', { class: 'ds-btn ds-btn--ghost tb-toggle count-btn tip', type: 'button', 'aria-pressed': 'true', 'aria-label': 'Count in one bar before recording', 'data-tip': 'Count in one bar before recording', onclick: () => W.free.setCountIn(!W.free.countIn()) }, 'Count-in');
+    // metronome and count-in are one control: both are about the click
+    el.metroPair = h('span', { class: 'metro-pair', role: 'group', 'aria-label': 'Click' }, el.bMetro2, el.bCount);
+    el.freeCenter = h('span', { class: 'free-center' }, el.bpm, el.metroPair);
     el.bPractice = iconBtn('sliders', 'Practice options', () => W.popovers.practice(el.bPractice), { 'aria-haspopup': 'dialog', 'aria-expanded': 'false' });
     el.bSound = iconBtn('piano', 'Sound and devices', () => W.popovers.sound(el.bSound), { 'aria-haspopup': 'dialog', 'aria-expanded': 'false' });
+    // named menus where there is room, icons only on narrow windows
+    el.bPractice.classList.add('tb-menu'); el.bPractice.append(h('span', { class: 'tb-label', text: 'Practice' }));
+    el.bSound.classList.add('tb-menu'); el.bSound.append(h('span', { class: 'tb-label', text: 'Sound' }));
     el.bMore = iconBtn('more', 'More', () => W.popovers.more(el.bMore), { 'aria-haspopup': 'menu', 'aria-expanded': 'false' });
     el.topbar = h('header', { class: 'topbar' },
       h('div', { class: 'tb-left chrome' }, el.titleBtn, h('span', { class: 'tb-group' }, el.bFree)),
@@ -103,7 +110,9 @@
     const s = E.song;
     el.title.textContent = s.title;
     const approx = s.notation && s.notation.approximate;
-    el.badgeApprox.textContent = approx ? (s.source === 'midi' ? 'Approximate notation (from MIDI)' : s.source === 'builtin' ? 'Approximate notation (built-in excerpt)' : s.source === 'recording' ? 'Approximate notation (from your recording)' : s.source === 'v1' ? 'Approximate notation (from version 1)' : 'Approximate notation (edited)') : s.source === 'pdf' ? 'Notation rebuilt from the PDF' : 'Notation from the MusicXML file';
+    // a quiet note, only when the notation is not the file's own
+    el.badgeApprox.textContent = approx ? (s.source === 'midi' ? 'Notation guessed from the MIDI file' : s.source === 'builtin' ? 'Simplified notation' : s.source === 'recording' ? 'Notation guessed from your recording' : s.source === 'v1' ? 'Notation from version 1' : 'Notation guessed from your edits') : s.source === 'pdf' ? 'Notation read from the PDF' : '';
+    el.badgeApprox.hidden = !el.badgeApprox.textContent;
     Sh.relayoutAll();
   }
 
@@ -315,7 +324,10 @@
       const lab = F.recording ? 'Stop recording and save' : 'Record what you play';
       el.bRec.setAttribute('aria-label', lab); el.bRec.setAttribute('data-tip', lab);
       [el.play, el.restart, el.prev, el.next, el.bLoop].forEach((b) => { b.disabled = F.active; });
-      el.title.textContent = F.active ? 'Freeplay' : E.song ? E.song.title : '';
+      // Freeplay keeps the song's name in view, muted, so it is clear the song comes back
+      el.title.textContent = E.song ? E.song.title : '';
+      el.titleNote.textContent = F.active && E.song ? 'paused' : '';
+      el.titleBtn.classList.toggle('is-parked', F.active);
       el.bpmVal.textContent = F.bpm() + ' BPM';
       el.bCount.setAttribute('aria-pressed', String(F.countIn()));
       clearInterval(timer);

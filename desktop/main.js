@@ -1,4 +1,4 @@
-// MarkSteady Wapiro desktop shell: one window around the offline web app, Web MIDI allowed,
+// NiSH MarkSteady Piano desktop shell: one window around the offline web app, Web MIDI allowed,
 // and a bridge to the bundled Audiveris music reader for scanned sheet music.
 const { app, BrowserWindow, ipcMain, session, shell, Menu } = require('electron');
 const path = require('path');
@@ -24,7 +24,7 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1360, height: 860, minWidth: 900, minHeight: 600,
     backgroundColor: '#111111', show: false, autoHideMenuBar: true,
-    title: 'MarkSteady Wapiro',
+    title: 'NiSH MarkSteady Piano',
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false },
   });
   Menu.setApplicationMenu(null);
@@ -66,10 +66,10 @@ ipcMain.handle('omr:cancel', () => { if (omrChild) { omrChild.kill(); omrChild =
 
 ipcMain.handle('omr:run', async (event, { name, pdf, pages }) => {
   const exe = audiverisExe();
-  if (!exe) return { error: 'The music reader (Audiveris) is missing from this installation. Reinstall MarkSteady Wapiro.' };
+  if (!exe) return { error: 'The music reader (Audiveris) is missing from this installation. Reinstall NiSH MarkSteady Piano.' };
   if (omrChild) return { error: 'The reader is already busy with another scan.' };
   const safe = String(name || 'scan').replace(/[^\w\- ]+/g, ' ').trim().slice(0, 60) || 'scan';
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wapiro-omr-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nish-marksteady-omr-'));
   const input = path.join(dir, safe + '.pdf'), out = path.join(dir, 'out');
   fs.mkdirSync(out);
   fs.writeFileSync(input, Buffer.from(pdf));

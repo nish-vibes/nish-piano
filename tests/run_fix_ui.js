@@ -7,7 +7,7 @@
 const fs = require('fs'), path = require('path'), os = require('os');
 const { spawnSync } = require('child_process');
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
-const html = path.resolve(path.join(__dirname, '..', 'dist', 'marksteady_waterfall_piano_roll_v2_0_0.html'));
+const html = path.resolve(path.join(__dirname, '..', 'dist', 'nish_marksteady_piano_v2_0_0.html'));
 const argv = process.argv.slice(2);
 const opt = (k, n) => { const i = argv.indexOf(k); return i < 0 ? null : argv.slice(i + 1, i + 1 + n); };
 const vector = argv[0] && !argv[0].startsWith('--') ? argv[0] : null;

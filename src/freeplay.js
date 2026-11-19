@@ -15,7 +15,7 @@
     if (F.active || (W.exporter && W.exporter.active)) return;
     if (W.editor && W.editor.active) W.editor.stop();
     if (E.playing) E.pause();
-    F.active = true; WF.free = true; WF.clearFx();
+    F.active = true; WF.free = true; WF.freeTouched = false; WF.clearFx();
     S.viewOverride = 'waterfall';
     W.shell.applyView();
     if (wantMetro()) metro.start();

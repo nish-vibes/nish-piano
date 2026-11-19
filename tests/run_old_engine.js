@@ -5,7 +5,7 @@
  * Usage: node tests/run_old_engine.js [vector.pdf ...] [--scan scanned.pdf ...] */
 const fs = require('fs'), path = require('path');
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
-const html = path.resolve(path.join(__dirname, '..', 'dist', 'marksteady_waterfall_piano_roll_v2_0_0.html'));
+const html = path.resolve(path.join(__dirname, '..', 'dist', 'nish_marksteady_piano_v2_0_0.html'));
 const args = process.argv.slice(2);
 const vec = [], scans = [];
 let into = vec;
