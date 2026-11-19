@@ -5,7 +5,7 @@
   "description": "Waterfall piano roll and sheet music practice, with a built-in reader for scanned sheet music.",
   "main": "main.js",
   "author": "nish-vibes",
-  "license": "UNLICENSED",
+  "license": "GPL-3.0-or-later",
   "private": true,
   "scripts": {
     "start": "electron .",
@@ -20,9 +20,10 @@
     "productName": "NiSH MarkSteady Piano",
     "artifactName": "NiSH-MarkSteady-Piano-${version}-${arch}.${ext}",
     "directories": { "output": "release", "buildResources": "build" },
-    "files": ["main.js", "preload.js", "app/**/*", "package.json"],
+    "files": ["main.js", "preload.js", "native-audio.js", "app/**/*", "package.json"],
     "extraResources": [
       { "from": "resources/audiveris", "to": "audiveris", "filter": ["**/*"] },
+      { "from": "resources/native", "to": "native", "filter": ["**/*"] },
       { "from": "licenses", "to": "licenses", "filter": ["**/*"] }
     ],
     "fileAssociations": [

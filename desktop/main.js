@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { spawn } = require('child_process');
+const nativeAudio = require('./native-audio');
 
 const APP_HTML = path.join(__dirname, 'app', 'index.html');
 let win = null, omrChild = null;
@@ -57,8 +58,9 @@ app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(allowed.has(perm) && wc.getURL().startsWith('file:')));
   session.defaultSession.setPermissionCheckHandler((_wc, perm, origin) => allowed.has(perm) && (!origin || origin.startsWith('file:')));
   createWindow();
+  nativeAudio.register(() => win);
 });
-app.on('window-all-closed', () => { if (omrChild) omrChild.kill(); app.quit(); });
+app.on('window-all-closed', () => { if (omrChild) omrChild.kill(); nativeAudio.stop(); app.quit(); });
 
 // ------------------------------------------------------------------ Audiveris bridge
 ipcMain.handle('omr:available', () => !!audiverisExe());

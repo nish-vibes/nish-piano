@@ -85,6 +85,33 @@ jobs:
           Get-ChildItem $out -Recurse | Format-Table Name, Length
           if (-not (Get-ChildItem $out -Recurse -Filter *.mxl)) { Write-Warning 'Audiveris produced no MusicXML for the smoke page' }
 
+      - name: Fetch RtAudio 6.0.1 (with the ASIO host files)
+        shell: pwsh
+        run: |
+          git clone --depth 1 --branch 6.0.1 https://github.com/thestk/rtaudio.git "$env:RUNNER_TEMP/rtaudio"
+          Get-ChildItem "$env:RUNNER_TEMP/rtaudio/include" | Format-Table Name, Length
+          Copy-Item "$env:RUNNER_TEMP/rtaudio/LICENSE" desktop/licenses/RTAUDIO-LICENSE.txt
+
+      - name: Build the low-latency sound engine (ASIO)
+        shell: pwsh
+        run: |
+          cmake -S native -B build-native -A x64 -DRTAUDIO_DIR="$env:RUNNER_TEMP/rtaudio"
+          cmake --build build-native --config Release --parallel
+          New-Item -ItemType Directory -Force desktop/resources/native | Out-Null
+          Copy-Item build-native/Release/nish-audio.exe desktop/resources/native/
+          "{0:N0} KB nish-audio.exe" -f ((Get-Item desktop/resources/native/nish-audio.exe).Length / 1KB)
+
+      - name: Test the sound engine (synth checks, and the program starts and answers)
+        shell: pwsh
+        run: |
+          & build-native/Release/nish-synth-test.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Synth checks failed' }
+          # no ASIO driver on the build machine: the program must still start, list nothing, and quit cleanly
+          $out = "list`nping 1`nquit`n" | & desktop/resources/native/nish-audio.exe
+          $out | ForEach-Object { "  $_" }
+          if (-not ($out -match '"ev":"ready"')) { throw 'nish-audio did not start' }
+          if (-not ($out -match '"ev":"pong"')) { throw 'nish-audio did not answer' }
+
       - name: Install desktop dependencies
         working-directory: desktop
         run: npm install --no-audit --no-fund

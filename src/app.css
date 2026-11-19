@@ -463,3 +463,18 @@ body { font-family: var(--font-sans); }
 .sheet-head .ds-badge[hidden] { display: none; }
 /* the next system fades out at the pane edge instead of being cut through */
 .sheet-scroll { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent); }
+
+/* ---- low-latency (ASIO) engine in the Sound menu ---- */
+.asio { gap: var(--space-2); }
+.asio-rows { display: grid; gap: var(--space-2); }
+.asio-rows[hidden] { display: none; }
+.asio-row { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: var(--space-2); }
+.asio-sel { height: 32px; padding: 0 6px; min-width: 0; }
+.asio-tools .ds-btn { height: 30px; }
+.asio-switch.is-error .ds-caption { color: var(--destructive); }
+.asio-warn:empty { display: none; }
+.asio-warn { display: grid; gap: var(--space-2); justify-items: start; }
+.fx-more[hidden], .pop-sound .low-lat[hidden] { display: none; }
+/* the delay readout is the point of this section: readable in both themes */
+.asio .ds-caption { color: var(--foreground); opacity: 0.78; }
+.asio-switch.is-error .ds-caption { opacity: 1; }

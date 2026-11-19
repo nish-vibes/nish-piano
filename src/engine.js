@@ -382,7 +382,7 @@
 
   // ---------------------------------------------------------------- scheduling app sound
   function schedule() {
-    if (!A.ctx || A.ctx.state !== 'running') { skipSchedule(); return; }
+    if (!(A.running ? A.running() : A.ctx && A.ctx.state === 'running')) { skipSchedule(); return; }
     const spd = E.opts.speed;
     let horizonSec = E.sec + LOOKAHEAD * spd;
     let horizonQ = secToQ(horizonSec);
@@ -422,7 +422,7 @@
     if (midi < 21 || midi > 108) return;
     E.activeKeys.add(midi);
     // a MIDI piano with its own speakers already sounds: with 'Mute' on, the app stays silent for keys that come from it
-    if (W.storage.settings.userSound !== false && !(fromMidi && W.storage.settings.midiMute) && A.noteOn) A.noteOn(midi, vel || 90);
+    if (W.storage.settings.userSound !== false && !(fromMidi && W.storage.settings.midiMute) && A.noteOn) A.noteOn(midi, vel || 90, fromMidi);
     // t: when the key was struck (a MIDI event's own timestamp, on the performance.now() clock), so recordings keep exact timing
     emit('key', { midi, down: true, vel: vel || 90, t: t || performance.now() });
     if (!E.song || !E.playing || E.phase !== 'run' || !practising()) { emit('free', { midi, down: true }); return; } // not being scored: free playing
@@ -458,14 +458,14 @@
     barWrong[mi]++;
     barMistake(mi);
   };
-  E.noteOff = function (midi, t) {
+  E.noteOff = function (midi, t, fromMidi) {
     midi = Math.round(midi);
     E.activeKeys.delete(midi);
-    if (A.noteOff) A.noteOff(midi);
+    if (A.noteOff) A.noteOff(midi, fromMidi);
     emit('key', { midi, down: false, t: t || performance.now() });
     emit('free', { midi, down: false });
   };
-  E.pedal = function (down, t) { if (A.setPedal) A.setPedal(down); emit('pedal', { down: !!down, t: t || performance.now() }); };
+  E.pedal = function (down, t, fromMidi) { if (A.setPedal) A.setPedal(down, fromMidi); emit('pedal', { down: !!down, t: t || performance.now() }); };
 
   // ---------------------------------------------------------------- queries
   E.noteStatus = (i) => status[i];

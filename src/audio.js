@@ -5,6 +5,11 @@
   const A = (W.audio = { available: !!(window.AudioContext || window.webkitAudioContext), instrument: 'piano', layer: null, volume: 0.7, accVolume: 0.7, metroVolume: 0.7, mute: false, ctx: null });
   let master, userBus, accBus, metroBus, comp, noise, direct, clip;
   A.lowLatency = false;
+  // Native mode: the ASIO engine (a separate program) makes the sound and reads MIDI keyboards itself.
+  // The Web Audio context then sleeps; it only wakes to mirror the sound into a video export.
+  const N = (A.native = { on: false, midi: false, info: null });
+  let nsend = null, sentInst = '', sentGain = '';
+  A.running = () => (N.on ? true : !!(A.ctx && A.ctx.state === 'running'));
   const active = new Map();   // midi -> voice (user notes)
   const sustained = new Set();
   const scheduled = new Set(); // accompaniment voices
@@ -36,13 +41,52 @@
       const d = noise.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
       A.applyVolumes();
+      if (N.on) { const dest = c.destination; for (const node of [comp, clip, metroBus]) { if (node) try { node.disconnect(dest); } catch (e) { /* not connected */ } } c.suspend().catch(() => {}); }
     }
-    if (A.ctx.state === 'suspended') A.ctx.resume().catch(() => {});
+    if (A.ctx.state === 'suspended' && (!N.on || tap)) A.ctx.resume().catch(() => {});
     return true;
   };
   /** A media stream of what the app plays (without the metronome), for video export. */
   let tap = null;
-  A.tap = function () { if (!A.ensure()) return null; if (!tap) { tap = A.ctx.createMediaStreamDestination(); comp.connect(tap); if (clip) clip.connect(tap); } return tap.stream; };
+  A.tap = function () {
+    if (!A.ensure()) return null;
+    if (!tap) { tap = A.ctx.createMediaStreamDestination(); comp.connect(tap); if (clip) clip.connect(tap); }
+    if (N.on && A.ctx.state === 'suspended') A.ctx.resume().catch(() => {});
+    return tap.stream;
+  };
+  /** Export finished: in native mode the Web Audio mirror goes back to sleep. */
+  A.untap = function () {
+    if (!tap || !A.ctx) return;
+    try { comp.disconnect(tap); if (clip) clip.disconnect(tap); } catch (e) { /* not connected */ }
+    tap = null;
+    if (N.on) A.ctx.suspend().catch(() => {});
+  };
+  const mirror = () => !!(tap && A.ctx && A.ctx.state === 'running');
+  const toCtx = (when) => A.ctx.currentTime + Math.max(0, when - A.now());
+
+  /** Hand sound to the native engine (send = function taking one command line), or back to Web Audio (null). */
+  A.useNative = function (send, info) {
+    nsend = send || null; N.on = !!nsend; N.info = info || null; sentInst = ''; sentGain = '';
+    if (A.ctx) {
+      // Web Audio stays silent in native mode: its outputs are cut, only the export tap listens
+      const dest = A.ctx.destination;
+      for (const node of [comp, clip, metroBus]) { if (!node) continue; try { node.disconnect(dest); } catch (e) { /* not connected */ } }
+      if (!N.on) { comp.connect(dest); if (clip) clip.connect(dest); metroBus.connect(dest); A.ctx.resume().catch(() => {}); }
+      else if (!tap) A.ctx.suspend().catch(() => {});
+      A.releaseAllUser(); A.cancelScheduled();
+    }
+    if (N.on) A.syncNative();
+  };
+  /** Send the instrument, volumes and "your notes" setting to the native engine when they changed. */
+  A.syncNative = function () {
+    if (!N.on) return;
+    const inst = 'inst ' + A.instrument + ' ' + (A.layer && A.layer !== A.instrument ? A.layer : 'none');
+    if (inst !== sentInst) { nsend(inst); sentInst = inst; }
+    const st = (W.storage && W.storage.settings) || {};
+    const g = 'gain ' + [A.mute ? 0 : A.volume * 0.6, A.mute ? 0 : A.accVolume * A.volume * 0.6, A.mute ? 0 : A.metroVolume].map((x) => x.toFixed(4)).join(' ');
+    if (g !== sentGain) { nsend(g); sentGain = g; }
+    nsend('midisound ' + (st.userSound !== false && !st.midiMute ? 1 : 0));
+  };
   /** Switch low-latency mode. The buffer size is fixed when the audio context is made, so the context is rebuilt. */
   A.setLowLatency = function (on) {
     on = !!on;
@@ -54,13 +98,17 @@
     try { old.close(); } catch (e) { /* already closed */ }
     A.ensure();
   };
+  /** A fresh Web Audio output (after the Windows audio service restarted). */
+  A.rebuild = function () { if (!A.ctx) return; const ll = A.lowLatency; A.lowLatency = !ll; A.setLowLatency(ll); };
   /** Key-to-sound delay the browser reports for the current context, in ms, and the render quantum in use. */
   A.latency = function () {
+    if (N.on && N.info) return { ms: Math.round(N.info.outputMs * 10) / 10, quantum: N.info.frames, rate: N.info.rate, native: true };
     const c = A.ctx;
     if (!c) return null;
     return { ms: Math.round(((c.baseLatency || 0) + (c.outputLatency || 0)) * 1000), quantum: c.renderQuantumSize || 128, rate: c.sampleRate };
   };
   A.applyVolumes = function () {
+    A.syncNative();
     if (!A.ctx) return;
     const t = A.ctx.currentTime;
     master.gain.setTargetAtTime(A.mute ? 0 : A.volume * 0.6, t, 0.01);
@@ -68,7 +116,9 @@
     accBus.gain.setTargetAtTime(A.accVolume, t, 0.01);
     metroBus.gain.setTargetAtTime(A.mute ? 0 : A.metroVolume, t, 0.01);
   };
-  A.now = () => (A.ctx ? A.ctx.currentTime : 0);
+  // in native mode the clock is the page clock: the sleeping Web Audio context does not advance
+  A.now = () => (N.on ? performance.now() / 1000 : A.ctx ? A.ctx.currentTime : 0);
+  const ctxNow = () => (A.ctx ? A.ctx.currentTime : 0);
 
   function freq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
 
@@ -175,62 +225,78 @@
   const releaseAll = (vs, t, mul) => vs.forEach((v) => releaseVoice(v, t, relTau(v.inst) * (mul || 1)));
 
   /** The user's note (keyboard, MIDI or screen): sounds now, until noteOff. */
-  A.noteOn = function (midi, vel) {
+  A.noteOn = function (midi, vel, fromMidi) {
+    if (N.on) {
+      // keys from the MIDI keyboard already sounded inside the engine, before the app even heard of them
+      if (!(fromMidi && N.midi)) { A.syncNative(); nsend('on ' + midi + ' ' + Math.round(vel || 90)); }
+      if (!mirror()) return;
+    }
     if (!A.ensure()) return;
     const old = active.get(midi);
-    if (old) old.forEach((o) => releaseVoice(o, A.now(), 0.03));
+    if (old) old.forEach((o) => releaseVoice(o, ctxNow(), 0.03));
     sustained.delete(old);
-    const t = A.now() + 0.001;
+    const t = ctxNow() + 0.001;
     if (active.size > 40) { const first = active.keys().next().value; active.get(first).forEach((o) => releaseVoice(o, t, 0.05)); active.delete(first); }
     const v = voices(midi, vel || 90, t, userBus);
     v.held = true;
     active.set(midi, v);
   };
-  A.noteOff = function (midi) {
+  A.noteOff = function (midi, fromMidi) {
+    if (N.on && !(fromMidi && N.midi)) nsend('off ' + midi);
     const v = active.get(midi);
     if (!v) return;
     v.held = false;
     if (pedal) { sustained.add(v); return; }
     active.delete(midi);
-    releaseAll(v, A.now());
+    releaseAll(v, ctxNow());
   };
-  A.setPedal = function (down) {
+  A.setPedal = function (down, fromMidi) {
+    if (N.on && !(fromMidi && N.midi)) nsend('pedal ' + (down ? 1 : 0));
     pedal = !!down;
     if (!pedal) {
       for (const v of sustained) {
-        releaseAll(v, A.now(), 1.4);
+        releaseAll(v, ctxNow(), 1.4);
         for (const [m, vv] of active) if (vv === v) active.delete(m);
       }
       sustained.clear();
     }
   };
   A.releaseAllUser = function () {
-    for (const [, v] of active) v.forEach((o) => releaseVoice(o, A.now(), 0.05));
+    if (N.on) nsend('alloff');
+    for (const [, v] of active) v.forEach((o) => releaseVoice(o, ctxNow(), 0.05));
     active.clear(); sustained.clear();
   };
 
   /** App-played note (accompaniment, listen mode): start at audio time `when`, release after `durSec`. */
   A.schedule = function (midi, vel, when, durSec) {
+    if (N.on) {
+      A.syncNative();
+      nsend('play ' + midi + ' ' + Math.round(vel || 80) + ' ' + Math.max(0, (when - A.now()) * 1000).toFixed(2) + ' ' + Math.max(50, durSec * 1000).toFixed(1));
+      if (!mirror()) return;
+      when = toCtx(when);
+    }
     if (!A.ctx || A.ctx.state !== 'running') return;
-    const t = Math.max(A.now(), when);
+    const t = Math.max(A.ctx.currentTime, when);
     for (const v of voices(midi, vel || 80, t, accBus)) {
       releaseVoice(v, t + Math.max(0.05, durSec), relTau(v.inst));
       v.stopAt = t + Math.max(0.05, durSec) + 3;
       scheduled.add(v);
     }
-    if (scheduled.size > 200) { const now = A.now(); for (const s of scheduled) if (s.stopAt < now) scheduled.delete(s); }
+    if (scheduled.size > 200) { const now = ctxNow(); for (const s of scheduled) if (s.stopAt < now) scheduled.delete(s); }
   };
   /** A short note when a note is added or moved in Correct notes. */
-  A.preview = function (midi) { A.ensure(); if (A.ctx) A.schedule(midi, 70, A.now() + 0.01, 0.35); };
+  A.preview = function (midi) { A.ensure(); if (A.running()) A.schedule(midi, 70, A.now() + 0.01, 0.35); };
   A.cancelScheduled = function () {
+    if (N.on) nsend('cancel');
     if (!A.ctx) return;
-    const t = A.now();
+    const t = ctxNow();
     for (const v of scheduled) {
       try { v.rel.gain.cancelScheduledValues(t); v.rel.gain.setTargetAtTime(0, t, 0.012); v.oscs.forEach((o) => { try { o.stop(t + 0.12); } catch (e) { /* ignore */ } }); } catch (e) { /* ignore */ }
     }
     scheduled.clear();
   };
   A.click = function (accent, when) {
+    if (N.on) { nsend('click ' + (accent ? 1 : 0) + ' ' + Math.max(0, (when - A.now()) * 1000).toFixed(2)); return; }
     if (!A.ctx || A.ctx.state !== 'running') return;
     const c = A.ctx, t = Math.max(c.currentTime, when);
     const o = c.createOscillator(), g = c.createGain();

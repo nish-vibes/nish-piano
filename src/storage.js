@@ -108,7 +108,7 @@
 
   // ---- settings
   S.defaults = {
-    v: 3, appearance: 'auto', view: 'split', split: 0.5, volume: 0.7, accVolume: 0.7, metroVolume: 0.7, mute: false, userSound: true, midiMute: false, lowLatency: false, freeBpm: 120, freeCountIn: true, instrument: 'piano', layer: null,
+    v: 3, appearance: 'auto', view: 'split', split: 0.5, volume: 0.7, accVolume: 0.7, metroVolume: 0.7, mute: false, userSound: true, midiMute: false, lowLatency: false, audioEngine: 'web', asioDevice: '', asioFrames: 0, asioRate: 0, freeBpm: 120, freeCountIn: true, instrument: 'piano', layer: null,
     kbdNotes: false, kbdBinds: null, wait: true, hands: 'both', mode: 'practice', playAlong: true, metronome: false, countIn: null, restartAfter: 0,
     handL: null, handR: null, lookBars: 4, staffSize: 12, showAll: false, keyW: null, keysH: 120, lastSong: null,
   };
@@ -129,6 +129,8 @@
   };
   let settingsTimer = null;
   S.saveSettings = function () {
+    // settings the native sound engine keeps its own copy of (instrument, volumes, "your notes")
+    if (window.Wapiro.audio && window.Wapiro.audio.syncNative) window.Wapiro.audio.syncNative();
     clearTimeout(settingsTimer);
     settingsTimer = setTimeout(S.saveSettingsNow, 150);
   };

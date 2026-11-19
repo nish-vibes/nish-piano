@@ -14,10 +14,11 @@
     // ev.timeStamp: when the message arrived, on the same clock as performance.now(); unaffected by a busy screen
     const t = ev.timeStamp || performance.now();
     if (st === 0x90 && d[2] > 0) E.noteOn(d[1], d[2], true, t);
-    else if (st === 0x80 || (st === 0x90 && d[2] === 0)) E.noteOff(d[1], t);
-    else if (st === 0xb0 && d[1] === 64) E.pedal(d[2] >= 64, t);
+    else if (st === 0x80 || (st === 0x90 && d[2] === 0)) E.noteOff(d[1], t, true);
+    else if (st === 0xb0 && d[1] === 64) E.pedal(d[2] >= 64, t, true);
   }
   function refresh() {
+    if (I.external) return;
     const list = [];
     if (I.access) I.access.inputs.forEach((inp) => {
       if (!inp.onmidimessage) inp.onmidimessage = onMessage;
@@ -26,8 +27,21 @@
     I.devices = list;
     changed();
   }
+  /** The native engine reads the MIDI keyboards: Web MIDI is not opened at all, and the device list comes from the engine. */
+  I.external = false;
+  I.useExternal = function (on) {
+    I.external = !!on;
+    if (on) I.error = null;
+    if (on && I.access) I.access.inputs.forEach((inp) => { inp.onmidimessage = null; try { inp.close(); } catch (e) { /* ignore */ } });
+    if (!on) { if (I.access) refresh(); else I.init(); }
+  };
+  I.setExternalDevices = function (list) {
+    if (!I.external) return;
+    I.devices = (list || []).map((d, i) => ({ id: 'native-' + i, name: d.name, state: d.ok ? 'connected' : 'busy', why: d.why || '' }));
+    changed();
+  };
   I.init = function () {
-    if (!I.supported) return;
+    if (!I.supported || I.external) return;
     let p;
     try { p = navigator.requestMIDIAccess({ sysex: false }); } catch (e) { I.error = 'MIDI access is not available here.'; changed(); return; }
     p.then((acc) => { I.access = acc; acc.onstatechange = refresh; refresh(); }, (err) => {

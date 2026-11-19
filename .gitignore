@@ -1,6 +1,10 @@
-node_modules/
-dist/
-shots/
-real/
-pdftest/
 *.log
+*.wav
+build-native/
+desktop/resources/native/
+dist/
+native/build*/
+node_modules/
+pdftest/
+real/
+shots/

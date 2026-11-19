@@ -7,7 +7,7 @@ JS = [
     'assets/glyphs.js',
     'src/core-util.js', 'src/core-midi.js', 'src/core-notation.js', 'src/core-musicxml.js',
     'src/core-pdf.js', 'src/core-api.js', 'src/builtin.js', 'src/storage.js',
-    'src/audio.js', 'src/engine.js', 'src/input.js',
+    'src/audio.js', 'src/engine.js', 'src/input.js', 'src/native-audio.js',
     'src/keyboard.js', 'src/waterfall.js',
     'src/sheet-layout.js', 'src/sheet-render.js',
     'src/ui-base.js', 'src/ui-timeline.js', 'src/ui-popovers.js', 'src/scan.js', 'src/ui-fix.js', 'src/ui-library.js', 'src/ui-results.js', 'src/ui-editor.js', 'src/ui-shell.js', 'src/freeplay.js',

@@ -24,4 +24,24 @@ For the best result:
 - One page per image is fine; a multi-page PDF is read as one piece.
 - Phone photos work best taken straight above the page in daylight.
 
+The shortest delay between key and sound (ASIO)
+-----------------------------------------------
+Open Sound and devices (the Sound button), then turn on "ASIO engine".
+The app then plays through an ASIO driver and reads your MIDI keyboard itself, so a key
+sounds within one audio buffer. The menu shows the delay it measured.
+
+- With an audio interface: install its own ASIO driver (Focusrite, Steinberg, RME, Behringer...).
+- With built-in sound: install a general ASIO driver such as ASIO4ALL or FlexASIO, then
+  choose "Find drivers".
+- Buffer: start with "Smallest the driver allows". If you hear clicks, choose a larger one.
+- "Driver settings" opens the driver's own window (buffer size, output channels).
+- Bluetooth headphones and speakers always add a long delay; use wired ones.
+- While ASIO is on, other programs may not be able to use the same audio device.
+- If your keyboard is "in use by another program", close that program, or press
+  "Restart the app".
+
+"Disable Windows audio effects" turns off Windows sound enhancements for every output
+(Windows asks for permission). They add delay to the standard engine; ASIO skips them.
+"Turn Windows audio effects back on" restores each output exactly as it was.
+
 Your songs are saved on this computer only.

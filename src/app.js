@@ -174,6 +174,7 @@
     await W.library.migrateV1();
     W.library.bindDrop(document.getElementById('app'));
     W.results.hint(Sh.el.stage);
+    if (W.naudio) W.naudio.boot();
     W.input.init();
     Sh.bindFree();
     const last = S.settings.lastSong && S.find(S.settings.lastSong);

@@ -93,10 +93,10 @@
     const devs = h('div', { class: 'dev-list' });
     const drawDevs = () => {
       devs.textContent = '';
-      if (!I.supported) devs.append(h('div', { class: 'ds-help', text: 'MIDI is not available here. Use the desktop app, Chrome or Edge.' }));
-      else if (I.error) devs.append(h('div', { class: 'ds-help is-error' }, UI.icon('alert'), I.error));
+      if (!I.supported && !I.external) devs.append(h('div', { class: 'ds-help', text: 'MIDI is not available here. Use the desktop app, Chrome or Edge.' }));
+      else if (I.error && !I.external) devs.append(h('div', { class: 'ds-help is-error' }, UI.icon('alert'), I.error));
       else if (!I.devices.length) devs.append(h('div', { class: 'ds-help', text: 'No MIDI keyboard found. Connect one by USB.' }));
-      for (const d of I.devices) devs.append(h('div', { class: 'dev-row' }, h('span', { class: 'dev-ok' + (d.state === 'connected' ? '' : ' is-off') }, UI.icon(d.state === 'connected' ? 'check' : 'minus')), h('span', { class: 'ds-control-text dev-name', text: d.name + (d.state === 'connected' ? ' connected' : ' not connected') })));
+      for (const d of I.devices) devs.append(h('div', { class: 'dev-row' }, h('span', { class: 'dev-ok' + (d.state === 'connected' ? '' : ' is-off') }, UI.icon(d.state === 'connected' ? 'check' : 'minus')), h('span', { class: 'ds-control-text dev-name', text: d.name + (d.state === 'connected' ? ' connected' : d.state === 'busy' ? ' in use by another program' : ' not connected') })));
       if (I.devices.length) { const mute = UI.toggleBtn('speakerOff', 'Mute', !!st.midiMute, (v) => { st.midiMute = v; mute.setValue(v); S.saveSettings(); }); mute.classList.add('dev-mute'); mute.title = 'For a piano with its own speakers: the app makes no sound for keys you play on it. Play along and the metronome still sound.'; devs.firstChild.append(mute); }
     };
     drawDevs();
@@ -111,6 +111,72 @@
       setTimeout(() => { if (document.contains(low)) low.querySelector('.ds-caption').textContent = latText(); }, 400);
     }, latText());
     low.classList.add('low-lat');
+    // ---- the ASIO engine (desktop app): the shortest key-to-sound delay
+    const NA = W.naudio;
+    let asio = null, unsub = null;
+    if (NA && NA.supported) {
+      const sw = UI.switchBtn('ASIO engine', st.audioEngine === 'asio', (v) => { sw.setValue(v); if (v) NA.enable(); else NA.disable(); }, NA.summary());
+      sw.classList.add('asio-switch');
+      const devSel = h('select', { class: 'ds-input asio-sel', 'aria-label': 'ASIO driver', onchange: () => NA.setDevice(devSel.value) });
+      const frSel = h('select', { class: 'ds-input asio-sel', 'aria-label': 'Buffer size', onchange: () => NA.setFrames(+frSel.value) }, NA.FRAMES.map(([v, t]) => h('option', { value: String(v) }, t)));
+      const btn = (text, fn) => h('button', { class: 'ds-btn ds-btn--outline', type: 'button', onclick: fn }, text);
+      const tools = h('div', { class: 'row-gap asio-tools' }, btn('Driver settings', () => NA.panel()), btn('Find drivers', () => NA.refresh()));
+      const rows = h('div', { class: 'asio-rows' },
+        h('label', { class: 'asio-row' }, h('span', { class: 'ds-label', text: 'Driver' }), devSel),
+        h('label', { class: 'asio-row' }, h('span', { class: 'ds-label', text: 'Buffer' }), frSel), tools);
+      const warn = h('div', { class: 'asio-warn' });
+      // Windows audio effects ("Audio enhancements"): processing in the Windows mixer, used by the standard engine
+      const fxBtn = h('button', { class: 'ds-btn ds-btn--outline self-start', type: 'button' }, 'Disable Windows audio effects');
+      const fxCap = h('p', { class: 'ds-caption', text: 'Windows sound enhancements add processing and delay to the standard engine and to other apps. The ASIO engine already skips them. Windows asks for permission.' });
+      const fxMore = h('button', { class: 'ds-btn ds-btn--ghost self-start fx-more', type: 'button', onclick: () => NA.fxOpenSettings() }, 'Open Windows sound settings');
+      let fxBusy = false;
+      const drawFx = () => {
+        const fx = NA.fx;
+        if (!NA.fxSupported) { fxBtn.hidden = fxCap.hidden = fxMore.hidden = true; return; }
+        const list = (fx && fx.devices) || [], offN = list.filter((d) => d.off).length;
+        const restore = !!(fx && fx.changedByApp && list.length && offN === list.length);
+        fxBtn.textContent = fxBusy ? 'Waiting for Windows…' : restore ? 'Turn Windows audio effects back on' : 'Disable Windows audio effects';
+        fxBtn.disabled = fxBusy;
+        fxBtn.onclick = async () => {
+          fxBusy = true; drawFx();
+          const r = await NA.fxSet(!restore);
+          fxBusy = false; drawFx();
+          if (!r) return;
+          if (r.ok) UI.toast(restore ? 'Windows audio effects are back on.' : 'Windows audio effects are off for ' + r.changed + (r.changed === 1 ? ' output.' : ' outputs.'));
+          else if (r.cancelled) UI.toast(r.error);
+          else UI.toast('Some outputs could not be changed: ' + (r.error || 'access denied') + '. Use Windows sound settings for those.');
+        };
+        fxMore.hidden = !(fx && (fx.error || (list.length && offN < list.length && fx.changedByApp)));
+        const state = fx && !fx.error && list.length ? (offN === list.length ? ' Effects are off for every output.' : offN ? ' Effects are off for ' + offN + ' of ' + list.length + ' outputs.' : '') : '';
+        fxCap.textContent = 'Windows sound enhancements add processing and delay to the standard engine and to other apps. The ASIO engine already skips them. Windows asks for permission.' + state;
+      };
+      const draw = () => {
+        if (!document.contains(sw)) return;
+        const on = st.audioEngine === 'asio';
+        sw.setValue(on);
+        sw.querySelector('.ds-caption').textContent = NA.summary();
+        sw.classList.toggle('is-error', NA.state === 'error');
+        rows.hidden = !on;
+        devSel.textContent = '';
+        for (const d of NA.devices) devSel.append(h('option', { value: d.name, selected: d.name === st.asioDevice ? true : null }, d.name));
+        if (!NA.devices.length) devSel.append(h('option', { value: '', text: NA.state === 'starting' ? 'Looking for drivers…' : 'No ASIO driver found' }));
+        devSel.disabled = !NA.devices.length;
+        frSel.value = String(st.asioFrames | 0);
+        warn.textContent = '';
+        if (on && NA.xruns) warn.append(h('p', { class: 'ds-help is-error' }, UI.icon('alert'), 'Dropouts: ' + NA.xruns + '. If you hear clicks, choose a larger buffer.'));
+        if (NA.midiBusy()) {
+          const names = NA.midi.filter((d) => !d.ok).map((d) => d.name).join(', ');
+          warn.append(h('p', { class: 'ds-help is-error' }, UI.icon('alert'), names + ' is in use by another program. Close that program, or restart this app so the low-latency engine can read it.'), btn('Restart the app', () => NA.relaunch()));
+        }
+        low.hidden = on;
+        drawFx();
+      };
+      asio = h('div', { class: 'pop-section asio' }, sw, rows, warn, h('div', { class: 'menu-sep', 'aria-hidden': 'true' }), fxBtn, fxCap, fxMore);
+      unsub = NA.onChange(draw);
+      draw();
+      if (NA.fxSupported) NA.fxStatus();
+      if (st.audioEngine === 'asio' && !NA.devices.length) NA.refresh();
+    }
     const kb = UI.toggleBtn('keyboard', 'Keystroke input', st.kbdNotes, (v) => { st.kbdNotes = v; kb.setValue(v); if (!v) I.releaseAll(); S.saveSettings(); });
     kb.classList.add('self-start');
     // the keystroke layout, drawn like a computer keyboard: white-key letters light, black-key letters dark, octave keys dashed
@@ -127,13 +193,14 @@
     const box = h('div', { class: 'pop-body pop-sound' },
       sec('Volume', row(along, vol), row(metro, mvol)), sep(),
       sec('Playback instruments', h('div', { class: 'pop-section' }, h('span', { class: 'ds-label', text: 'Main' }), main), h('div', { class: 'pop-section' }, h('span', { class: 'ds-label', text: 'Layer' }), layer)), sep(),
+      asio ? sec('Low latency', asio) : null, asio ? sep() : null,
       sec('Devices', devs, low, kb, layout(), rebind));
     const sync = () => {
       along.setValue(E.opts.playAlong); metro.setValue(E.opts.metronome);
       vol.querySelector('input').disabled = !E.opts.playAlong; mvol.querySelector('input').disabled = !E.opts.metronome;
     };
     sync(); live = sync;
-    return UI.openPopover(anchor, box, { label: 'Sound and devices', onClose: () => { live = null; } });
+    return UI.openPopover(anchor, box, { label: 'Sound and devices', onClose: () => { live = null; if (unsub) unsub(); } });
   };
 
   /** Rebind the computer-keyboard notes: click a row, press a key. A key used elsewhere swaps places. */

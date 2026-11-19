@@ -136,3 +136,16 @@ Electron shell around the built HTML (`desktop/app/index.html`), Web MIDI allowe
 - Metronome and count-in are one joined control in Freeplay.
 - The notation note only shows when the notation is not the file's own, as quiet text.
 - The sheet pane fades out at its bottom edge instead of cutting the next system in half.
+
+## Low-latency ASIO engine (19 Nov)
+Goal from the user: key-to-sound round trip of 5 ms or less; latency comes before file size, design and visuals.
+Chromium's Web Audio on Windows cannot get there (about 10 ms WASAPI period plus process hops; measured 72-82 ms on the user's machine), so sound now leaves Chromium entirely.
+- `native/`: `nish-audio.exe` (C++17, GPLv3). RtAudio 6.0.1 with the ASIO host files; WinMM MIDI input posted straight into the audio thread's event queue, so a key sounds at the start of the next buffer without passing through the app. `native/src/synth.h` is a note-for-note port of the six Web Audio instruments (layer, pedal, play-along scheduled to the sample, metronome), no allocation or locks on the audio thread, soft clipper instead of a look-ahead compressor. 88 sustained notes cost about 6% of one core at 32 frames.
+- Protocol: one line per command on stdin (`on/off/pedal/play/click/cancel/inst/gain/midisound/list/open/panel/midi`), JSON events on stdout (`note`, `pedal`, `devices`, `opened` with driver-reported output latency, `midi`, `xrun`, `error`).
+- `desktop/native-audio.js`: starts the engine, relays lines, and the "Disable Windows audio effects" switch (registry `Disable_SysFx` per active output, elevated PowerShell behind a UAC prompt, Audiosrv restart, first-seen values backed up so "Turn back on" restores each output exactly).
+- `src/native-audio.js` + `src/audio.js` native mode: the page clock replaces the sleeping Web Audio clock; keys from the engine reach scoring/waterfall/recording with their real time (`ago`) and are not played twice; computer-keyboard notes, play-along and clicks are sent to the engine with ms delays; Web Audio wakes only to mirror sound into a video export. Falls back to Web Audio and Web MIDI if the engine stops or no driver opens.
+- MIDI hand-over: Windows lets one program read a MIDI port, so with ASIO chosen Web MIDI is never opened. Switching on at runtime after Web MIDI took the keyboard shows "Restart the app".
+- Sound menu: "Low latency" section with the ASIO switch, driver, buffer (smallest by default), Driver settings, Find drivers, the measured delay in words, dropout warning, and the Windows effects button.
+- Tests: `native/test/synth_test.cpp` (timing to the sample, all instruments, pedal, layer, cancel, CPU); `tests/run_native.js` (26 checks of the app side against a stand-in engine). CI builds the engine with MSVC, runs the synth test and a start/answer/quit smoke test, and packages it under resources/native.
+- Licence: the app is now GPL-3.0-or-later (LICENSE), so the GPLv3 ASIO SDK can be used. Notices in desktop/licenses.
+- Not verified here: the Windows build itself (no Windows compiler in this sandbox; RtAudio 6 API used from memory), real ASIO drivers, real round-trip timing. Measure with a microphone: key click to speaker sound.

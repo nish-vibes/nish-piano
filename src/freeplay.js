@@ -233,6 +233,7 @@
       };
       const cleanup = () => {
         bar.hide();
+        if (A.untap) A.untap();
         job = null; X.active = false;
         if (E.playing) E.pause();
         E.setOptions(before);

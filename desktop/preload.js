@@ -16,4 +16,19 @@ contextBridge.exposeInMainWorld('wapiroDesktop', {
   omrAvailable: () => ipcRenderer.invoke('omr:available'),
   /** Files passed on the command line or opened with "Open with" ({ name, data: ArrayBuffer }). */
   onOpenFile: (fn) => ipcRenderer.on('file:open', (_e, f) => fn(f)),
+  /** The low-latency sound engine (ASIO), a separate program that also reads the MIDI keyboard directly. */
+  nativeAudio: {
+    available: () => ipcRenderer.invoke('naudio:available'),
+    start: () => ipcRenderer.invoke('naudio:start'),
+    stop: () => ipcRenderer.invoke('naudio:stop'),
+    send: (line) => ipcRenderer.send('naudio:send', String(line)),
+    onEvent: (fn) => ipcRenderer.on('naudio:event', (_e, m) => fn(m)),
+  },
+  /** Windows audio effects ("Audio enhancements") for all active output devices. */
+  audioEffects: {
+    status: () => ipcRenderer.invoke('fx:status'),
+    set: (off) => ipcRenderer.invoke('fx:set', !!off),
+    openSettings: () => ipcRenderer.invoke('fx:openSettings'),
+  },
+  relaunch: () => ipcRenderer.invoke('app:relaunch'),
 });
