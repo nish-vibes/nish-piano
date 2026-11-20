@@ -20,6 +20,8 @@
 //   inst <name> <layer|none>
 //   gain <user> <acc> <metro>     linear gains, already including volume and mute
 //   midisound 0|1                 0: keys from the MIDI keyboard make no sound here (piano with own speakers)
+//   samples default|<folder>      load a sample bank (default: ..\sounds\upright-kw next to this program)
+//   pianosamples 0|1              piano plays the samples (1) or the synth (0, no recorded silence at all)
 //   ping <n>                      replies {"ev":"pong","n":n}
 //   quit
 // Events (stdout): JSON objects, one per line, e.g. {"ev":"note","midi":60,"vel":90,"down":1,"ago":0.4}
@@ -234,6 +236,32 @@ static void openStream(unsigned id, unsigned rate, unsigned frames) {
   emit(buf);
 }
 
+// ------------------------------------------------------------------ sample bank
+static std::string exeDir() {
+  wchar_t w[MAX_PATH * 2] = {0};
+  DWORD n = GetModuleFileNameW(nullptr, w, MAX_PATH * 2);
+  std::wstring p(w, n);
+  size_t cut = p.find_last_of(L"\\/");
+  if (cut != std::wstring::npos) p.resize(cut);
+  int len = WideCharToMultiByte(CP_UTF8, 0, p.c_str(), -1, nullptr, 0, nullptr, nullptr);
+  std::string u(len > 0 ? len - 1 : 0, '\0');
+  if (len > 0) WideCharToMultiByte(CP_UTF8, 0, p.c_str(), -1, &u[0], len, nullptr, nullptr);
+  return u;
+}
+static void loadSamples(std::string dir) {
+  if (dir.empty() || dir == "default") dir = exeDir() + "\\..\\sounds\\upright-kw";
+  const double t0 = qpcMs();
+  std::string err;
+  Bank* b = loadBank(dir, err);
+  if (!b) { emit("{\"ev\":\"samples\",\"ok\":false,\"message\":\"" + esc(err) + "\"}"); return; }
+  // the old bank (if any) is kept alive: a voice may still be reading it
+  synth.bank.store(b, std::memory_order_release);
+  char buf[400];
+  snprintf(buf, sizeof buf, "{\"ev\":\"samples\",\"ok\":true,\"name\":\"%s\",\"samples\":%zu,\"regions\":%zu,\"mb\":%.1f,\"ms\":%.0f}",
+           esc(b->name).c_str(), b->samples.size(), b->regions.size(), b->mb(), qpcMs() - t0);
+  emit(buf);
+}
+
 // ------------------------------------------------------------------ commands
 static void command(const std::string& line) {
   std::istringstream in(line);
@@ -284,6 +312,12 @@ static void command(const std::string& line) {
     else { midiWanted = false; midiCloseAll(); emit("{\"ev\":\"midi\",\"devices\":[]}"); }
   } else if (c == "midiscan") {
     if (midiWanted && midiDeviceNames() != midiNames) { Event e{}; e.type = EV_ALL_OFF; synth.post(e); midiOpenAll(); }
+  } else if (c == "samples") {
+    std::string rest; std::getline(in, rest);
+    size_t a = rest.find_first_not_of(' '); rest = a == std::string::npos ? "" : rest.substr(a);
+    loadSamples(rest);
+  } else if (c == "pianosamples") {
+    int on = 1; in >> on; synth.useSamples = on != 0;
   } else if (c == "ping") {
     std::string n; in >> n; emit("{\"ev\":\"pong\",\"n\":\"" + esc(n) + "\"}");
   } else if (c == "quit") {
@@ -298,6 +332,7 @@ int main() {
   setvbuf(stdout, nullptr, _IOFBF, 1 << 16);
   emit("{\"ev\":\"ready\",\"version\":1}");
   std::thread reporter(reportThread);
+  pushCmd("samples default");   // load the piano into memory before the first key, off the audio thread
   // stdin lines go to the command queue; WinMM and ASIO calls all happen on this main thread
   std::thread reader([&] {
     std::string line;

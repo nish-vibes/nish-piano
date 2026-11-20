@@ -8,7 +8,7 @@
   'use strict';
   const W = window.Wapiro, A = W.audio, E = W.engine, S = W.storage;
   const D = window.wapiroDesktop && window.wapiroDesktop.nativeAudio;
-  const NA = (W.naudio = { supported: !!D, state: 'off', devices: [], info: null, error: null, xruns: 0, midi: [], fx: null });
+  const NA = (W.naudio = { supported: !!D, state: 'off', devices: [], info: null, error: null, xruns: 0, midi: [], fx: null, samples: null });
   const listeners = [];
   NA.onChange = (fn) => { listeners.push(fn); return () => { const i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1); }; };
   const changed = () => listeners.forEach((f) => { try { f(); } catch (e) { /* a closed menu */ } });
@@ -40,6 +40,7 @@
       }
       case 'pedal': E.pedal(!!m.down, performance.now() - (+m.ago || 0), true); break;
       case 'xrun': NA.xruns = m.count | 0; changed(); break;
+      case 'samples': NA.samples = m; changed(); break;
       case 'error':
         NA.error = m.message || 'The low-latency engine reported a problem.';
         if (m.where === 'open' || m.where === 'start') { NA.state = 'error'; toWebAudio(); }
@@ -109,6 +110,17 @@
   /** A keyboard another program (or this page's Web MIDI, before the switch) still holds. */
   NA.midiBusy = () => NA.state === 'on' && NA.midi.some((d) => !d.ok);
   NA.relaunch = () => window.wapiroDesktop && window.wapiroDesktop.relaunch && window.wapiroDesktop.relaunch();
+  /** Which piano plays, in plain words. */
+  NA.pianoSummary = function () {
+    const synth = S.settings.pianoSound === 'synth';
+    if (NA.state !== 'on') return 'The sampled piano plays in the ASIO engine. The standard engine uses the synth piano.';
+    if (synth) return 'Synth piano: no recorded sound, so nothing can start late.';
+    const sm = NA.samples;
+    if (!sm) return 'Loading the Upright piano…';
+    if (!sm.ok) return 'The Upright piano could not be loaded (' + sm.message + '). The synth piano plays instead.';
+    return 'Upright Piano KW, a Kawai upright recorded by FreePats (public domain). ' + sm.mb.toFixed(0) + ' MB, held in memory. Each note\u2019s start is trimmed, so it sounds within a millisecond.';
+  };
+  NA.setPianoSound = function (v) { S.settings.pianoSound = v; S.saveSettings(); changed(); };
   /** Plain-words summary of the delay. */
   NA.summary = function () {
     if (NA.state === 'starting') return 'Starting the low-latency engine…';

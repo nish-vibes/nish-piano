@@ -478,3 +478,8 @@ body { font-family: var(--font-sans); }
 /* the delay readout is the point of this section: readable in both themes */
 .asio .ds-caption { color: var(--foreground); opacity: 0.78; }
 .asio-switch.is-error .ds-caption { opacity: 1; }
+
+/* piano sound: the sampled Upright or the synth */
+.piano-row .seg { margin-bottom: 2px; }
+.piano-cap { color: var(--foreground); opacity: 0.78; }
+.piano-cap.is-error { color: var(--destructive); opacity: 1; }

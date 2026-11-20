@@ -88,6 +88,16 @@
       return wrap;
     };
     const main = picker('Main instrument', 'instrument', 'inst-main'), layer = picker('Layer instrument', 'layer', 'inst-layer');
+    // which piano: the sampled Upright (ASIO engine) or the synth, kept as the zero-delay fallback
+    let pianoRow = null, drawPiano = () => {};
+    if (W.naudio && W.naudio.supported) {
+      const NA0 = W.naudio;
+      const seg = UI.seg('Piano sound', [['samples', 'Upright (sampled)'], ['synth', 'Synth']], st.pianoSound === 'synth' ? 'synth' : 'samples', (v) => { NA0.setPianoSound(v); seg.setValue(v); if (A.preview) A.preview(60); });
+      const cap = h('p', { class: 'ds-caption piano-cap' });
+      drawPiano = () => { seg.setValue(st.pianoSound === 'synth' ? 'synth' : 'samples'); cap.textContent = NA0.pianoSummary(); cap.classList.toggle('is-error', !!(NA0.samples && !NA0.samples.ok && st.pianoSound !== 'synth')); };
+      pianoRow = h('div', { class: 'pop-section piano-row' }, h('span', { class: 'ds-label', text: 'Piano sound' }), seg, cap);
+      drawPiano();
+    }
     const drawInst = () => { main.paint(); layer.paint(); };
     drawInst();
     const devs = h('div', { class: 'dev-list' });
@@ -152,6 +162,7 @@
       };
       const draw = () => {
         if (!document.contains(sw)) return;
+        drawPiano();
         const on = st.audioEngine === 'asio';
         sw.setValue(on);
         sw.querySelector('.ds-caption').textContent = NA.summary();
@@ -192,7 +203,7 @@
     const sep = () => h('div', { class: 'menu-sep', 'aria-hidden': 'true' });
     const box = h('div', { class: 'pop-body pop-sound' },
       sec('Volume', row(along, vol), row(metro, mvol)), sep(),
-      sec('Playback instruments', h('div', { class: 'pop-section' }, h('span', { class: 'ds-label', text: 'Main' }), main), h('div', { class: 'pop-section' }, h('span', { class: 'ds-label', text: 'Layer' }), layer)), sep(),
+      sec('Playback instruments', h('div', { class: 'pop-section' }, h('span', { class: 'ds-label', text: 'Main' }), main), pianoRow, h('div', { class: 'pop-section' }, h('span', { class: 'ds-label', text: 'Layer' }), layer)), sep(),
       asio ? sec('Low latency', asio) : null, asio ? sep() : null,
       sec('Devices', devs, low, kb, layout(), rebind));
     const sync = () => {

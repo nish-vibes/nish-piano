@@ -19,7 +19,7 @@ const FAKE = () => {
     platform: 'win32',
     nativeAudio: {
       available: async () => true,
-      start: async () => { window.__engine.starts++; fire({ ev: 'ready', version: 1 }); return true; },
+      start: async () => { window.__engine.starts++; fire({ ev: 'ready', version: 1 }); fire({ ev: 'samples', ok: true, name: 'Upright Piano KW', samples: 176, regions: 176, mb: 41.2, ms: 180 }); return true; },
       stop: async () => true,
       send: (line) => {
         sent.push(line);
@@ -68,6 +68,21 @@ const FAKE = () => {
   check('the menu shows the measured delay in plain words', /Key to sound: \d+\.\d ms output \(32 samples at 48 kHz\)/.test(cap), cap);
   check('the keyboard reported by the engine is listed as connected', /Digital Piano connected/.test(await page.textContent('.dev-list')));
   check('the standard "Low latency" switch hides while ASIO is on', await page.evaluate(() => document.querySelector('.pop-sound .low-lat').hidden));
+
+  // ---- piano sound: the sampled Upright by default, the synth as the zero-delay fallback
+  s = await sent();
+  check('the sampled piano is on by default', s.includes('pianosamples 1'), s.filter((l) => l.startsWith('piano')).join(' | '));
+  const pcap = await page.textContent('.piano-cap');
+  check('the menu names the Upright piano and its size', /Upright Piano KW.*41 MB/.test(pcap), pcap);
+  await clearSent();
+  await page.click('.piano-row [data-v="synth"]');
+  await sleep(50);
+  s = await sent();
+  check('choosing Synth switches the engine to the synth piano', s.includes('pianosamples 0'), s.join(' | '));
+  check('and says why the synth has no delay', /nothing can start late/.test(await page.textContent('.piano-cap')));
+  await page.click('.piano-row [data-v="samples"]');
+  await sleep(50);
+  check('choosing Upright switches back', (await sent()).includes('pianosamples 1'));
 
   // ---- driver and buffer choice
   await clearSent();

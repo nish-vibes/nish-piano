@@ -26,8 +26,88 @@ static void wav(const char* path, const std::vector<float>& o, int sr) {
   fclose(f);
 }
 
-int main() {
+static double freqOf(const std::vector<float>& o, int a, int b) {
+  int cross = 0, first = -1, last = -1;
+  for (int i = a + 1; i < b; i++) if (o[2 * (i - 1)] <= 0 && o[2 * i] > 0) { if (first < 0) first = i; last = i; cross++; }
+  return cross > 1 ? (cross - 1) * 48000.0 / (last - first) : 0;
+}
+
+static void bankTests(const char* dir) {
   const int SR = 48000, B = 32;
+  std::string err;
+  Bank* bank = loadBank(dir, err);
+  CHECK(bank != nullptr, ("sample bank loads (" + std::string(dir) + ") " + err).c_str());
+  if (!bank) return;
+  printf("      bank: %s, %zu samples, %zu regions, %.1f MB\n", bank->name.c_str(), bank->samples.size(), bank->regions.size(), bank->mb());
+  int lo = 127, hi = 0; for (auto& r : bank->regions) if (!r.release) { lo = std::min(lo, r.lokey); hi = std::max(hi, r.hikey); }
+  CHECK(lo <= 21 && hi >= 108, "the bank covers all 88 keys");
+  {
+    auto sp = std::make_unique<Synth>(SR); Synth& s = *sp; s.bank = bank;
+    s.post({EV_USER_ON, 60, 100, 0, 0, 0});
+    auto o = run(s, SR / 2, B);
+    int f = firstSound(o, 1e-3f);
+    printf("      sampled C4: first sound at frame %d (%.2f ms)\n", f, f * 1000.0 / SR);
+    CHECK(f >= 0 && f <= 48, "a sampled note sounds within 1 ms of the key (start silence trimmed)");
+    CHECK(peak(o, 0, SR / 2) > 0.05f && finite(o), "the sampled piano is clearly audible and clean");
+  }
+  {
+    auto sp = std::make_unique<Synth>(SR); Synth& s = *sp; s.bank = bank;
+    for (int m : {69, 70, 71}) {
+      s.post({EV_ALL_OFF, 0, 0, 0, 0, 0}); run(s, SR, B);
+      s.post({EV_USER_ON, (uint8_t)m, 100, 0, 0, 0});
+      auto o = run(s, SR / 2, B);
+      const double want = 440.0 * std::pow(2.0, (m - 69) / 12.0), fq = freqOf(o, 2400, 12000);
+      printf("      key %d measured %.1f Hz (want %.1f)\n", m, fq, want);
+      CHECK(std::fabs(fq - want) < want * 0.01, "sampled and pitch-shifted keys play in tune");
+    }
+  }
+  {
+    auto sp = std::make_unique<Synth>(SR); Synth& s = *sp; s.bank = bank;
+    s.post({EV_USER_ON, 64, 30, 0, 0, 0}); auto soft = run(s, SR / 4, B);
+    s.post({EV_USER_OFF, 64, 0, 0, 0, 0}); run(s, SR * 2, B);
+    s.post({EV_USER_ON, 64, 120, 0, 0, 0}); auto loud = run(s, SR / 4, B);
+    CHECK(peak(loud, 0, SR / 4) > peak(soft, 0, SR / 4) * 2, "loud keys are clearly louder than soft ones");
+  }
+  {
+    auto sp = std::make_unique<Synth>(SR); Synth& s = *sp; s.bank = bank;
+    s.post({EV_USER_ON, 60, 100, 0, 0, 0}); run(s, SR / 4, B);
+    int before = s.activeVoices();
+    s.post({EV_USER_OFF, 60, 0, 0, 0, 0}); run(s, 64, B);
+    bool hasRelease = false; for (auto& r : bank->regions) hasRelease |= r.release;
+    if (hasRelease) CHECK(s.activeVoices() == before + 1, "key up plays the release sample");
+    run(s, SR * 4, B);
+    CHECK(s.activeVoices() == 0, "sampled notes and release samples end after key up");
+  }
+  {
+    auto sp = std::make_unique<Synth>(SR); Synth& s = *sp; s.bank = bank;
+    s.post({EV_PEDAL, 0, 0, 1, 0, 0});
+    s.post({EV_USER_ON, 36, 100, 0, 0, 0}); run(s, SR / 10, B);
+    s.post({EV_USER_OFF, 36, 0, 0, 0, 0});
+    auto held = run(s, SR, B);
+    CHECK(peak(held, SR - 4800, SR) > 1e-4f, "the pedal keeps a sampled bass note ringing");
+  }
+  {
+    auto sp = std::make_unique<Synth>(SR); Synth& s = *sp; s.bank = bank; s.useSamples = false;
+    s.post({EV_USER_ON, 60, 100, 0, 0, 0});
+    auto o = run(s, SR / 10, B);
+    CHECK(firstSound(o) >= 0 && firstSound(o) < 4, "with samples off, the synth plays with no delay at all");
+  }
+  {
+    auto sp = std::make_unique<Synth>(SR); Synth& s = *sp; s.bank = bank;
+    s.post({EV_PEDAL, 0, 0, 1, 0, 0});
+    for (int m = 21; m <= 108; m++) s.post({EV_USER_ON, (uint8_t)m, 110, 0, 0, 0});
+    std::vector<float> buf(32 * 2);
+    auto t0 = std::clock();
+    for (int b = 0; b < SR / 32; b++) s.render(buf.data(), 32);
+    double cpu = double(std::clock() - t0) / CLOCKS_PER_SEC;
+    printf("      88 sustained sampled notes: %.0f%% of one core at 32 frames\n", cpu * 100);
+    CHECK(cpu < 0.5, "88 sustained sampled notes render well inside real time");
+  }
+}
+
+int main(int argc, char** argv) {
+  const int SR = 48000, B = 32;
+  if (argc > 1) bankTests(argv[1]);
   {
     auto sp = std::make_unique<Synth>(SR); Synth& s = *sp;   // 477 KB: never on the stack (Windows threads get 1 MB)
     s.post({EV_USER_ON, 60, 100, 0, 0, 0});

@@ -101,16 +101,32 @@ jobs:
           Copy-Item build-native/Release/nish-audio.exe desktop/resources/native/
           "{0:N0} KB nish-audio.exe" -f ((Get-Item desktop/resources/native/nish-audio.exe).Length / 1KB)
 
+      - name: Fetch Upright Piano KW (FreePats, CC0) and build the sample bank
+        shell: pwsh
+        run: |
+          $url = 'https://freepats.zenvoid.org/Piano/UprightPianoKW/UprightPianoKW-SFZ+FLAC-20220221.7z'
+          Invoke-WebRequest $url -OutFile "$env:RUNNER_TEMP/upright.7z"
+          "{0:N1} MB downloaded" -f ((Get-Item "$env:RUNNER_TEMP/upright.7z").Length / 1MB)
+          7z x "$env:RUNNER_TEMP/upright.7z" "-o$env:RUNNER_TEMP/upright" -y | Out-Null
+          Get-ChildItem -Recurse "$env:RUNNER_TEMP/upright" -Include *.sfz,*.txt | ForEach-Object { "  " + $_.FullName.Substring($env:RUNNER_TEMP.Length) }
+          python -m pip install --quiet soundfile numpy
+          # reads the SFZ, trims the silence before every note (fails if any attack still starts late), packs 16-bit PCM
+          python tools/build_piano.py "$env:RUNNER_TEMP/upright" desktop/resources/sounds/upright-kw --name "Upright Piano KW"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not build the piano sample bank' }
+          Copy-Item native/sounds/UPRIGHT-KW-CREDITS.txt desktop/resources/sounds/upright-kw/CREDITS.txt
+          Get-ChildItem desktop/resources/sounds/upright-kw | Format-Table Name, Length
+
       - name: Test the sound engine (synth checks, and the program starts and answers)
         shell: pwsh
         run: |
-          & build-native/Release/nish-synth-test.exe
+          & build-native/Release/nish-synth-test.exe desktop/resources/sounds/upright-kw
           if ($LASTEXITCODE -ne 0) { throw 'Synth checks failed' }
           # no ASIO driver on the build machine: the program must still start, list nothing, and quit cleanly
           $out = "list`nping 1`nquit`n" | & desktop/resources/native/nish-audio.exe
           $out | ForEach-Object { "  $_" }
           if (-not ($out -match '"ev":"ready"')) { throw 'nish-audio did not start' }
           if (-not ($out -match '"ev":"pong"')) { throw 'nish-audio did not answer' }
+          if (-not ($out -match '"ev":"samples","ok":true')) { throw 'nish-audio did not load the Upright piano from the installation folder' }
 
       - name: Install desktop dependencies
         working-directory: desktop

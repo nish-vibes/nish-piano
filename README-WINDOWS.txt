@@ -40,6 +40,11 @@ sounds within one audio buffer. The menu shows the delay it measured.
 - If your keyboard is "in use by another program", close that program, or press
   "Restart the app".
 
+Piano sound: "Upright (sampled)" plays Upright Piano KW, a real Kawai upright (FreePats,
+public domain), held in memory with the silence before each note trimmed away. "Synth" is
+the built-in synthesized piano, which has no recorded sound at all. The sampled piano plays
+in the ASIO engine; the standard engine uses the synth.
+
 "Disable Windows audio effects" turns off Windows sound enhancements for every output
 (Windows asks for permission). They add delay to the standard engine; ASIO skips them.
 "Turn Windows audio effects back on" restores each output exactly as it was.

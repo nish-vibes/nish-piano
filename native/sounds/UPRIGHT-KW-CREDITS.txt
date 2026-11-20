@@ -1,0 +1,14 @@
+Upright Piano KW
+================
+A Kawai upright piano, recorded in January 2017 by FreePats (https://freepats.zenvoid.org/).
+Version 2022-02-21, best quality (stereo, 2 velocity layers).
+Source: https://freepats.zenvoid.org/Piano/acoustic-grand-piano.html
+
+Licence: CC0 1.0 Universal (public domain dedication). No attribution is required;
+we credit FreePats anyway with thanks.
+
+Changes made for NiSH MarkSteady Piano (tools/build_piano.py):
+- the silence before each note is trimmed to 0.5 ms, so notes sound as soon as a key is pressed
+- the bank is normalised so the loudest note peaks at -1 dBFS
+- samples are stored as 16-bit PCM in one file (piano.pcm) with a key map (index.txt)
+The set's own readme and licence files are copied here as source-*.

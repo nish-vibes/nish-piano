@@ -86,6 +86,7 @@
     const g = 'gain ' + [A.mute ? 0 : A.volume * 0.6, A.mute ? 0 : A.accVolume * A.volume * 0.6, A.mute ? 0 : A.metroVolume].map((x) => x.toFixed(4)).join(' ');
     if (g !== sentGain) { nsend(g); sentGain = g; }
     nsend('midisound ' + (st.userSound !== false && !st.midiMute ? 1 : 0));
+    nsend('pianosamples ' + (st.pianoSound === 'synth' ? 0 : 1));
   };
   /** Switch low-latency mode. The buffer size is fixed when the audio context is made, so the context is rebuilt. */
   A.setLowLatency = function (on) {

@@ -2,6 +2,7 @@
 *.wav
 build-native/
 desktop/resources/native/
+desktop/resources/sounds/
 dist/
 native/build*/
 node_modules/

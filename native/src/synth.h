@@ -15,6 +15,7 @@
 #include <cstring>
 #include <algorithm>
 #include <initializer_list>
+#include "bank.h"
 
 namespace nish {
 
@@ -67,7 +68,12 @@ class Synth {
   // ---- settings, safe from any thread
   std::atomic<int> instrument{PIANO}, layer{NONE};
   std::atomic<float> userGain{0.42f}, accGain{0.29f}, metroGain{0.7f};
-  std::atomic<bool> midiSound{true};   // false: the keyboard has its own speakers, or "your notes" sound is off
+  std::atomic<bool> midiSound{true};
+  // the sampled piano (Upright Piano KW): used for "piano" when a bank is loaded and samples are on;
+  // otherwise the synth plays, which has no recorded silence at all
+  std::atomic<const Bank*> bank{nullptr};
+  std::atomic<bool> useSamples{true};
+  std::atomic<float> sampleGain{0.6f};   // false: the keyboard has its own speakers, or "your notes" sound is off
 
   /** Queue an event. Returns false if the queue is full (should never happen in practice). */
   bool post(const Event& e) {
@@ -86,8 +92,8 @@ class Synth {
     drain(t0, n);
     std::memset(out, 0, sizeof(float) * 2 * n);
     if (n > MAXBLOCK) n = MAXBLOCK;
-    std::memset(busU, 0, sizeof(float) * n);
-    std::memset(busA, 0, sizeof(float) * n);
+    std::memset(busU, 0, sizeof(float) * n); std::memset(busUR, 0, sizeof(float) * n);
+    std::memset(busA, 0, sizeof(float) * n); std::memset(busAR, 0, sizeof(float) * n);
     std::memset(busM, 0, sizeof(float) * n);
     for (auto& v : voices) if (v.on) renderVoice(v, t0, n);
     for (auto& c : clicks) if (c.on) renderClick(c, t0, n);
@@ -95,10 +101,9 @@ class Synth {
     const float norm = 1.0f / std::tanh(1.6f);
     for (int i = 0; i < n; i++) {
       // your notes and play-along go through a soft clipper with no look-ahead (a compressor would add delay)
-      float x = busU[i] * gu + busA[i] * ga;
-      x = std::tanh(1.6f * x) * norm;
-      float y = x + busM[i] * gm;
-      out[2 * i] = y; out[2 * i + 1] = y;
+      float l = std::tanh(1.6f * (busU[i] * gu + busA[i] * ga)) * norm;
+      float r = std::tanh(1.6f * (busUR[i] * gu + busAR[i] * ga)) * norm;
+      out[2 * i] = l + busM[i] * gm; out[2 * i + 1] = r + busM[i] * gm;
     }
     // pending events that were not due in this buffer stay queued for the next one
     framesDone.store(t0 + n, std::memory_order_release);
@@ -152,6 +157,9 @@ class Synth {
     // e-piano FM
     bool fm = false; double cPhase = 0, m1Phase = 0, m2Phase = 0, f0 = 0; Target idx1, idx2;
     int64_t pos = 0;            // samples since start
+    // sampled piano
+    bool sampled = false; const BankSample* smp = nullptr; const Bank* bk = nullptr;
+    double spos = 0, step = 1; float sgain = 1; int ramp = 0; uint8_t vel7 = 0; int64_t heldFrom = 0;
   };
   struct Click { bool on = false; int64_t start = 0; double phase = 0, inc = 0; float peak = 0; int64_t pos = 0; };
 
@@ -161,7 +169,7 @@ class Synth {
   bool pedal = false;
   int noiseLen = 2400;
   int64_t ageCounter = 0;
-  float busU[MAXBLOCK], busA[MAXBLOCK], busM[MAXBLOCK];
+  float busU[MAXBLOCK], busUR[MAXBLOCK], busA[MAXBLOCK], busAR[MAXBLOCK], busM[MAXBLOCK];
 
   SpinLock qlock;
   Event queue[QCAP]; int qhead = 0, qtail = 0;
@@ -235,12 +243,12 @@ class Synth {
       tab[m] = -1;
       if (!v.on || v.midi != m || !v.user) continue;
       v.held = false;
-      if (pedal) v.sustained = true; else release(v, at, v.relTau);
+      if (pedal) v.sustained = true; else { release(v, at, v.relTau); releaseSample(v, at); }
     }
   }
   void setPedal(bool down, int64_t at) {
     pedal = down;
-    if (!down) for (auto& v : voices) if (v.on && v.user && v.sustained && !v.held) { v.sustained = false; release(v, at, v.relTau * 1.4f); }
+    if (!down) for (auto& v : voices) if (v.on && v.user && v.sustained && !v.held) { v.sustained = false; release(v, at, v.relTau * 1.4f); releaseSample(v, at); }
   }
   void release(Voice& v, int64_t at, float tau) {
     if (v.released && v.releaseAt <= at) return;
@@ -272,6 +280,11 @@ class Synth {
     v.relTau = relTauOf(inst); v.rel.v = level; v.seed = 0x9e3779b9u ^ (uint32_t)(m * 2654435761u) ^ (uint32_t)ageCounter;
     const double f = freqOf(m), sr = rate;
     const float vv = std::max(0.12f, std::min(1.0f, vel / 127.0f));
+    if (inst == PIANO && useSamples.load()) {
+      const Bank* bk = bank.load(std::memory_order_acquire);
+      const BankRegion* r = bk ? bk->find(m, vel, false) : nullptr;
+      if (r && startSampled(v, *bk, *r, m, vel, at, level)) return i;
+    }
     const float reg = (m - 21) / 87.0f;
     double endSec = 6;
     auto setNoise = [&](double bf, double Q, float g, float tau) { v.noise = true; v.bp.bandpass(bf, Q, sr); v.ng.v = g; v.ng.set(0.0001f, tau, sr); };
@@ -333,6 +346,74 @@ class Synth {
     return i;
   }
 
+  static float velGain(int vel, float veltrack) {
+    // SFZ amp_veltrack: 100% follows (velocity/127)^2, 0% ignores velocity
+    const float x = (float)vel / 127.0f, k = std::max(0.0f, std::min(100.0f, veltrack)) / 100.0f;
+    return (1 - k) + k * x * x;
+  }
+  bool startSampled(Voice& v, const Bank& bk, const BankRegion& r, int m, int vel, int64_t at, float level) {
+    const BankSample& s = bk.samples[r.sample];
+    if (s.frames < 4) return false;
+    v.sampled = true; v.smp = &s; v.bk = &bk; v.spos = 0; v.vel7 = (uint8_t)vel; v.heldFrom = at;
+    v.step = std::pow(2.0, ((m - r.key) * 100.0 + r.tune) / 1200.0) * s.rate / rate;
+    v.sgain = std::pow(10.0f, r.gainDb / 20.0f) * velGain(vel, r.veltrack) * sampleGain.load();
+    v.ramp = std::max(1, (int)(0.0005 * rate));   // 0.5 ms: no click, no audible delay
+    v.relTau = std::max(0.02f, r.releaseSec / 4.0f);
+    v.rel.v = level;
+    const bool loops = s.loopStart >= 0 && s.loopEnd > s.loopStart + 4;
+    v.end = loops ? at + (int64_t)(600 * rate) : at + (int64_t)((double)(s.frames - 2) / v.step) + 1;
+    return true;
+  }
+  // key up on a sampled note: the bank's release sample (damper and key noise), quieter the longer the key was held
+  void releaseSample(const Voice& v, int64_t at) {
+    if (!v.sampled || !v.bk) return;
+    // copy first: when every voice is busy, the new one may reuse this very voice
+    const Bank* bk = v.bk; const int m = v.midi, vel = v.vel7; const bool user = v.user; const int64_t heldFrom = v.heldFrom;
+    const BankRegion* r = bk->find(m, vel, true);
+    if (!r) return;
+    int i = freeVoice();
+    if (i < 0) return;
+    Voice& n = voices[i];
+    n = Voice();
+    n.on = true; n.user = user; n.inst = PIANO; n.midi = (uint8_t)m; n.start = at; n.age = ++ageCounter; n.released = false;
+    if (!startSampled(n, *bk, *r, m, vel, at, 1.0f)) { n.on = false; return; }
+    const double held = std::max<int64_t>(0, at - heldFrom) / rate;
+    n.sgain *= std::pow(10.0f, (float)(-r->rtDecay * held) / 20.0f);
+    n.held = false;
+  }
+  inline float tap(const BankSample& s, const int16_t* pcm, int64_t i, int c) const {
+    if (s.loopStart >= 0 && s.loopEnd > s.loopStart + 4) { const int64_t len = s.loopEnd - s.loopStart; while (i >= s.loopEnd) i -= len; }
+    if (i < 0 || i >= s.frames) return 0.f;
+    return pcm[s.offset + i * s.channels + (c < s.channels ? c : 0)] * (1.0f / 32768.0f);
+  }
+  static inline float hermite(float xm1, float x0, float x1, float x2, float t) {
+    const float c = (x1 - xm1) * 0.5f, v = x0 - x1, w = c + v, a = w + v + (x2 - x0) * 0.5f, b = w + a;
+    return (((a * t) - b) * t + c) * t + x0;
+  }
+  void renderSampled(Voice& v, int64_t t0, int n) {
+    float* L = v.user ? busU : busA; float* R = v.user ? busUR : busAR;
+    const BankSample& s = *v.smp; const int16_t* pcm = v.bk->pcm.data();
+    const bool loops = s.loopStart >= 0 && s.loopEnd > s.loopStart + 4;
+    const double sr = rate;
+    int i0 = (int)std::max<int64_t>(0, v.start - t0);
+    for (int i = i0; i < n; i++) {
+      const int64_t fr = t0 + i;
+      if (fr >= v.end) { v.on = false; return; }
+      if (v.released && fr >= v.releaseAt && (fr == v.releaseAt || !v.rel.moving)) v.rel.set(0, v.relTau, sr);
+      const int64_t p = v.pos++;
+      double sp = v.spos;
+      if (loops) { const double len = (double)(s.loopEnd - s.loopStart); while (sp >= s.loopEnd) sp -= len; v.spos = sp; }
+      else if (sp >= s.frames - 2) { v.on = false; return; }
+      const int64_t k = (int64_t)sp; const float t = (float)(sp - k);
+      float g = v.sgain * v.rel.tick();
+      if (p < v.ramp) g *= (float)(p + 1) / (float)v.ramp;
+      const float l = hermite(tap(s, pcm, k - 1, 0), tap(s, pcm, k, 0), tap(s, pcm, k + 1, 0), tap(s, pcm, k + 2, 0), t);
+      const float r = s.channels > 1 ? hermite(tap(s, pcm, k - 1, 1), tap(s, pcm, k, 1), tap(s, pcm, k + 1, 1), tap(s, pcm, k + 2, 1), t) : l;
+      L[i] += l * g; R[i] += r * g;
+      v.spos += v.step;
+    }
+  }
+
   static inline float polyblep(double t, double dt) {
     if (t < dt) { t /= dt; return (float)(t + t - t * t - 1.0); }
     if (t > 1.0 - dt) { t = (t - 1.0) / dt; return (float)(t * t + t + t + 1.0); }
@@ -356,7 +437,8 @@ class Synth {
   inline float noiseSample(Voice& v) { v.seed = v.seed * 1664525u + 1013904223u; return (float)((v.seed >> 8) * (1.0 / 8388608.0) - 1.0); }
 
   void renderVoice(Voice& v, int64_t t0, int n) {
-    float* bus = v.user ? busU : busA;
+    if (v.sampled) { renderSampled(v, t0, n); return; }
+    float* bus = v.user ? busU : busA; float* busR = v.user ? busUR : busAR;
     const double sr = rate;
     int i0 = (int)std::max<int64_t>(0, v.start - t0);
     for (int i = i0; i < n; i++) {
@@ -385,7 +467,8 @@ class Synth {
         v.m2Phase += v.f0 / sr; if (v.m2Phase >= 1) v.m2Phase -= 1;
       }
       if (v.noise && p < noiseLen) s += v.bp.tick(noiseSample(v)) * v.ng.tick();
-      bus[i] += v.lp.tick(s * og) * v.rel.tick();
+      const float y = v.lp.tick(s * og) * v.rel.tick();
+      bus[i] += y; busR[i] += y;
     }
   }
 

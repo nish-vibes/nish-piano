@@ -24,6 +24,7 @@
     "extraResources": [
       { "from": "resources/audiveris", "to": "audiveris", "filter": ["**/*"] },
       { "from": "resources/native", "to": "native", "filter": ["**/*"] },
+      { "from": "resources/sounds", "to": "sounds", "filter": ["**/*"] },
       { "from": "licenses", "to": "licenses", "filter": ["**/*"] }
     ],
     "fileAssociations": [

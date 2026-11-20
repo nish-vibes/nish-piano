@@ -19,3 +19,6 @@ Low-latency sound engine (nish-audio.exe): plays through ASIO drivers and reads 
 It uses RtAudio by Gary P. Scavone (MIT-style licence, resources\licenses\RTAUDIO-LICENSE.txt) and the
 ASIO host interface from the Steinberg ASIO SDK, used under the GNU General Public License v3.
 ASIO is a trademark and software of Steinberg Media Technologies GmbH.
+
+Piano sound: Upright Piano KW by FreePats (https://freepats.zenvoid.org/), CC0 1.0 public domain.
+Installed in resources\sounds\upright-kw with its credits and the set's own readme.
