@@ -297,7 +297,7 @@ def main():
                 rel=1 if x['release'] else 0, relt=x['rel'], **{k: v for k, v in x.items() if k not in ('release', 'rel')}))
     for root, _dirs, files in os.walk(a.src):
         for f in files:
-            if re.search(r'(readme|licen[cs]e|copying|credits)', f, re.I) and f.lower().endswith(('.txt', '.md', '')):
+            if re.search(r'(readme|licen[cs]e|copying|credits|cc0|cc-by|public.?domain)', f, re.I) and f.lower().endswith(('.txt', '.md', '')):
                 shutil.copy(os.path.join(root, f), os.path.join(a.out, 'source-' + f))
 
     mb = offset * 2 / 1048576

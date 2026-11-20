@@ -26,10 +26,21 @@ static void wav(const char* path, const std::vector<float>& o, int sr) {
   fclose(f);
 }
 
-static double freqOf(const std::vector<float>& o, int a, int b) {
-  int cross = 0, first = -1, last = -1;
-  for (int i = a + 1; i < b; i++) if (o[2 * (i - 1)] <= 0 && o[2 * i] > 0) { if (first < 0) first = i; last = i; cross++; }
-  return cross > 1 ? (cross - 1) * 48000.0 / (last - first) : 0;
+// pitch by autocorrelation, searched around the expected frequency (zero crossings are fooled by a real piano's overtones)
+static double freqOf(const std::vector<float>& o, int a, int b, double want) {
+  const int lo = (int)(48000.0 / (want * 1.3)), hi = (int)(48000.0 / (want / 1.3));
+  double best = -1; int bestLag = 0;
+  for (int lag = lo; lag <= hi; lag++) {
+    double num = 0, e1 = 0, e2 = 0;
+    for (int i = a; i + lag < b; i++) { const double x = o[2 * i], y = o[2 * (i + lag)]; num += x * y; e1 += x * x; e2 += y * y; }
+    const double r = num / std::sqrt(e1 * e2 + 1e-12);
+    if (r > best) { best = r; bestLag = lag; }
+  }
+  if (bestLag <= lo || bestLag >= hi) return 0;
+  // parabolic refinement between neighbouring lags
+  auto R = [&](int lag) { double num = 0, e1 = 0, e2 = 0; for (int i = a; i + lag < b; i++) { const double x = o[2 * i], y = o[2 * (i + lag)]; num += x * y; e1 += x * x; e2 += y * y; } return num / std::sqrt(e1 * e2 + 1e-12); };
+  const double y0 = R(bestLag - 1), y1 = best, y2 = R(bestLag + 1), d = (y0 - y2) / (2 * (y0 - 2 * y1 + y2));
+  return 48000.0 / (bestLag + (std::isfinite(d) ? d : 0));
 }
 
 static void bankTests(const char* dir) {
@@ -56,7 +67,7 @@ static void bankTests(const char* dir) {
       s.post({EV_ALL_OFF, 0, 0, 0, 0, 0}); run(s, SR, B);
       s.post({EV_USER_ON, (uint8_t)m, 100, 0, 0, 0});
       auto o = run(s, SR / 2, B);
-      const double want = 440.0 * std::pow(2.0, (m - 69) / 12.0), fq = freqOf(o, 2400, 12000);
+      const double want = 440.0 * std::pow(2.0, (m - 69) / 12.0), fq = freqOf(o, 2400, 12000, want);
       printf("      key %d measured %.1f Hz (want %.1f)\n", m, fq, want);
       CHECK(std::fabs(fq - want) < want * 0.01, "sampled and pitch-shifted keys play in tune");
     }
