@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <ctime>
+#include <memory>
 using namespace nish;
 static int fails = 0;
 #define CHECK(c, msg) do { if (c) printf("pass  %s\n", msg); else { printf("FAIL  %s\n", msg); fails++; } } while (0)
@@ -28,7 +29,7 @@ static void wav(const char* path, const std::vector<float>& o, int sr) {
 int main() {
   const int SR = 48000, B = 32;
   {
-    Synth s(SR);
+    auto sp = std::make_unique<Synth>(SR); Synth& s = *sp;   // 477 KB: never on the stack (Windows threads get 1 MB)
     s.post({EV_USER_ON, 60, 100, 0, 0, 0});
     auto o = run(s, SR / 10, B);
     int f = firstSound(o);
@@ -37,7 +38,7 @@ int main() {
     CHECK(peak(o, 0, SR / 10) > 0.05f, "piano note is clearly audible");
   }
   {
-    Synth s(SR);
+    auto sp = std::make_unique<Synth>(SR); Synth& s = *sp;   // 477 KB: never on the stack (Windows threads get 1 MB)
     run(s, 4800, B);
     s.post({EV_PLAY, 64, 90, 0, s.now() + s.msToFrames(50), s.msToFrames(300)});
     auto o = run(s, SR / 2, B);
@@ -46,7 +47,7 @@ int main() {
     CHECK(f >= 2400 && f <= 2403, "play-along notes start on the scheduled sample");
   }
   {
-    Synth s(SR);
+    auto sp = std::make_unique<Synth>(SR); Synth& s = *sp;   // 477 KB: never on the stack (Windows threads get 1 MB)
     for (int inst = 0; inst < 6; inst++) {
       s.instrument = inst;
       s.post({EV_USER_ON, (uint8_t)(48 + inst * 5), 100, 0, 0, 0});
@@ -59,7 +60,7 @@ int main() {
     CHECK(s.activeVoices() == 0, "all voices end after release");
   }
   {
-    Synth s(SR);
+    auto sp = std::make_unique<Synth>(SR); Synth& s = *sp;   // 477 KB: never on the stack (Windows threads get 1 MB)
     s.post({EV_PEDAL, 0, 0, 1, 0, 0});
     s.post({EV_USER_ON, 60, 100, 0, 0, 0});
     run(s, SR / 10, B);
@@ -71,7 +72,7 @@ int main() {
     CHECK(s.activeVoices() == 0, "pedal up releases the sustained notes");
   }
   {
-    Synth s(SR);
+    auto sp = std::make_unique<Synth>(SR); Synth& s = *sp;   // 477 KB: never on the stack (Windows threads get 1 MB)
     s.layer = STRINGS;
     s.post({EV_USER_ON, 60, 100, 0, 0, 0});
     run(s, 256, B);
@@ -81,7 +82,7 @@ int main() {
     CHECK(s.activeVoices() == 0, "both layered voices end");
   }
   {
-    Synth s(SR);
+    auto sp = std::make_unique<Synth>(SR); Synth& s = *sp;   // 477 KB: never on the stack (Windows threads get 1 MB)
     for (int k = 0; k < 20; k++) s.post({EV_PLAY, (uint8_t)(50 + k), 80, 0, s.now() + s.msToFrames(100 + k * 10), s.msToFrames(2000)});
     run(s, 4800, B);
     s.post({EV_CANCEL_ACC, 0, 0, 0, 0, 0});
@@ -89,14 +90,14 @@ int main() {
     CHECK(peak(o, 4800, SR) < 1e-3f, "stopping play-along also drops notes that were still waiting");
   }
   {
-    Synth s(SR);
+    auto sp = std::make_unique<Synth>(SR); Synth& s = *sp;   // 477 KB: never on the stack (Windows threads get 1 MB)
     s.midiSound = false;
     s.post({EV_MIDI_ON, 60, 100, 0, 0, 0});
     auto o = run(s, 4800, B);
     CHECK(peak(o, 0, 4800) == 0, "keys from a piano with its own speakers stay silent when muted");
   }
   {
-    Synth s(SR);
+    auto sp = std::make_unique<Synth>(SR); Synth& s = *sp;   // 477 KB: never on the stack (Windows threads get 1 MB)
     s.post({EV_CLICK, 0, 1, 0, s.now() + s.msToFrames(10), 0});
     auto o = run(s, 4800, B);
     int f = firstSound(o);
@@ -104,7 +105,7 @@ int main() {
   }
   {
     // stress: a full-arm chord on every key with pedal, at the smallest buffer, timed
-    Synth s(SR);
+    auto sp = std::make_unique<Synth>(SR); Synth& s = *sp;   // 477 KB: never on the stack (Windows threads get 1 MB)
     s.post({EV_PEDAL, 0, 0, 1, 0, 0});
     for (int m = 21; m <= 108; m++) s.post({EV_USER_ON, (uint8_t)m, 110, 0, 0, 0});
     std::vector<float> buf(32 * 2);
@@ -117,7 +118,7 @@ int main() {
   }
   {
     // demo file: a short phrase with pedal, each instrument
-    Synth s(SR);
+    auto sp = std::make_unique<Synth>(SR); Synth& s = *sp;   // 477 KB: never on the stack (Windows threads get 1 MB)
     std::vector<float> all;
     const int mel[] = {60, 64, 67, 72, 67, 64};
     for (int inst = 0; inst < 6; inst++) {
