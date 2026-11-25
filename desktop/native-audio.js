@@ -8,6 +8,7 @@ const os = require('os');
 const { spawn, execFile } = require('child_process');
 
 let child = null, buf = '', getWin = () => null;
+const renders = new Map();   // id -> { resolve, dir }
 
 function engineExe() {
   const base = app.isPackaged ? path.join(process.resourcesPath, 'native') : path.join(__dirname, 'resources', 'native');
@@ -29,13 +30,20 @@ function start() {
     while ((i = buf.indexOf('\n')) >= 0) {
       const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
       if (!line) continue;
-      try { toRenderer(JSON.parse(line)); } catch (e) { toRenderer({ ev: 'log', text: line }); }
+      let msg = null;
+      try { msg = JSON.parse(line); } catch (e) { toRenderer({ ev: 'log', text: line }); continue; }
+      if (msg.ev === 'rendered' && renders.has(msg.id)) { const r = renders.get(msg.id); renders.delete(msg.id); r.resolve(msg); continue; }
+      toRenderer(msg);
     }
   });
   child.stderr.on('data', (d) => toRenderer({ ev: 'log', text: String(d) }));
   const c = child;
   child.on('error', (e) => { toRenderer({ ev: 'exit', error: String(e.message || e) }); if (child === c) child = null; });
-  child.on('exit', (code) => { toRenderer({ ev: 'exit', code }); if (child === c) child = null; });
+  child.on('exit', (code) => {
+    toRenderer({ ev: 'exit', code });
+    for (const [id, r] of renders) { renders.delete(id); r.resolve({ ok: false, message: 'The sound engine stopped.' }); }
+    if (child === c) child = null;
+  });
   return true;
 }
 function send(line) {
@@ -159,12 +167,36 @@ async function fxSet(off) {
   return { ok: !failed.length, changed: res.length - failed.length, failed: failed.length, error: failed.length ? failed[0].error : null };
 }
 
+/** Render a piece offline with the engine (for video export). notes: text lines as in native/src/render.h.
+ *  Resolves with { ok, wav: Uint8Array, seconds } or { ok: false, message }. Starts the engine if ASIO is off. */
+let renderSeq = 0;
+async function render(text) {
+  if (typeof text !== 'string' || text.length > 32 * 1024 * 1024) return { ok: false, message: 'Bad note list.' };
+  if (!start()) return { ok: false, message: 'The sound engine is not installed.' };
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nish-render-'));
+  const inPath = path.join(dir, 'notes.txt'), outPath = path.join(dir, 'piece.wav');
+  // the note list may only set what render.h reads; the output path is ours
+  const body = text.split(/\r?\n/).filter((l) => /^(n|p|rate|gain|tail) /.test(l)).join('\n');
+  fs.writeFileSync(inPath, 'out ' + outPath + '\n' + body + '\n', 'utf8');
+  const id = 'r' + (++renderSeq);
+  const done = new Promise((resolve) => renders.set(id, { resolve }));
+  send('render ' + id + ' ' + inPath);
+  const timer = new Promise((resolve) => setTimeout(() => resolve({ ok: false, message: 'Rendering took too long.' }), 10 * 60 * 1000));
+  const msg = await Promise.race([done, timer]);
+  renders.delete(id);
+  let wav = null;
+  if (msg.ok) { try { wav = fs.readFileSync(outPath); } catch (e) { msg.ok = false; msg.message = 'The rendered audio is missing.'; } }
+  fs.rm(dir, { recursive: true, force: true }, () => {});
+  return msg.ok ? { ok: true, wav: new Uint8Array(wav.buffer, wav.byteOffset, wav.byteLength), seconds: msg.seconds, ms: msg.ms } : { ok: false, message: msg.message || 'Rendering failed.' };
+}
+
 function register(winGetter) {
   getWin = winGetter;
   ipcMain.handle('naudio:available', () => !!engineExe());
   ipcMain.handle('naudio:start', () => start());
   ipcMain.handle('naudio:stop', () => { stop(); return true; });
   ipcMain.on('naudio:send', (_e, line) => send(line));
+  ipcMain.handle('naudio:render', (_e, text) => render(text));
   ipcMain.handle('fx:status', () => fxStatus());
   ipcMain.handle('fx:set', (_e, off) => fxSet(!!off));
   ipcMain.handle('fx:openSettings', () => shell.openExternal('ms-settings:sound'));

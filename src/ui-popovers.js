@@ -377,9 +377,18 @@
   };
 
   P.exportVideo = function () {
+    const off = W.exporter.offlineSupported();
     const pick = W.exporter.pickType();
-    if (!pick) { UI.toast('This browser cannot record video. Use the Windows app, or a current Chrome or Edge.', 'error'); return; }
+    if (!pick && !off) { UI.toast('This browser cannot record video. Use the Windows app, or a current Chrome or Edge.', 'error'); return; }
     const g = E.get(), secs = Math.round((E.qToSec(g.endQ) - E.qToSec(-E.lead)) / E.opts.speed), len = Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
+    if (off) {
+      const piano = S.settings.instrument === 'piano' ? (S.settings.pianoSound === 'synth' ? 'the synth piano' : 'the sampled Upright piano') : 'your chosen instrument';
+      const body = h('div', { class: 'about' },
+        h('p', { class: 'ds-reading', text: 'Saves "' + E.song.title + '" as a video of the waterfall and the keys, played perfectly with ' + piano + '. Send it to someone who does not read sheet music.' }),
+        h('p', { class: 'ds-caption', text: 'It is made from the notes, not recorded, so every note lands exactly on time and it takes less time than playing the piece (' + len + ' at ' + Math.round(E.opts.speed * 100) + ' %). File type: MP4.' }));
+      UI.openDialog('Export video', body, [{ label: 'Cancel' }, { label: 'Export', primary: true, run: () => { W.exporter.start(); } }]);
+      return;
+    }
     const body = h('div', { class: 'about' },
       h('p', { class: 'ds-reading', text: 'Saves "' + E.song.title + '" as a video of the waterfall and the keys, with sound. Send it to someone who does not read sheet music.' }),
       h('p', { class: 'ds-caption', text: 'The song plays once from the start while the video is made, so it takes ' + len + ' at the current speed (' + Math.round(E.opts.speed * 100) + ' %). Keep the window open and visible until it is done. File type: ' + pick.ext.toUpperCase() + '.' }));

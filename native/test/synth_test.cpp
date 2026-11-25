@@ -1,5 +1,6 @@
 // Offline checks of the native synth: timing, levels, pedal, layering, cancel, and a WAV to listen to.
 #include "../src/synth.h"
+#include "../src/render.h"
 #include <cstdio>
 #include <vector>
 #include <string>
@@ -116,9 +117,33 @@ static void bankTests(const char* dir) {
   }
 }
 
+// offline render for the video export: notes land on their exact samples, repeated keys are not cut, the file is valid
+static void renderTests(const Bank* bank) {
+  const char* in = "nish_render_in.txt"; const char* out = "nish_render_out.wav";
+  FILE* f = fopen(in, "wb"); if (!f) { CHECK(false, "can write the render input"); return; }
+  fprintf(f, "out %s\nrate 48000\ngain 0.42\ntail 1\n", out);
+  fprintf(f, "n 0.500 0.400 60 100\nn 0.700 0.400 60 90\nn 1.000 0.300 64 80\np 0.9 1\np 1.6 0\n");
+  fclose(f);
+  RenderResult r = renderFile(in, RenderSettings{PIANO, NONE, bank != nullptr, bank});
+  CHECK(r.ok && r.notes == 3, ("offline render runs " + r.error).c_str());
+  FILE* w = fopen(out, "rb");
+  std::vector<int16_t> d;
+  if (w) { fseek(w, 0, SEEK_END); long sz = ftell(w); fseek(w, 44, SEEK_SET); d.resize((sz - 44) / 2); size_t got = fread(d.data(), 2, d.size(), w); d.resize(got); fclose(w); }
+  const int frames = (int)d.size() / 2;
+  CHECK(std::abs(frames - (int)(2.6 * 48000)) <= 2, "the audio file lasts until the last note or pedal plus the tail");
+  int first = -1; for (int i = 0; i < frames; i++) if (std::abs(d[2 * i]) > 3) { first = i; break; }
+  printf("      first note at %.3f s (want 0.500)\n", first / 48000.0);
+  CHECK(first >= 24000 && first <= 24000 + 48, "the first note starts on its exact sample (within 1 ms)");
+  float at1 = 0; for (int i = (int)(1.05 * 48000); i < (int)(1.10 * 48000); i++) at1 = std::max(at1, (float)std::abs(d[2 * i]));
+  CHECK(at1 > 200, "a key struck again before its earlier note ended keeps sounding");
+  remove(in); remove(out);
+}
+
 int main(int argc, char** argv) {
   const int SR = 48000, B = 32;
+  std::string berr; Bank* tb = argc > 1 ? loadBank(argv[1], berr) : nullptr;
   if (argc > 1) bankTests(argv[1]);
+  renderTests(tb);
   {
     auto sp = std::make_unique<Synth>(SR); Synth& s = *sp;   // 477 KB: never on the stack (Windows threads get 1 MB)
     s.post({EV_USER_ON, 60, 100, 0, 0, 0});

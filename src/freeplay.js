@@ -165,7 +165,7 @@
     c.restore();
     c.fillStyle = col.primary; c.fillRect(0, wfH - Math.max(2, Math.round(2 * k)), out.width, Math.max(2, Math.round(2 * k)));
     // the title, for the first seconds
-    const age = (performance.now() - job.t0) / 1000;
+    const age = job.vt != null ? job.vt : (performance.now() - job.t0) / 1000;
     if (age < 5) {
       c.globalAlpha = Math.min(1, age / 0.4, (5 - age) / 0.8);
       const fs = Math.round(out.width / 46);
@@ -177,9 +177,169 @@
     job.frames++;
   };
 
+  function makeJob() {
+    const kH = S.settings.keysH || 120, k = Math.min(1920 / WF.w, Math.max(1, WF.canvas.width / WF.w));
+    const canvas = document.createElement('canvas'); canvas.width = even(WF.w * k); canvas.height = even((WF.h + kH) * (canvas.width / WF.w));
+    const fontVar = cssVar('--font-sans') || 'sans-serif';
+    return { canvas, ctx: canvas.getContext('2d'), frames: 0, t0: performance.now(), chunks: [], cancelled: false, done: false, vt: null,
+      col: { white: cssVar('--neutral-50'), edge: cssVar('--neutral-400'), black: cssVar('--neutral-900'), blackEdge: cssVar('--neutral-950'), R: cssVar('--hand-right'), L: cssVar('--hand-left'), primary: cssVar('--primary'), label: cssVar('--neutral-500') || '#777', label2: cssVar('--muted-foreground'), fg: cssVar('--foreground'), font: fontVar } };
+  }
+
+  // ---------------------------------------------------------------- offline export (Windows app)
+  // The sound engine plays the piece into a file with the piano you chose (the sampled Upright by default), every note on
+  // its exact sample; the waterfall is then drawn frame by frame on the video's own clock and encoded with WebCodecs.
+  // Nothing runs in real time, so it is faster than playing the piece, and a busy computer cannot make it uneven.
+  const FPS = 30;
+  const desk = () => window.wapiroDesktop && window.wapiroDesktop.nativeAudio;
+  X.offlineSupported = () => !!(window.VideoEncoder && window.AudioEncoder && window.VideoFrame && window.AudioData && desk() && desk().render);
+  /** The open song as engine note lines: times in seconds from the start of the video. */
+  X.noteLines = function () {
+    const spd = E.opts.speed, s0 = E.qToSec(E.startQ()), end = E.get().endQ;
+    const lines = ['rate 48000', 'gain ' + (A.mute ? 0 : A.volume * 0.6).toFixed(4), 'tail 3'];
+    for (const nt of E.song.notes) {
+      if (nt.q + nt.durQ < E.startQ() || nt.q > end) continue;
+      const t = (E.qToSec(nt.q) - s0) / spd, d = (E.qToSec(nt.q + nt.durQ) - E.qToSec(nt.q)) / spd;
+      lines.push('n ' + t.toFixed(5) + ' ' + Math.max(0.03, d).toFixed(5) + ' ' + nt.midi + ' ' + Math.round(nt.vel > 0 ? Math.min(127, nt.vel) : 78));
+    }
+    for (const p of E.song.pedal || []) lines.push('p ' + ((p.sec - s0) / spd).toFixed(5) + ' ' + (p.down ? 1 : 0));
+    return lines.join('\n');
+  };
+  function parseWav(b) {
+    const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    let o = 12, ch = 2, rate = 48000, data = null;
+    while (o + 8 <= b.length) {
+      const id = String.fromCharCode(b[o], b[o + 1], b[o + 2], b[o + 3]), len = v.getUint32(o + 4, true);
+      if (id === 'fmt ') { ch = v.getUint16(o + 10, true); rate = v.getUint32(o + 12, true); }
+      if (id === 'data') { data = new Int16Array(b.buffer.slice(b.byteOffset + o + 8, b.byteOffset + o + 8 + Math.min(len, b.length - o - 8))); break; }
+      o += 8 + len + (len & 1);
+    }
+    return data ? { ch, rate, pcm: data, frames: data.length / ch } : null;
+  }
+  async function pickVideo(w, h) {
+    for (const codec of ['avc1.640028', 'avc1.4D0028', 'avc1.42E028', 'avc1.640033', 'avc1.42001F']) {
+      const cfg = { codec, width: w, height: h, bitrate: 8000000, framerate: FPS, avc: { format: 'avc' }, latencyMode: 'quality' };
+      try { const r = await VideoEncoder.isConfigSupported(cfg); if (r && r.supported) return r.config || cfg; } catch (e) { /* try the next */ }
+    }
+    return null;
+  }
+  async function pickAudio(rate, ch) {
+    // Opus first: its pre-skip is stored in the file, so sound and picture line up exactly; AAC as the fallback
+    for (const [codec, kind] of [['opus', 'opus'], ['mp4a.40.2', 'aac']]) {
+      const cfg = { codec, sampleRate: rate, numberOfChannels: ch, bitrate: 192000 };
+      try { const r = await AudioEncoder.isConfigSupported(cfg); if (r && r.supported) return { cfg: r.config || cfg, kind }; } catch (e) { /* next */ }
+    }
+    return null;
+  }
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+
+  X.offline = function (opts) {
+    opts = opts || {};
+    return new Promise((resolve) => {
+      if (X.active) { resolve({ ok: false, error: 'An export is already running.' }); return; }
+      const fail = (msg) => { UI.toast(msg, 'error'); resolve({ ok: false, error: msg }); };
+      if (!E.song) return fail('Open a song first.');
+      if (F.active) F.leave();
+      if (W.editor && W.editor.active) W.editor.stop();
+      if (E.playing) E.pause();
+      UI.closePopover(false);
+      const before = { loop: E.opts.loop, playAlong: E.opts.playAlong, metronome: E.opts.metronome }, beforeQ = E.q, runModeBefore = E.runMode;
+      E.setOptions({ loop: null, playAlong: true, metronome: false });
+      S.viewOverride = 'waterfall'; W.shell.applyView();
+      X.active = true;
+      const cleanup = () => {
+        bar.hide();
+        WF.clock = null; WF.clearFx();
+        job = null; X.active = false;
+        E.runMode = runModeBefore;
+        E.setOptions(before);
+        S.viewOverride = null; W.shell.applyView();
+        E.seekQ(beforeQ);
+      };
+      const run = async () => {
+        job = makeJob(); job.offline = true; job.progress = 0; job.stage = 'Playing the piece into a sound file';
+        bar.show();
+        // 1. sound: the whole piece, offline, in the engine
+        const r = await desk().render(X.noteLines());
+        if (job.cancelled) { cleanup(); UI.toast('Video export cancelled.'); resolve({ ok: false, cancelled: true }); return; }
+        if (!r || !r.ok) { cleanup(); return fail('The sound could not be made: ' + ((r && r.message) || 'unknown error') + '.'); }
+        const wav = parseWav(r.wav);
+        if (!wav) { cleanup(); return fail('The sound could not be read.'); }
+        const total = wav.frames / wav.rate, nFrames = Math.ceil(total * FPS);
+        // 2. encoders
+        const vcfg = await pickVideo(job.canvas.width, job.canvas.height), acfg = await pickAudio(wav.rate, wav.ch);
+        if (!vcfg || !acfg) { cleanup(); return fail('This computer has no video encoder for MP4.'); }
+        const vs = [], as = []; let avcC = null, aconf = null, encErr = null;
+        const venc = new VideoEncoder({
+          output: (c, meta) => { if (meta && meta.decoderConfig && meta.decoderConfig.description && !avcC) avcC = new Uint8Array(meta.decoderConfig.description.slice ? meta.decoderConfig.description.slice(0) : meta.decoderConfig.description); const d = new Uint8Array(c.byteLength); c.copyTo(d); vs.push({ data: d, ts: c.timestamp, key: c.type === 'key' }); },
+          error: (e) => { encErr = e; },
+        });
+        venc.configure(vcfg);
+        const aenc = new AudioEncoder({
+          output: (c, meta) => { if (meta && meta.decoderConfig && meta.decoderConfig.description && !aconf) { const dsc = meta.decoderConfig.description; aconf = new Uint8Array(dsc.buffer ? dsc.buffer.slice(dsc.byteOffset || 0, (dsc.byteOffset || 0) + dsc.byteLength) : dsc); } const d = new Uint8Array(c.byteLength); c.copyTo(d); as.push({ data: d, ts: c.timestamp, dur: c.duration }); },
+          error: (e) => { encErr = e; },
+        });
+        aenc.configure(acfg.cfg);
+        // 3. picture: the waterfall at each frame's time, effects on the video's clock
+        E.runMode = 'listen';
+        WF.clearFx();
+        const spd = E.opts.speed, s0 = E.qToSec(E.startQ()), clock0 = performance.now();
+        job.stage = 'Drawing the waterfall';
+        let f = 0;
+        for (; f < nFrames; f++) {
+          if (job.cancelled || encErr) break;
+          if (job.done) break;   // "Stop and save": keep what is made so far
+          const t = f / FPS, q = E.secToQ(s0 + t * spd);
+          WF.clock = clock0 + t * 1000; job.vt = t;
+          E.q = q;
+          WF.draw(q); X.frame(q);
+          const fr = new VideoFrame(job.canvas, { timestamp: Math.round(t * 1e6), duration: Math.round(1e6 / FPS) });
+          venc.encode(fr, { keyFrame: f % (FPS * 2) === 0 });
+          fr.close();
+          job.progress = (f + 1) / nFrames;
+          while (venc.encodeQueueSize > 6) await tick();
+          if (f % 10 === 0) await tick();
+        }
+        const vFrames = f, aFramesWanted = Math.min(wav.frames, Math.round((vFrames / FPS) * wav.rate));
+        if (job.cancelled) { try { venc.close(); aenc.close(); } catch (e) { /* closed */ } cleanup(); UI.toast('Video export cancelled.'); resolve({ ok: false, cancelled: true }); return; }
+        job.stage = 'Finishing the file';
+        // 4. sound into the encoder, in 20 ms pieces
+        const step = Math.round(wav.rate / 50);
+        for (let i = 0; i < aFramesWanted && !encErr; i += step) {
+          const n = Math.min(step, aFramesWanted - i);
+          const ad = new AudioData({ format: 's16', sampleRate: wav.rate, numberOfChannels: wav.ch, numberOfFrames: n, timestamp: Math.round((i / wav.rate) * 1e6), data: wav.pcm.subarray(i * wav.ch, (i + n) * wav.ch) });
+          aenc.encode(ad); ad.close();
+          while (aenc.encodeQueueSize > 20) await tick();
+        }
+        try { await venc.flush(); await aenc.flush(); } catch (e) { encErr = encErr || e; }
+        try { venc.close(); aenc.close(); } catch (e) { /* closed */ }
+        if (encErr || !vs.length || !avcC) { cleanup(); return fail('The video could not be encoded' + (encErr ? ': ' + (encErr.message || encErr) : '.')); }
+        // frames must come out in order (no B-frames); durations from the timestamps
+        for (let i = 1; i < vs.length; i++) if (vs[i].ts < vs[i - 1].ts) { cleanup(); return fail('The video encoder reordered frames, which this exporter does not support.'); }
+        const VT = 90000;
+        const vSamples = vs.map((c, i) => ({ data: c.data, key: c.key, dur: Math.max(1, Math.round((((i + 1 < vs.length ? vs[i + 1].ts : c.ts + 1e6 / FPS) - c.ts) * VT) / 1e6)) }));
+        const aSamples = as.map((c) => ({ data: c.data, dur: Math.max(1, Math.round(((c.dur || (1e6 * 960) / 48000) * wav.rate) / 1e6)) }));
+        const blob = W.mp4.build({ width: job.canvas.width, height: job.canvas.height, timescale: VT, avcC, samples: vSamples },
+          { codec: acfg.kind, rate: wav.rate, channels: wav.ch, bitrate: 192000, config: aconf || (acfg.kind === 'aac' ? Uint8Array.from([0x11, 0x90]) : null), samples: aSamples });
+        const name = E.song.title.replace(/[\\/:*?"<>|]+/g, ' ').trim() + '.mp4';
+        const seconds = (performance.now() - job.t0) / 1000, made = vFrames / FPS;
+        const meta = { width: job.canvas.width, height: job.canvas.height, frames: vFrames, audio: acfg.kind, video: vcfg.codec, renderMs: r.ms };
+        cleanup();
+        if (!opts.noDownload) {
+          const url = URL.createObjectURL(blob), a = UI.h('a', { href: url, download: name });
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 60000);
+          UI.toast('Saved "' + name + '" (' + fmt(made) + ', made in ' + fmt(seconds) + ').');
+        }
+        resolve(Object.assign({ ok: true, offline: true, type: 'video/mp4', name, size: blob.size, seconds, length: made, blob: opts.keepBlob ? blob : undefined }, meta));
+      };
+      requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => run().catch((e) => { cleanup(); fail('Video export failed: ' + (e && e.message ? e.message : e)); }), 60)));
+    });
+  };
+
   /** Export the open song as a video. Resolves with { ok, type, size, seconds } once the file is saved (or the reason it was not). */
   X.start = function (opts) {
     opts = opts || {};
+    if (!opts.realtime && X.offlineSupported()) return X.offline(opts);
     return new Promise((resolve) => {
       if (X.active) { resolve({ ok: false, error: 'An export is already running.' }); return; }
       const fail = (msg) => { UI.toast(msg, 'error'); resolve({ ok: false, error: msg }); };
@@ -194,14 +354,10 @@
       S.viewOverride = 'waterfall'; W.shell.applyView();
       X.active = true;
       const begin = () => {
-        const kH = S.settings.keysH || 120, k = Math.min(1920 / WF.w, Math.max(1, WF.canvas.width / WF.w));
-        const canvas = document.createElement('canvas'); canvas.width = even(WF.w * k); canvas.height = even((WF.h + kH) * (canvas.width / WF.w));
-        const fontVar = cssVar('--font-sans') || 'sans-serif';
-        job = { canvas, ctx: canvas.getContext('2d'), frames: 0, t0: performance.now(), chunks: [], cancelled: false, done: false,
-          col: { white: cssVar('--neutral-50'), edge: cssVar('--neutral-400'), black: cssVar('--neutral-900'), blackEdge: cssVar('--neutral-950'), R: cssVar('--hand-right'), L: cssVar('--hand-left'), primary: cssVar('--primary'), label: cssVar('--neutral-500') || '#777', label2: cssVar('--muted-foreground'), fg: cssVar('--foreground'), font: fontVar } };
+        job = makeJob();
         let stream;
         try {
-          stream = canvas.captureStream(30);
+          stream = job.canvas.captureStream(30);
           const audio = A.tap && A.tap();
           if (audio) for (const t of audio.getAudioTracks()) stream.addTrack(t);
           job.rec = new MediaRecorder(stream, { mimeType: pick.type, videoBitsPerSecond: opts.bitrate || 8000000, audioBitsPerSecond: 160000 });
@@ -247,8 +403,8 @@
   /** Stop now and keep what has been recorded so far. */
   X.finish = function () { if (job && !job.done) { job.done = true; if (E.playing) E.pause(); try { job.rec.stop(); } catch (e) { /* already stopped */ } } };
   X.cancel = function () { if (job && !job.done) { job.cancelled = true; X.finish(); } };
-  E.on('finish', () => { if (job && !job.done) setTimeout(X.finish, 900); }); // let the last notes ring
-  E.on('change', () => { if (job && !job.done && job.frames > 2 && !E.playing && !E.finishedFlag) X.finish(); }); // paused by hand: keep the part so far
+  E.on('finish', () => { if (job && !job.done && !job.offline) setTimeout(X.finish, 900); }); // let the last notes ring
+  E.on('change', () => { if (job && !job.done && !job.offline && job.frames > 2 && !E.playing && !E.finishedFlag) X.finish(); }); // paused by hand: keep the part so far
 
   // progress bar shown while exporting
   const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
@@ -258,11 +414,14 @@
       const h = UI.h, txt = h('span', { class: 'xbar-text', role: 'status' });
       const total = (E.qToSec(E.get().endQ) - E.qToSec(E.startQ())) / E.opts.speed;
       bar.el = h('div', { class: 'export-bar', role: 'group', 'aria-label': 'Video export' }, h('span', { class: 'xbar-dot', 'aria-hidden': 'true' }), txt,
-        h('span', { class: 'xbar-note', text: 'Keep this window open and visible.' }), h('span', { class: 'grow' }),
+        h('span', { class: 'xbar-note', text: job && job.offline ? 'Made from the notes, faster than playing them.' : 'Keep this window open and visible.' }), h('span', { class: 'grow' }),
         h('button', { class: 'ds-btn ds-btn--outline', type: 'button', onclick: () => X.finish() }, 'Stop and save'),
         h('button', { class: 'ds-btn ds-btn--ghost', type: 'button', onclick: () => X.cancel() }, 'Cancel'));
-      const tick = () => { if (job) txt.textContent = 'Exporting video  ' + fmt((performance.now() - job.t0) / 1000) + ' / ' + fmt(total); };
-      tick(); bar.timer = setInterval(tick, 500);
+      const tick = () => {
+        if (!job) return;
+        txt.textContent = job.offline ? 'Exporting video  ' + Math.round((job.progress || 0) * 100) + ' %  ' + (job.stage || '') : 'Exporting video  ' + fmt((performance.now() - job.t0) / 1000) + ' / ' + fmt(total);
+      };
+      tick(); bar.timer = setInterval(tick, 250);
       document.getElementById('app').appendChild(bar.el);
     },
     hide() { clearInterval(bar.timer); if (bar.el) bar.el.remove(); bar.el = null; },

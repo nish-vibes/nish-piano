@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld('wapiroDesktop', {
     stop: () => ipcRenderer.invoke('naudio:stop'),
     send: (line) => ipcRenderer.send('naudio:send', String(line)),
     onEvent: (fn) => ipcRenderer.on('naudio:event', (_e, m) => fn(m)),
+    /** Play a whole piece offline into WAV bytes (video export, with the sampled piano). */
+    render: (text) => ipcRenderer.invoke('naudio:render', String(text)),
   },
   /** Windows audio effects ("Audio enhancements") for all active output devices. */
   audioEffects: {

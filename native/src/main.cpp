@@ -22,6 +22,7 @@
 //   midisound 0|1                 0: keys from the MIDI keyboard make no sound here (piano with own speakers)
 //   samples default|<folder>      load a sample bank (default: ..\sounds\upright-kw next to this program)
 //   pianosamples 0|1              piano plays the samples (1) or the synth (0, no recorded silence at all)
+//   render <id> <file>            play a whole piece offline into a WAV file (for video export); see render.h
 //   ping <n>                      replies {"ev":"pong","n":n}
 //   quit
 // Events (stdout): JSON objects, one per line, e.g. {"ev":"note","midi":60,"vel":90,"down":1,"ago":0.4}
@@ -46,6 +47,7 @@
 #include "RtAudio.h"
 #include "asio.h"
 #include "synth.h"
+#include "render.h"
 
 using namespace nish;
 
@@ -316,6 +318,19 @@ static void command(const std::string& line) {
     std::string rest; std::getline(in, rest);
     size_t a = rest.find_first_not_of(' '); rest = a == std::string::npos ? "" : rest.substr(a);
     loadSamples(rest);
+  } else if (c == "render") {
+    std::string id, rest; in >> id; std::getline(in, rest);
+    size_t a = rest.find_first_not_of(' '); rest = a == std::string::npos ? "" : rest.substr(a);
+    // on its own thread: live keys and commands carry on while the piece renders
+    RenderSettings rs{ synth.instrument.load(), synth.layer.load(), synth.useSamples.load(), synth.bank.load() };
+    std::thread([id, rest, rs] {
+      const double t0 = qpcMs();
+      RenderResult r = renderFile(rest, rs);
+      char buf[300];
+      if (r.ok) snprintf(buf, sizeof buf, "{\"ev\":\"rendered\",\"id\":\"%s\",\"ok\":true,\"seconds\":%.2f,\"notes\":%d,\"ms\":%.0f}", esc(id).c_str(), r.seconds, r.notes, qpcMs() - t0);
+      else snprintf(buf, sizeof buf, "{\"ev\":\"rendered\",\"id\":\"%s\",\"ok\":false,\"message\":\"%s\"}", esc(id).c_str(), esc(r.error).c_str());
+      emit(buf);
+    }).detach();
   } else if (c == "pianosamples") {
     int on = 1; in >> on; synth.useSamples = on != 0;
   } else if (c == "ping") {

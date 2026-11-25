@@ -11,6 +11,9 @@
   const grads = new Map();
   WF.themeChanged = function () { for (const k in cache) delete cache[k]; pal = null; layers = null; sprites = {}; grads.clear(); WF.dirty = true; };
 
+  // The effects' clock: the wall clock, or the video's own clock while an export is drawn frame by frame
+  WF.clock = null;
+  WF.now = () => (WF.clock != null ? WF.clock : performance.now());
   WF.freeTouched = false;
   E.on('key', (e) => { if (e && e.down && WF.free && !WF.freeTouched) { WF.freeTouched = true; WF.dirty = true; } });
   WF.mount = function (canvas) { WF.canvas = canvas; WF.ctx = canvas.getContext('2d'); U.watchPixels(canvas, () => { const p = U.pixelSize(canvas, canvas.getBoundingClientRect()); if (p.w !== canvas.width || p.h !== canvas.height) WF.resize(); }); };
@@ -105,7 +108,7 @@
   const hidden = () => (W.storage.viewOverride || W.storage.settings.view) === 'sheet'; // nothing is drawn then, so nothing is queued
   E.on('hit', (e) => {
     if (hidden() || !G.inRange(e.midi)) return;
-    const t = performance.now();
+    const t = WF.now();
     FX.bursts.push({ midi: e.midi, hand: e.hand, t0: t });
     if (!still()) {
       FX.ignite.set(e.i, t); dust(e.midi, e.hand, 14, 1);
@@ -117,7 +120,7 @@
   });
   E.on('wrong', (e) => {
     if (hidden() || !G.inRange(e.midi)) return;
-    const t = performance.now();
+    const t = WF.now();
     // Calm the beam when wrong keys come faster than three a second, so a run of them never strobes (WCAG 2.3.1).
     FX.beamTimes = FX.beamTimes.filter((x) => t - x < 1000);
     const soft = FX.beamTimes.length >= 3; FX.beamTimes.push(t);
@@ -131,13 +134,13 @@
     }
     WF.dirty = true;
   });
-  E.on('miss', (e) => { if (!hidden() && !still()) { FX.shakes.set(e.i, performance.now()); WF.dirty = true; } });
+  E.on('miss', (e) => { if (!hidden() && !still()) { FX.shakes.set(e.i, WF.now()); WF.dirty = true; } });
   /** Free playing (no scored run): the hand is taken from the pitch, split at middle C (c1). */
   WF.SPLIT = 60;
   WF.handOf = (midi) => (midi < WF.SPLIT ? 'L' : 'R');
   E.on('free', (e) => {
     if (hidden() || !G.inRange(e.midi)) return;
-    const t = performance.now(), hand = WF.handOf(e.midi);
+    const t = WF.now(), hand = WF.handOf(e.midi);
     if (e.down) {
       FX.rays.set(e.midi, { hand, t0: t, t1: null });
       if (WF.free) FX.trails.push({ midi: e.midi, hand, t0: t, t1: null });
@@ -371,7 +374,7 @@
   WF.draw = function (q) {
     const ctx = WF.ctx, w = WF.w, h = WF.h;
     if (!ctx || !w || !h) return;
-    const song = E.song, P = palette(), now = performance.now(), calm = still();
+    const song = E.song, P = palette(), now = WF.now(), calm = still();
     const dt = Math.min(0.05, Math.max(0, (now - (FX.last || now)) / 1000)); FX.last = now;
     if (!layers) buildLayers();
     shared(ctx, P);
