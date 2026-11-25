@@ -154,6 +154,8 @@ jobs:
         with:
           name: NiSH-MarkSteady-Piano-Windows
           path: NiSH-MarkSteady-Piano-Windows.zip
+          # test builds are about 400 MB each: keep them a week so they never fill the storage quota
+          retention-days: 7
 
       - name: Attach to the release (tags only)
         if: startsWith(github.ref, 'refs/tags/')
