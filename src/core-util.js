@@ -5,7 +5,7 @@
   const U = (W.util = {});
   const EPS = 1e-6;
   U.EPS = EPS;
-  U.VERSION = '2.0.0';
+  U.VERSION = '2.1.0';
 
   const STEP_SEMI = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
   const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
