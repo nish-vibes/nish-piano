@@ -150,11 +150,15 @@ jobs:
           Compress-Archive -Path "$pkg/*" -DestinationPath NiSH-MarkSteady-Piano-Windows.zip -Force
           "{0:N0} MB zip" -f ((Get-Item NiSH-MarkSteady-Piano-Windows.zip).Length / 1MB)
 
-      - uses: actions/upload-artifact@v4
+      - name: Keep the installer for testing
+        uses: actions/upload-artifact@v4
+        # only the installer (about 140 MB): the full zip would nearly fill a free private-repo quota.
+        # A full quota must never stop the release below, so this step may fail without failing the build.
+        continue-on-error: true
         with:
-          name: NiSH-MarkSteady-Piano-Windows
-          path: NiSH-MarkSteady-Piano-Windows.zip
-          # test builds are about 400 MB each: keep them a week so they never fill the storage quota
+          name: NiSH-MarkSteady-Piano-Installer
+          path: desktop/release/NiSH-MarkSteady-Piano-*-x64.exe
+          if-no-files-found: error
           retention-days: 7
 
       - name: Attach to the release (tags only)
